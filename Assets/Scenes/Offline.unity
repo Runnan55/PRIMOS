@@ -943,9 +943,9 @@ MonoBehaviour:
   evaluationMethod: 0
   evaluationInterval: 3
   timeInterpolationGui: 0
-  showRoomGUI: 1
+  showRoomGUI: 0
   minPlayers: 1
-  roomPlayerPrefab: {fileID: 6683374852628142030, guid: 25e0694031f059140851b744d103ac93, type: 3}
+  roomPlayerPrefab: {fileID: 696445573608532950, guid: 25e0694031f059140851b744d103ac93, type: 3}
   RoomScene: Assets/Scenes/RoomScene.unity
   GameplayScene: Assets/Scenes/GameScene.unity
   _allPlayersReady: 0

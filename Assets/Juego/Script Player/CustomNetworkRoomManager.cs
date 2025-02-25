@@ -18,6 +18,8 @@ public class CustomNetworkRoomManager : NetworkRoomManager
         Debug.Log("Entro un cliente");
     }
 
+
+
     /*public override void OnServerAddPlayer(NetworkConnectionToClient conn)
     {
         base.OnServerAddPlayer(conn);
