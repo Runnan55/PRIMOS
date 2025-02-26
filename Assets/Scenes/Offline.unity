@@ -828,9 +828,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 526694691}
-  - component: {fileID: 526694694}
   - component: {fileID: 526694693}
   - component: {fileID: 526694692}
+  - component: {fileID: 526694694}
   m_Layer: 0
   m_Name: RoomManager
   m_TagString: Untagged
@@ -892,21 +892,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 526694688}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6442dc8070ceb41f094e44de0bf87274, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  offsetX: 0
-  offsetY: 0
---- !u!114 &526694694
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 526694688}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a0bc3c944e1517042a336244cf0e8cc6, type: 3}
+  m_Script: {fileID: 11500000, guid: 615e6c6589cf9e54cad646b5a11e0529, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   dontDestroyOnLoad: 1
@@ -943,13 +929,27 @@ MonoBehaviour:
   evaluationMethod: 0
   evaluationInterval: 3
   timeInterpolationGui: 0
-  showRoomGUI: 0
+  showRoomGUI: 1
   minPlayers: 1
-  roomPlayerPrefab: {fileID: 696445573608532950, guid: 25e0694031f059140851b744d103ac93, type: 3}
+  roomPlayerPrefab: {fileID: 2300618211836333557, guid: 25e0694031f059140851b744d103ac93, type: 3}
   RoomScene: Assets/Scenes/RoomScene.unity
   GameplayScene: Assets/Scenes/GameScene.unity
   _allPlayersReady: 0
   clientIndex: 0
+--- !u!114 &526694694
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 526694688}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6442dc8070ceb41f094e44de0bf87274, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  offsetX: 0
+  offsetY: 0
 --- !u!1 &562548967
 GameObject:
   m_ObjectHideFlags: 0

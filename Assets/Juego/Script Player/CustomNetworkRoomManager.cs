@@ -3,14 +3,14 @@ using UnityEngine;
 
 public class CustomNetworkRoomManager : NetworkRoomManager
 { 
-    /* public override void Awake()
+    public override void Awake()
     {
         if (!NetworkServer.active)
         {
             StartServer();
             Debug.Log("Servidor iniciado correctamente ;)");
         }
-    } */
+    } 
 
     public override void OnClientConnect()
     {

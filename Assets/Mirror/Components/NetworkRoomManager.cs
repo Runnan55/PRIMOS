@@ -18,6 +18,16 @@ namespace Mirror
     [HelpURL("https://mirror-networking.gitbook.io/docs/components/network-room-manager")]
     public class NetworkRoomManager : NetworkManager
     {
+        //Linea de Alejandro
+        /* public override void Awake()
+        {
+            if (!NetworkServer.active)
+            {
+                StartServer();
+                Debug.Log("Servidor iniciado correctamente ;)");
+            }
+        } */
+
         public struct PendingPlayer
         {
             public NetworkConnectionToClient conn;
