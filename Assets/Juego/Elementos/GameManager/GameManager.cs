@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using Mirror;
 using UnityEngine;
@@ -10,12 +11,18 @@ public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance { get; private set; }
     [SerializeField] private List<PlayerController> players = new List<PlayerController>();
-    [SerializeField] private float roundDuration = 10f;
+
+    [SerializeField] private float roundDuration = 10f; // Tiempo para elegir acción
+    [SerializeField] private float inactivityTime = 3f; // Tiempo para mostrar resultados
+
+    [SerializeField] private Button btnDisparar, btnCubrirse, btnRecargar; // Botones UI
+
     private Dictionary<PlayerController, PlayerAction> playerActions = new Dictionary<PlayerController, PlayerAction>();
+    private PlayerController localPlayer; // Referencia al jugador local
 
     private void Awake()
     {
-        if(Instance != null && Instance != this)
+        if (Instance != null && Instance != this)
         {
             Destroy(this);
         }
@@ -25,80 +32,104 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    // Registrar a los jugadores
-    [Server]
-    public void RegisterPlayer(PlayerController player)
-    {   
-        if(!players.Contains(player))
+    private void Start()
+    {
+        btnDisparar.onClick.AddListener(() => SelectAction(ActionType.Shoot));
+        btnCubrirse.onClick.AddListener(() => SelectAction(ActionType.Cover));
+        btnRecargar.onClick.AddListener(() => SelectAction(ActionType.Reload));
+        if (isServer)
         {
-            players.Add(player);
+            StartCoroutine(RoundCycle()); // Solo el servidor inicia el ciclo de rondas
         }
 
-        if(players.Count <= 0)
-        {
-            Debug.Log("Todos perdieron");
-        }
+    }
 
-        if(players.Count == 1)
-        {
-            DeclareWinner();
-            return;
-        }
+    public void SetLocalPlayer(PlayerController player)
+    {
+        localPlayer = player;
+    }
 
-        if(players.Count >= 2)
+    public void SelectAction(ActionType actionType)
+    {
+        if (localPlayer == null || !localPlayer.isAlive) return;
+
+        switch (actionType)
         {
-            StartCoroutine(RoundCycle());
+            case ActionType.Shoot:
+                Debug.Log("Selecciona un objetivo para disparar.");
+                localPlayer.selectedAction = ActionType.Shoot;
+                break;
+            case ActionType.Reload:
+                SubmitAction(localPlayer, new PlayerAction(ActionType.Reload));
+                break;
+            case ActionType.Cover:
+                SubmitAction(localPlayer, new PlayerAction(ActionType.Cover));
+                break;
         }
     }
 
-    //
-    [Server]
-    IEnumerator RoundCycle()
+    public void SelectTarget(PlayerController target)
     {
-        while(players.Count(p => p.isAlive) > 1)
+        if (localPlayer == null || !localPlayer.isAlive) return;
+
+        if (localPlayer.selectedAction == ActionType.Shoot && target != localPlayer && target.isAlive)
         {
-            playerActions.Clear();
-            RpcStartRound();
-
-            yield return new WaitForSeconds(roundDuration);
-
-            ProcessActions();
-
-            yield return new WaitForSeconds(1f);
+            SubmitAction(localPlayer, new PlayerAction(ActionType.Shoot, target));
+            localPlayer.selectedAction = ActionType.None;
         }
-
-        DeclareWinner();
     }
 
     [Server]
     public void SubmitAction(PlayerController player, PlayerAction action)
     {
-        if(players.Contains(player) && player.isAlive)
+        if (!playerActions.ContainsKey(player) && players.Contains(player) && player.isAlive)
         {
             playerActions[player] = action;
+            Debug.Log($"{player.gameObject.name} seleccionó: {action.type}");
         }
+    }
+
+    [Server]
+    IEnumerator RoundCycle()
+    {
+        while (players.Count(p => p.isAlive) > 1)
+        {
+            playerActions.Clear();
+            RpcStartRound();
+            for (float t = roundDuration; t > 0; t -= 1f)
+            {
+                Debug.Log($"Tiempo restante de ronda: {t} segundos");
+                yield return new WaitForSeconds(1f);
+            }
+            ProcessActions();
+            for (float t = inactivityTime; t > 0; t -= 1f)
+            {
+                Debug.Log($"Tiempo de inactividad restante: {t} segundos");
+                yield return new WaitForSeconds(1f);
+            }
+        }
+        DeclareWinner();
     }
 
     [Server]
     void ProcessActions()
     {
-        foreach(var entry in playerActions)
+        // 1. Procesar coberturas primero
+        foreach (var entry in playerActions.Where(a => a.Value.type == ActionType.Cover))
         {
-            PlayerController player = entry.Key;
-            PlayerAction action = entry.Value;
+            entry.Key.Cover();
+        }
 
-            switch (action.type)
-            {
-                case ActionType.Shoot:
-                    player.AttemptShoot(action.target);
-                    break;
-                case ActionType.Reload:
-                    player.Reload();
-                    break;
-                case ActionType.Cover:
-                    player.Cover();
-                    break;
-            }
+        // 2. Procesar recargas
+        foreach (var entry in playerActions.Where(a => a.Value.type == ActionType.Reload))
+        {
+            entry.Key.Reload();
+        }
+
+        // 3. Procesar disparos al final (después de coberturas y recargas)
+        foreach (var entry in playerActions.Where(a => a.Value.type == ActionType.Shoot))
+        {
+            entry.Key.AttemptShoot(entry.Value.target);
         }
     }
 
@@ -106,7 +137,7 @@ public class GameManager : NetworkBehaviour
     void DeclareWinner()
     {
         PlayerController winner = players.FirstOrDefault(p => p.isAlive);
-        if(winner != null)
+        if (winner != null)
         {
             winner.RpcDeclareVictory();
         }
@@ -115,12 +146,13 @@ public class GameManager : NetworkBehaviour
     [ClientRpc]
     void RpcStartRound()
     {
-        foreach(var player in players)
+        foreach (var player in players)
         {
             player.StartTurn();
         }
     }
 }
+
 
 /*
 void Start()

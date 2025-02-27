@@ -29,11 +29,24 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public int health = 3;
     private bool isCovering = false;
 
+    public ActionType selectedAction = ActionType.None;
+
+    private void Start()
+    {
+        if (isLocalPlayer)
+        {
+            GameManager.Instance.SetLocalPlayer(this);
+        }
+    }
     public void StartTurn()
     {
+        if (!isLocalPlayer) return; // Solo ejecuta esto en el jugador local
         if (!isAlive) return;
-        isCovering = false; //Quitar cobertura al acabar cada turno
+
+        isCovering = false; // Reinicia la cobertura al inicio del turno
+        Debug.Log($"{gameObject.name} ha comenzado su turno.");
     }
+
 
     [Server]
     public void AttemptShoot(PlayerController target)
@@ -42,33 +55,47 @@ public class PlayerController : NetworkBehaviour
 
         ammo--;
         target.TakeDamage();
+        Debug.Log($"{gameObject.name} disparó a {target.gameObject.name}. Balas restantes: {ammo}");
     }
 
     [Server]
     public void Reload()
     {
         ammo++;
+        Debug.Log($"{gameObject.name} recargó. Balas actuales: {ammo}");
     }
 
     [Server]
     public void Cover()
     {
         isCovering = true;
+        Debug.Log($"{gameObject.name} se cubrió.");
     }
 
     [Server]
     public void TakeDamage()
     {
         health--;
-        if(health <= 0)
+        Debug.Log($"{gameObject.name} recibió daño. Vida restante: {health}");
+        if (health <= 0)
         {
             isAlive = false;
+            Debug.Log($"{gameObject.name} ha sido eliminado.");
+        }
+    }
+
+    private void OnMouseDown()
+    {
+        if (isLocalPlayer)
+        {
+            GameManager.Instance.SelectTarget(this);
         }
     }
 
     [ClientRpc]
     public void RpcDeclareVictory()
     {
-        Debug.Log($"{gameObject.name} ha ganado la partida");
+        Debug.Log($"{gameObject.name} ha ganado la partida.");
     }
 }
+
