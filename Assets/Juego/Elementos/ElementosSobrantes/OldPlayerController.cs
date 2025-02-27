@@ -2,7 +2,7 @@ using Mirror;
 using Mirror.Examples.Common.Controllers.Tank;
 using UnityEngine;
 
-public class PlayerController : NetworkBehaviour
+public class OldPlayerController : NetworkBehaviour
 {
     [SerializeField] TextMesh healthText;
     [SerializeField] Renderer renderMaterial;

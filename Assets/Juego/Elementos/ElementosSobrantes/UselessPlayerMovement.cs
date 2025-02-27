@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class Player : MonoBehaviour
+public class UselessPlayerMovement : MonoBehaviour
 {
     public float speed = 5f; // Velocidad de movimiento
     public float jumpForce = 7f; // Fuerza del salto
