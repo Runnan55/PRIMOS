@@ -2,23 +2,21 @@ using System.Collections;
 using System.Collections.Generic;
 using Mirror;
 using UnityEngine;
-using UnityEngine.UI;
-using System.Linq;
-using UnityEngine.InputSystem;
-using System.Collections;
+using TMPro;
 
 public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance { get; private set; }
+
+    [Header("Rondas")]
+    [SerializeField] private float decisionTime = 10f; // Tiempo para elegir acción
+    private float currentDecisionTime;
+    [SerializeField] private float executionTime = 3f; // Tiempo para mostrar resultados
+    [SerializeField] private TMP_Text timerText;
+
+    private bool isDecisionPhase = true;
     [SerializeField] private List<PlayerController> players = new List<PlayerController>();
-
-    [SerializeField] private float roundDuration = 10f; // Tiempo para elegir acción
-    [SerializeField] private float inactivityTime = 3f; // Tiempo para mostrar resultados
-
-    [SerializeField] private Button btnDisparar, btnCubrirse, btnRecargar; // Botones UI
-
-    private Dictionary<PlayerController, PlayerAction> playerActions = new Dictionary<PlayerController, PlayerAction>();
-    private PlayerController localPlayer; // Referencia al jugador local
+    private Dictionary<PlayerController, PlayerAction> actionsQueue = new Dictionary<PlayerController, PlayerAction>();
 
     private void Awake()
     {
@@ -34,9 +32,6 @@ public class GameManager : NetworkBehaviour
 
     private void Start()
     {
-        btnDisparar.onClick.AddListener(() => SelectAction(ActionType.Shoot));
-        btnCubrirse.onClick.AddListener(() => SelectAction(ActionType.Cover));
-        btnRecargar.onClick.AddListener(() => SelectAction(ActionType.Reload));
         if (isServer)
         {
             StartCoroutine(RoundCycle()); // Solo el servidor inicia el ciclo de rondas
@@ -44,196 +39,146 @@ public class GameManager : NetworkBehaviour
 
     }
 
-    public void SetLocalPlayer(PlayerController player)
+    private IEnumerator RoundCycle()
     {
-        localPlayer = player;
-    }
-
-    public void SelectAction(ActionType actionType)
-    {
-        if (localPlayer == null || !localPlayer.isAlive) return;
-
-        switch (actionType)
+        while(true)
         {
-            case ActionType.Shoot:
-                Debug.Log("Selecciona un objetivo para disparar.");
-                localPlayer.selectedAction = ActionType.Shoot;
-                break;
-            case ActionType.Reload:
-                SubmitAction(localPlayer, new PlayerAction(ActionType.Reload));
-                break;
-            case ActionType.Cover:
-                SubmitAction(localPlayer, new PlayerAction(ActionType.Cover));
-                break;
+            yield return StartCoroutine(DecisionPhase());
+            yield return StartCoroutine(ExecutionPhase());
+
+            CheckGameOver();
         }
     }
 
-    public void SelectTarget(PlayerController target)
+    private IEnumerator DecisionPhase()
     {
-        if (localPlayer == null || !localPlayer.isAlive) return;
+        isDecisionPhase = true;
+        actionsQueue.Clear();
 
-        if (localPlayer.selectedAction == ActionType.Shoot && target != localPlayer && target.isAlive)
+        currentDecisionTime = decisionTime; // 🔹 Restaurar el tiempo original
+        SetTimer(currentDecisionTime);
+        timerText.gameObject.SetActive(true);
+
+        Debug.Log("Comienza la fase de decisión. Elige rápido wey");
+
+        while (currentDecisionTime > 0)
         {
-            SubmitAction(localPlayer, new PlayerAction(ActionType.Shoot, target));
-            localPlayer.selectedAction = ActionType.None;
+            UpdateTimerUI();
+            yield return new WaitForSeconds(1f);
+            currentDecisionTime--;
         }
+        UpdateTimerUI();
+        Debug.Log("Finalizó el tiempo de decisión.");
     }
 
-    [Server]
-    public void SubmitAction(PlayerController player, PlayerAction action)
+    private IEnumerator ExecutionPhase()
     {
-        if (!playerActions.ContainsKey(player) && players.Contains(player) && player.isAlive)
-        {
-            playerActions[player] = action;
-            Debug.Log($"{player.gameObject.name} seleccionó: {action.type}");
-        }
-    }
+        isDecisionPhase = false;
 
-    [Server]
-    IEnumerator RoundCycle()
-    {
-        while (players.Count(p => p.isAlive) > 1)
+        timerText.gameObject.SetActive(false);
+        RpcUpdateTimer(0); // 🔹 Ocultar el tiempo en todos los clientes
+
+        //Prioridad a la accion cubrirse
+        foreach (var entry in actionsQueue)
         {
-            playerActions.Clear();
-            RpcStartRound();
-            for (float t = roundDuration; t > 0; t -= 1f)
+            if (entry.Value.type == ActionType.Cover)
+                entry.Key.CmdCover();
+        }
+
+        yield return new WaitForSeconds(0.5f); //Pausa antes del tiroteo
+
+        //Luego aplica "Disparar" y "Recargar"
+        foreach(var entry in actionsQueue)
+        {
+            switch(entry.Value.type)
             {
-                Debug.Log($"Tiempo restante de ronda: {t} segundos");
-                yield return new WaitForSeconds(1f);
-            }
-            ProcessActions();
-            for (float t = inactivityTime; t > 0; t -= 1f)
-            {
-                Debug.Log($"Tiempo de inactividad restante: {t} segundos");
-                yield return new WaitForSeconds(1f);
+                case ActionType.Reload:
+                    entry.Key.ServerReload();
+                    break;
+                case ActionType.Shoot:
+                    entry.Key.ServerAttemptShoot(entry.Value.target);
+                    break;
             }
         }
-        DeclareWinner();
+
+        yield return new WaitForSeconds(executionTime);
+
+        //Hace que los jugadores dejen de cubrirse al finalizar la fase de ejecución ;)
+        Debug.Log(" Reseteando cobertura de todos los jugadores...");
+        ResetAllCovers();
+
+        timerText.gameObject.SetActive(true);
+        RpcUpdateTimer(currentDecisionTime); //Reactivar el timer en los clientes
     }
 
-    [Server]
-    void ProcessActions()
+    private void CheckGameOver()
     {
-        // 1. Procesar coberturas primero
-        foreach (var entry in playerActions.Where(a => a.Value.type == ActionType.Cover))
-        {
-            entry.Key.Cover();
-        }
+        players.RemoveAll(p => !p.isAlive); //Filtramos solo jugadores vivos
 
-        // 2. Procesar recargas
-        foreach (var entry in playerActions.Where(a => a.Value.type == ActionType.Reload))
+        if (players.Count == 1) //Solo queda un jugador vivo
         {
-            entry.Key.Reload();
-        }
-
-        // 3. Procesar disparos al final (después de coberturas y recargas)
-        foreach (var entry in playerActions.Where(a => a.Value.type == ActionType.Shoot))
-        {
-            entry.Key.AttemptShoot(entry.Value.target);
+            Debug.Log($"🎉 ¡{players[0].gameObject.name} ha ganado la partida!");
+            players[0].RpcDeclareVictory();
         }
     }
 
-    [Server]
-    void DeclareWinner()
+    public void RegisterAction(PlayerController player, ActionType actionType, PlayerController target = null)
     {
-        PlayerController winner = players.FirstOrDefault(p => p.isAlive);
-        if (winner != null)
+        if (!isDecisionPhase) return; //Solo se pueden elegir acciones en la fase de decisión
+
+        actionsQueue[player] = new PlayerAction(actionType, target);
+        Debug.Log($"{player.gameObject.name} ha elegido {actionType}");
+    }
+    public void RegisterPlayer(PlayerController player)
+    {
+        if (!players.Contains(player))
+            players.Add(player);
+    }
+
+    [Server]
+    private void ResetAllCovers()
+    {
+        Debug.Log("[SERVER] Reseteando cobertura de todos los jugadores...");
+
+        foreach (var player in players)
         {
-            winner.RpcDeclareVictory();
+            if (player != null)
+            {
+                Debug.Log($"[SERVER] Resetting cover for {player.gameObject.name}");
+                player.RpcCoveringOff();
+            }
         }
+    }
+
+    [Server]
+    public void ServerRegisterShoot(PlayerController shooter, PlayerController target)
+    {
+        if (shooter == null || target == null) return;
+
+        Debug.Log($"{shooter.gameObject.name} quiere disparar a {target.gameObject.name}");
+
+        // 🔹 En lugar de disparar de inmediato, solo guardamos la acción en la cola
+        RegisterAction(shooter, ActionType.Shoot, target);
+    }
+
+    private void UpdateTimerUI()
+    {
+        if (timerText != null)
+            timerText.text = $"Tiempo: {currentDecisionTime}";
+
+        RpcUpdateTimer(currentDecisionTime); // 🔹 Enviar a los clientes
     }
 
     [ClientRpc]
-    void RpcStartRound()
+    private void RpcUpdateTimer(float time)
     {
-        foreach (var player in players)
-        {
-            player.StartTurn();
-        }
-    }
-}
-
-
-/*
-void Start()
-{
-    AsignarJugadores();
-    IniciarTurno();
-}
-
-void AsignarJugadores()
-{
-    JugadorController[] jugadoresEncontrados = FindObjectsOfType<JugadorController>();
-    jugadores.Clear();
-
-    int idAsignado = 1;
-    foreach (var jugador in jugadoresEncontrados)
-    {
-        if (idAsignado <= 6)
-        {
-            jugador.id = idAsignado;
-            jugadores.Add(jugador);
-            idAsignado++;
-
-            // Asignar evento de selección a cada jugador
-            Button botonSeleccion = jugador.GetComponentInChildren<Button>();
-            if (botonSeleccion != null)
-            {
-                int idObjetivo = jugador.id; // Evita problemas de referencias
-                botonSeleccion.onClick.AddListener(() => SeleccionarObjetivo(idObjetivo));
-            }
-        }
-    }
-}
-
-public void SeleccionarObjetivo(int idObjetivo)
-{
-    JugadorController jugadorSeleccionado = jugadores.Find(j => j.id == idObjetivo);
-    if (jugadorSeleccionado != null)
-    {
-        foreach (var jugador in jugadores)
-        {
-            if (jugador.id != idObjetivo) 
-            {
-                jugador.SeleccionarObjetivo(jugadorSeleccionado);
-            }
-        }
-    }
-}
-
-public void IniciarTurno()
-{
-    turnoEnCurso = true;
-    turnoManager.IniciarTurno();
-}
-
-void ResolverTurno()
-{
-    foreach (var jugador in jugadores)
-    {
-        if (jugador.accionSeleccionada == "Disparar" && jugador.objetivo != null)
-        {
-            if (!jugador.objetivo.cubierto)
-            {
-                jugador.objetivo.vidas--;
-                Debug.Log($"Jugador {jugador.id} disparó a {jugador.objetivo.id}. Vidas restantes: {jugador.objetivo.vidas}");
-            }
-            else
-            {
-                Debug.Log($"Jugador {jugador.id} intentó disparar a {jugador.objetivo.id}, pero estaba cubierto.");
-            }
-        }
+        if (timerText != null)
+            timerText.text = $"Tiempo: {time}";
     }
 
-    jugadores.RemoveAll(j => j.vidas <= 0);
-    if (jugadores.Count == 1) FinDelJuego(jugadores[0]);
-
-    foreach (var jugador in jugadores) jugador.cubierto = false;
+    private void SetTimer(float time)
+    {
+        decisionTime = time;
+        UpdateTimerUI();
+    }
 }
-
-void FinDelJuego(JugadorController ganador)
-{
-    Debug.Log("¡Ganador: " + ganador.id + "!");
-}
-*/
-
