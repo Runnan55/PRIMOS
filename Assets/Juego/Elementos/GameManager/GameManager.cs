@@ -9,8 +9,8 @@ public class GameManager : NetworkBehaviour
     public static GameManager Instance { get; private set; }
 
     [Header("Rondas")]
+    [SyncVar(hook = nameof(OnTimerChanged))]private float currentDecisionTime;
     [SerializeField] private float decisionTime = 10f; // Tiempo para elegir acción
-    private float currentDecisionTime;
     [SerializeField] private float executionTime = 3f; // Tiempo para mostrar resultados
     [SerializeField] private TMP_Text timerText;
 
@@ -45,8 +45,7 @@ public class GameManager : NetworkBehaviour
         {
             yield return StartCoroutine(DecisionPhase());
             yield return StartCoroutine(ExecutionPhase());
-
-            CheckGameOver();
+            ResetAllCovers(); //Elimina coberturas
         }
     }
 
@@ -56,33 +55,29 @@ public class GameManager : NetworkBehaviour
         actionsQueue.Clear();
 
         currentDecisionTime = decisionTime; // 🔹 Restaurar el tiempo original
-        SetTimer(currentDecisionTime);
         timerText.gameObject.SetActive(true);
 
         Debug.Log("Comienza la fase de decisión. Elige rápido wey");
 
         while (currentDecisionTime > 0)
         {
-            UpdateTimerUI();
             yield return new WaitForSeconds(1f);
-            currentDecisionTime--;
+            currentDecisionTime = Mathf.Max(0, currentDecisionTime - 1);
         }
-        UpdateTimerUI();
         Debug.Log("Finalizó el tiempo de decisión.");
     }
 
     private IEnumerator ExecutionPhase()
     {
         isDecisionPhase = false;
-
-        timerText.gameObject.SetActive(false);
-        RpcUpdateTimer(0); // 🔹 Ocultar el tiempo en todos los clientes
+        currentDecisionTime = 0;
 
         //Prioridad a la accion cubrirse
         foreach (var entry in actionsQueue)
         {
             if (entry.Value.type == ActionType.Cover)
-                entry.Key.CmdCover();
+                entry.Key.isCovering = true; // Ahora el servidor lo maneja directamente
+                entry.Key.RpcUpdateCover(true);
         }
 
         yield return new WaitForSeconds(0.5f); //Pausa antes del tiroteo
@@ -102,25 +97,25 @@ public class GameManager : NetworkBehaviour
         }
 
         yield return new WaitForSeconds(executionTime);
-
-        //Hace que los jugadores dejen de cubrirse al finalizar la fase de ejecución ;)
-        Debug.Log(" Reseteando cobertura de todos los jugadores...");
-        ResetAllCovers();
-
-        timerText.gameObject.SetActive(true);
-        RpcUpdateTimer(currentDecisionTime); //Reactivar el timer en los clientes
+        currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
     }
 
-    private void CheckGameOver()
+    #region Game Management
+
+   /* private void CheckGameOver()
     {
         players.RemoveAll(p => !p.isAlive); //Filtramos solo jugadores vivos
 
         if (players.Count == 1) //Solo queda un jugador vivo
         {
             Debug.Log($"🎉 ¡{players[0].gameObject.name} ha ganado la partida!");
-            players[0].RpcDeclareVictory();
+            RpcShowVictory(players[0].netId);
         }
-    }
+        else if ( players.Count <= 0)
+        {
+            Debug.Log("Todos han muerto");
+        }
+    }*/
 
     public void RegisterAction(PlayerController player, ActionType actionType, PlayerController target = null)
     {
@@ -129,23 +124,42 @@ public class GameManager : NetworkBehaviour
         actionsQueue[player] = new PlayerAction(actionType, target);
         Debug.Log($"{player.gameObject.name} ha elegido {actionType}");
     }
+
     public void RegisterPlayer(PlayerController player)
     {
         if (!players.Contains(player))
             players.Add(player);
     }
 
+    #endregion
+
+    #region SERVER
+    [Server]
+    public void PlayerDied(PlayerController deadPlayer)
+    {
+        if (!isServer) return;
+
+        players.Remove(deadPlayer);
+
+        if (players.Count == 1) // Si solo queda un jugador vivo, es el ganador
+        {
+            players[0].RpcOnVictory();
+        }
+    }
+
+
     [Server]
     private void ResetAllCovers()
     {
-        Debug.Log("[SERVER] Reseteando cobertura de todos los jugadores...");
+        // Buscar todos los PlayerController en la escena
+        PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
 
-        foreach (var player in players)
+        foreach (var player in allPlayers)
         {
             if (player != null)
             {
-                Debug.Log($"[SERVER] Resetting cover for {player.gameObject.name}");
-                player.RpcCoveringOff();
+                player.isCovering = false;
+                player.RpcUpdateCover(false);
             }
         }
     }
@@ -155,30 +169,67 @@ public class GameManager : NetworkBehaviour
     {
         if (shooter == null || target == null) return;
 
-        Debug.Log($"{shooter.gameObject.name} quiere disparar a {target.gameObject.name}");
-
-        // 🔹 En lugar de disparar de inmediato, solo guardamos la acción en la cola
+        //En lugar de disparar de inmediato, solo guardamos la acción en la cola
         RegisterAction(shooter, ActionType.Shoot, target);
     }
 
-    private void UpdateTimerUI()
-    {
-        if (timerText != null)
-            timerText.text = $"Tiempo: {currentDecisionTime}";
+    #endregion
 
-        RpcUpdateTimer(currentDecisionTime); // 🔹 Enviar a los clientes
+    #region Victoria/Derrota
+   /* [Server]
+    public void PlayerDied(PlayerController player)
+    {
+        if (player == null) return;
+
+        Debug.Log($"{player.gameObject.name} ha muerto.");
+        RpcShowDefeat(player.netId);
+    }
+
+    [Server]
+    public void PlayerWon(PlayerController player)
+    {
+        if (player == null) return;
+
+        Debug.Log($"🎉 {player.gameObject.name} ha ganado.");
+        RpcShowVictory(player.netId);
+    }*/
+/*
+    [ClientRpc]
+    void RpcShowVictory(uint playerId)
+    {
+        foreach (var player in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        {
+            if (player.netId == playerId && player.isLocalPlayer)
+            {
+                player.ShowVictoryUI();
+            }
+        }
     }
 
     [ClientRpc]
-    private void RpcUpdateTimer(float time)
+    void RpcShowDefeat(uint playerId)
+    {
+        foreach (var player in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        {
+            if (player.netId == playerId && player.isLocalPlayer)
+            {
+                player.ShowDefeatUI();
+            }
+        }
+    }
+    */
+    #endregion
+
+    #region UI HOOKS
+
+    private void OnTimerChanged(float oldTime, float newTime)
     {
         if (timerText != null)
-            timerText.text = $"Tiempo: {time}";
+        {
+            timerText.text = $"Tiempo: {newTime}";
+            timerText.gameObject.SetActive(newTime > 0);  // 🔹 Se oculta automáticamente cuando es 0
+        }
     }
 
-    private void SetTimer(float time)
-    {
-        decisionTime = time;
-        UpdateTimerUI();
-    }
+    #endregion
 }

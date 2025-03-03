@@ -25,8 +25,7 @@ public class PlayerAction
 
 public class PlayerController : NetworkBehaviour
 {
-    [SyncVar] public bool isAlive = true;
-
+    [SyncVar(hook = nameof(OnAliveChanged))] public bool isAlive = true;
     [SyncVar(hook = nameof(OnAmmoChanged))] public int ammo = 3;
     [SyncVar(hook = nameof(OnHealthChanged))] public int health = 3;
     [SyncVar] public bool isCovering = false;
@@ -55,8 +54,12 @@ public class PlayerController : NetworkBehaviour
     {
         if (isLocalPlayer)
         {
-            if(playerCanvas)
+            deathCanvas.SetActive(false);
+            victoryCanvas.SetActive(false);
+
+            if (playerCanvas)
                 playerCanvas.SetActive(true);
+            
 
             if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
             if (reloadButton) reloadButton.onClick.AddListener(() => CmdRegisterAction(ActionType.Reload, null));
@@ -87,6 +90,74 @@ public class PlayerController : NetworkBehaviour
         OnAmmoChanged(ammo, ammo);
     }
 
+    public override void OnStartServer()
+    {
+        FindFirstObjectByType<GameManager>()?.RegisterPlayer(this);
+    }
+
+
+    private void Update()
+    {
+        if (!isLocalPlayer) return;
+
+        //Mover mirilla con mouse
+        if (isAiming && crosshairInstance)
+        {
+            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            mousePosition.z = 0;
+            crosshairInstance.transform.position = mousePosition;
+        }
+
+        //Detectar clics para seleccionar enemigos o cancelar apuntado
+        if (Input.GetMouseButtonDown(0))
+        {
+            if (!isAiming)
+            {
+                return; //Evita disparar si no se está apuntando
+            }
+
+            RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
+
+            if (hit.collider != null)
+            {
+                PlayerController clickedPlayer = hit.collider.GetComponent<PlayerController>();
+
+                if (clickedPlayer != null && clickedPlayer != this)
+                {
+                    Debug.Log($"Objetivo seleccionado: {clickedPlayer.gameObject.name}");
+                    CmdRegisterAction(ActionType.Shoot, clickedPlayer);
+                    Destroy(crosshairInstance);
+                    isAiming = false;
+                }
+                else
+                {
+                    Debug.Log("Clic en objeto no válido, Apuntado cancelado");
+                    Destroy(crosshairInstance);
+                    isAiming = false;
+                }
+            }
+            else
+            {
+                Debug.Log("Clic en ningún objeto, cancelado por chistoso ;)");
+                Destroy(crosshairInstance);
+                isAiming = false;
+            }
+        }
+    }
+
+    #region UI HOOKS
+
+    private void OnAliveChanged(bool oldValue, bool newValue)
+    {
+        if (!newValue) //Sí estás muerto..
+        {
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.PlayerDied(this);
+            }
+        }
+    }
+
     // Hook para actualizar la UI de vida
     private void OnHealthChanged(int oldHealth, int newHealth)
     {
@@ -113,9 +184,13 @@ public class PlayerController : NetworkBehaviour
             ammoText.text = $"Balas: {ammo}";
     }
 
+    #endregion
+
+    #region CLIENT
     private void OnShootButton()
     {
         if (!isLocalPlayer) return;
+        if (isAiming) return;
 
         isAiming = true;
         Debug.Log("Modo de apuntado activado");
@@ -126,56 +201,99 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-    private void Update()
+    private void OnCoverButton()
     {
         if(!isLocalPlayer) return;
-
-        //Mover mirilla con mouse
-        if(isAiming && crosshairInstance)
+        CmdRegisterAction(ActionType.Cover, null);
+    }
+    // 🔹 Mostrar pantalla de derrota (solo en el cliente del jugador muerto)
+    [ClientRpc]
+    public void RpcShowDefeat()
+    {
+        if (isLocalPlayer && deathCanvas != null)
         {
-            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            mousePosition.z = 0;
-            crosshairInstance.transform.position = mousePosition;
+            Debug.Log("Mostrando pantalla de derrota.");
+            deathCanvas.SetActive(true);
         }
+    }
 
-        //Detectar clics para seleccionar enemigos o cancelar apuntado
-        if(Input.GetMouseButtonDown(0))
+    // 🔹 Mostrar pantalla de victoria (solo en el cliente del ganador)
+    [ClientRpc]
+    public void RpcShowVictory()
+    {
+        if (isLocalPlayer && victoryCanvas != null)
         {
-            RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);
-
-            if(hit.collider != null)
-            {
-                PlayerController clickedPlayer = hit.collider.GetComponent<PlayerController>();
-
-                if(clickedPlayer != null && clickedPlayer != this)
-                {
-                    Debug.Log($"Objetivo seleccionado: {clickedPlayer.gameObject.name}");
-                    CmdRegisterAction(ActionType.Shoot, clickedPlayer);
-                    Destroy(crosshairInstance);
-                    isAiming = false;
-                }
-                else
-                {
-                    Debug.Log("Clic en objeto no válido, Apuntado cancelado");
-                    Destroy(crosshairInstance);
-                    isAiming = false;
-                }
-            }
-            else
-            {
-                Debug.Log("Clic en ningún objeto, cancelado por chistoso ;)");
-                Destroy(crosshairInstance);
-                isAiming = false;
-            }
+            Debug.Log("Mostrando pantalla de victoria.");
+            victoryCanvas.SetActive(true);
         }
     }
 
     [ClientRpc]
-    public void RpcCoveringOff()
+    public void RpcUpdateCover(bool coverState)
     {
-        isCovering = false;
+        Debug.Log($"[CLIENT] Recibido RpcUpdateCover({coverState}) en {gameObject.name}");
+        isCovering = coverState;
+        Debug.Log($"[CLIENT] {gameObject.name} -> isCovering actualizado a {isCovering}");
     }
 
+    #region UI Handling
+
+    [ClientRpc]
+    void RpcOnDeath()
+    {
+        if (isLocalPlayer)
+        {
+            deathCanvas.SetActive(true);
+            DisableButtons();
+        }
+        
+    }
+
+    [ClientRpc]
+    public void RpcOnVictory()
+    {
+        if (isLocalPlayer)
+        {
+            victoryCanvas.SetActive(true);
+            DisableButtons();
+        }
+    }/*
+    public void ShowVictoryUI()
+    {
+        if (victoryCanvas != null)
+        {
+            victoryCanvas.SetActive(true);
+        }
+        DisableButtons();
+    }
+
+    public void ShowDefeatUI()
+    {
+        if (deathCanvas != null)
+        {
+            deathCanvas.SetActive(true);
+        }
+        DisableButtons();
+    }*/
+
+    private void DisableButtons()
+    {
+        shootButton.interactable = false;
+        reloadButton.interactable = false;
+        coverButton.interactable = false;
+    }
+
+    #endregion
+/*
+    [Command]
+    public void CmdNotifyVictory()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.PlayerWon(this);
+        }
+    }
+*/
     [Command]
     public void CmdRegisterAction(ActionType actionType, PlayerController target)
     {
@@ -184,12 +302,9 @@ public class PlayerController : NetworkBehaviour
         GameManager.Instance.RegisterAction(this, actionType, target);
     }
 
-    [Command]
-    public void CmdCover()
-    {
-        isCovering = true;
-        Debug.Log($"{gameObject.name} se cubrió.");
-    }
+    #endregion
+
+    #region SERVER
 
     [Server]
     public void ServerAttemptShoot(PlayerController target)
@@ -200,13 +315,13 @@ public class PlayerController : NetworkBehaviour
 
         if (!target.isAlive)
         {
-            Debug.Log($"{gameObject.name} intentó disparar a {target.gameObject.name}, pero ya estaba muerto.");
+            Debug.Log($"{gameObject.name} le disparó al cadaver de {target.gameObject.name}.");
             return;
         }
 
         if (target.isCovering)
         {
-            Debug.Log($"[SERVER] {target.gameObject.name} aún está cubierto. Disparo bloqueado..");
+            Debug.Log($"[SERVER] {target.gameObject.name} está cubierto. Disparo bloqueado..");
             return;
         }
 
@@ -226,6 +341,12 @@ public class PlayerController : NetworkBehaviour
     {
         if (!isAlive) return;
 
+        if (isCovering)
+        {
+            Debug.Log($"{gameObject.name} bloqueó el daño porque está cubierto.");
+            return; // No recibe daño
+        }
+
         health--;
         Debug.Log($"{gameObject.name} recibió daño. Vida restante: {health}");
 
@@ -233,37 +354,19 @@ public class PlayerController : NetworkBehaviour
         {
             isAlive = false;
             Debug.Log($"{gameObject.name} ha sido eliminado.");
-            RpcHandleDeath();
+
+            RpcOnDeath(); // Notificar a todos los clientes que este jugador murió
+            FindFirstObjectByType<GameManager>()?.PlayerDied(this);
+            /*
+                        //Enviar directamente al GameManager en el servidor
+                        if (GameManager.Instance != null)
+                        {
+                            GameManager.Instance.ServerHandlePlayerDeath(this);
+                        }*/
         }
     }
 
-    [ClientRpc]
-    private void RpcUpdateCover(bool coverState)
-    {
-        isCovering = coverState;  //Se actualiza en todos los clientes
-        Debug.Log($"[CLIENT] {gameObject.name} -> isCovering actualizado a {coverState}");
-    }
+#endregion
 
-    [ClientRpc]
-    void RpcHandleDeath()
-    {
-        if (isLocalPlayer)
-        {
-            // Desactivar los botones
-            shootButton.interactable = false;
-            reloadButton.interactable = false;
-            coverButton.interactable = false;
-
-            // Mostrar mensaje de "Has muerto"
-            if (deathCanvas)
-                deathCanvas.SetActive(true);
-        }
-    }
-
-    [ClientRpc]
-    public void RpcDeclareVictory()
-    {
-        Debug.Log($"{gameObject.name} ha ganado la partida.");
-    }
 }
 
