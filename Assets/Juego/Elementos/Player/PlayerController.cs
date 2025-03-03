@@ -39,11 +39,18 @@ public class PlayerController : NetworkBehaviour
     public GameObject playerCanvas;
     public GameObject deathCanvas;
     public GameObject victoryCanvas;
+    public GameObject targetIndicator; //Indicador visual de objetivo elegido
+    public GameObject playerIndicator;
+    public TMP_Text healthText;
+    public TMP_Text ammoText;
+
+    [Header("UI Buttons")]
     public Button shootButton;
     public Button reloadButton;
     public Button coverButton;
-    public TMP_Text healthText;
-    public TMP_Text ammoText;
+    private Button selectedButton = null; //Último botón seleccionado
+    [SerializeField] private Color defaultButtonColor = Color.white; //Color por defecto
+    [SerializeField] private Color highlightedColor = Color.yellow; //Color resaltado
 
     [Header("Crosshair")]
     public GameObject crosshairPrefab; //Prefab de la mirilla
@@ -52,18 +59,25 @@ public class PlayerController : NetworkBehaviour
 
     private void Start()
     {
+        if (targetIndicator != null)
+            targetIndicator.SetActive(false);
+
+        if (playerIndicator != null)
+            playerIndicator.SetActive(isLocalPlayer);
+
         if (isLocalPlayer)
         {
             deathCanvas.SetActive(false);
             victoryCanvas.SetActive(false);
+            targetIndicator.SetActive(false);
 
             if (playerCanvas)
                 playerCanvas.SetActive(true);
             
 
             if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
-            if (reloadButton) reloadButton.onClick.AddListener(() => CmdRegisterAction(ActionType.Reload, null));
-            if (coverButton) coverButton.onClick.AddListener(() => CmdRegisterAction(ActionType.Cover, null));
+            if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());
+            if (coverButton) coverButton.onClick.AddListener(() => OnCoverButton());
 
             UpdateUI();
 
@@ -199,14 +213,87 @@ public class PlayerController : NetworkBehaviour
         {
             crosshairInstance = Instantiate(crosshairPrefab);
         }
+
+        HighlightButton(shootButton);//Resaltar botón
+    }
+
+    private void OnReloadButton()
+    {
+        if (!isLocalPlayer) return;
+        CmdRegisterAction(ActionType.Reload, null);
+
+        HighlightButton(reloadButton);//Resaltar botón
     }
 
     private void OnCoverButton()
     {
         if(!isLocalPlayer) return;
         CmdRegisterAction(ActionType.Cover, null);
+
+        HighlightButton(coverButton);//Resaltar botón
     }
-    // 🔹 Mostrar pantalla de derrota (solo en el cliente del jugador muerto)
+
+    #region HighlightButton
+    private void HighlightButton(Button button)
+    {
+        if (selectedButton != null) //Si hay un botón seleccionado previamente, restablecer su color
+        {
+            ColorBlock colors = selectedButton.colors;
+            colors.normalColor = defaultButtonColor;
+            selectedButton.colors = colors;
+        }
+
+        if (button != null)// Resaltar nuevo botón
+        {
+            ColorBlock newColors = button.colors;
+            newColors.normalColor = highlightedColor;
+            newColors.selectedColor = highlightedColor; //Mantener nuevo color
+            button.colors = newColors;
+
+            selectedButton = button;// Guerdar el botón seleccionado
+        }
+    }
+
+    [ClientRpc]
+    public void RpcResetButtonHightLight()
+    {
+        if (!isLocalPlayer) return;
+
+        if (selectedButton != null)
+        {
+            ColorBlock colors = selectedButton.colors;
+            colors.normalColor = defaultButtonColor;
+            colors.selectedColor = defaultButtonColor;
+            selectedButton.colors = colors;
+
+            selectedButton = null;
+        }
+    }
+
+    #endregion
+
+    [ClientRpc]
+    public void RpcSetTargetIndicator(PlayerController shooter, PlayerController target)
+    {
+        if (!isLocalPlayer || this != shooter) return; //Solo ejecuta en el cliente que disparó
+
+        //Desactivamos cualquier indicador previo
+        PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        foreach (var player in allPlayers)
+        {
+            if (player.targetIndicator != null)
+                player.targetIndicator.SetActive(false);
+        }
+
+        //Activamos el indicador del enemigo seleccionado
+        if (target != null && target.targetIndicator != null)
+        {
+            target.targetIndicator.SetActive(true);
+            Debug.Log($"[CLIENT] Indicador de objetivo activado en {target.gameObject.name}");
+        }
+    }
+
+    //Mostrar pantalla de derrota (solo en el cliente del jugador muerto)
     [ClientRpc]
     public void RpcShowDefeat()
     {
@@ -217,7 +304,7 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-    // 🔹 Mostrar pantalla de victoria (solo en el cliente del ganador)
+    //Mostrar pantalla de victoria (solo en el cliente del ganador)
     [ClientRpc]
     public void RpcShowVictory()
     {
@@ -257,24 +344,7 @@ public class PlayerController : NetworkBehaviour
             victoryCanvas.SetActive(true);
             DisableButtons();
         }
-    }/*
-    public void ShowVictoryUI()
-    {
-        if (victoryCanvas != null)
-        {
-            victoryCanvas.SetActive(true);
-        }
-        DisableButtons();
     }
-
-    public void ShowDefeatUI()
-    {
-        if (deathCanvas != null)
-        {
-            deathCanvas.SetActive(true);
-        }
-        DisableButtons();
-    }*/
 
     private void DisableButtons()
     {
@@ -284,22 +354,16 @@ public class PlayerController : NetworkBehaviour
     }
 
     #endregion
-/*
-    [Command]
-    public void CmdNotifyVictory()
-    {
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.PlayerWon(this);
-        }
-    }
-*/
+
     [Command]
     public void CmdRegisterAction(ActionType actionType, PlayerController target)
     {
         if (GameManager.Instance == null) return;
 
         GameManager.Instance.RegisterAction(this, actionType, target);
+
+        RpcSetTargetIndicator(this, target); //Indicador del cliente que disparó
+
     }
 
     #endregion
@@ -357,12 +421,6 @@ public class PlayerController : NetworkBehaviour
 
             RpcOnDeath(); // Notificar a todos los clientes que este jugador murió
             FindFirstObjectByType<GameManager>()?.PlayerDied(this);
-            /*
-                        //Enviar directamente al GameManager en el servidor
-                        if (GameManager.Instance != null)
-                        {
-                            GameManager.Instance.ServerHandlePlayerDeath(this);
-                        }*/
         }
     }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Mirror;
 using UnityEngine;
 using TMPro;
+using System.Linq;
 
 public class GameManager : NetworkBehaviour
 {
@@ -72,6 +73,12 @@ public class GameManager : NetworkBehaviour
         isDecisionPhase = false;
         currentDecisionTime = 0;
 
+        foreach (var player in players)
+        {
+            player.RpcSetTargetIndicator(player, null);//Quitar targets marcados en los jugadores
+            player.RpcResetButtonHightLight();//Quitar Highlights en botones
+        }
+
         //Prioridad a la accion cubrirse
         foreach (var entry in actionsQueue)
         {
@@ -97,25 +104,39 @@ public class GameManager : NetworkBehaviour
         }
 
         yield return new WaitForSeconds(executionTime);
+        CheckGameOver();
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
     }
 
     #region Game Management
 
-   /* private void CheckGameOver()
+    private void CheckGameOver()
     {
-        players.RemoveAll(p => !p.isAlive); //Filtramos solo jugadores vivos
+        //Contar número de jugadores vivos
+        int alivePlayers = players.Count(player => player.isAlive);
 
-        if (players.Count == 1) //Solo queda un jugador vivo
+        //Si no queda nadie vivo, la partida se detiene
+        if (alivePlayers == 0)
         {
-            Debug.Log($"🎉 ¡{players[0].gameObject.name} ha ganado la partida!");
-            RpcShowVictory(players[0].netId);
+            Debug.Log("Todos los jugadores han muerto. Que montón de inútiles hahahaha");
+            StopAllCoroutines();
+            return;
         }
-        else if ( players.Count <= 0)
+
+        //Si solo queda un jugador vivo, lo declaramos ganador
+        if (alivePlayers == 1)
         {
-            Debug.Log("Todos han muerto");
+            PlayerController winner = players.Find(player => player.isAlive);
+            if (winner != null)
+            {
+                Debug.Log($"{winner.gameObject.name} ha ganado la partida");
+                winner.RpcOnVictory();
+            }
+
+            StopAllCoroutines();
         }
-    }*/
+    }
+
 
     public void RegisterAction(PlayerController player, ActionType actionType, PlayerController target = null)
     {
@@ -141,10 +162,7 @@ public class GameManager : NetworkBehaviour
 
         players.Remove(deadPlayer);
 
-        if (players.Count == 1) // Si solo queda un jugador vivo, es el ganador
-        {
-            players[0].RpcOnVictory();
-        }
+        CheckGameOver();
     }
 
 
@@ -176,48 +194,7 @@ public class GameManager : NetworkBehaviour
     #endregion
 
     #region Victoria/Derrota
-   /* [Server]
-    public void PlayerDied(PlayerController player)
-    {
-        if (player == null) return;
-
-        Debug.Log($"{player.gameObject.name} ha muerto.");
-        RpcShowDefeat(player.netId);
-    }
-
-    [Server]
-    public void PlayerWon(PlayerController player)
-    {
-        if (player == null) return;
-
-        Debug.Log($"🎉 {player.gameObject.name} ha ganado.");
-        RpcShowVictory(player.netId);
-    }*/
-/*
-    [ClientRpc]
-    void RpcShowVictory(uint playerId)
-    {
-        foreach (var player in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
-        {
-            if (player.netId == playerId && player.isLocalPlayer)
-            {
-                player.ShowVictoryUI();
-            }
-        }
-    }
-
-    [ClientRpc]
-    void RpcShowDefeat(uint playerId)
-    {
-        foreach (var player in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
-        {
-            if (player.netId == playerId && player.isLocalPlayer)
-            {
-                player.ShowDefeatUI();
-            }
-        }
-    }
-    */
+   
     #endregion
 
     #region UI HOOKS
