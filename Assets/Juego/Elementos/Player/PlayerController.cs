@@ -33,6 +33,8 @@ public class PlayerController : NetworkBehaviour
     private static PlayerController targetEnemy; //Enemigo seleccionado
     private static bool isAiming = false; //Indica si se está apuntando
 
+    private Animator animator;
+
     public ActionType selectedAction = ActionType.None;
 
     [Header("UI Elements")]
@@ -59,6 +61,8 @@ public class PlayerController : NetworkBehaviour
 
     private void Start()
     {
+        animator = GetComponent<Animator>();
+
         if (targetIndicator != null)
             targetIndicator.SetActive(false);
 
@@ -189,13 +193,31 @@ public class PlayerController : NetworkBehaviour
             shootButton.interactable = newAmmo > 0;
     }
 
-    private void UpdateUI()
+    public void UpdateUI()
     {
         if (healthText)
             healthText.text = $"Vida: {health}";
 
         if (ammoText)
             ammoText.text = $"Balas: {ammo}";
+
+        if (shootButton)
+            shootButton.interactable = ammo > 0; //Desactivar si no es mayor a 0
+    }
+
+    #endregion
+
+    #region Animations
+
+    [TargetRpc]
+    public void TargetPlayButtonAnimation(NetworkConnection target, string animationTrigger, bool enableButtons)
+    {
+        //Activar o desactivar botones
+        shootButton.interactable = enableButtons;
+        reloadButton.interactable = enableButtons;
+        coverButton.interactable = enableButtons;
+
+        animator.SetTrigger(animationTrigger); //Ejecutar animación solo en el player local
     }
 
     #endregion
@@ -272,6 +294,17 @@ public class PlayerController : NetworkBehaviour
 
     #endregion
 
+    #region PlayerAnimation
+
+    [ClientRpc]
+    public void RpcPlayReceiveDamageAnimation()
+    {
+        GetComponent<NetworkAnimator>().animator.Play("ReceiveDamage"); //Sincroniza la animación en todos los clientes
+    }
+
+    #endregion
+
+
     [ClientRpc]
     public void RpcSetTargetIndicator(PlayerController shooter, PlayerController target)
     {
@@ -324,6 +357,20 @@ public class PlayerController : NetworkBehaviour
     }
 
     #region UI Handling
+
+    [ClientRpc]
+    public void RpcCancelAiming()
+    {
+        if (!isLocalPlayer) return;
+
+        if (crosshairInstance != null)
+        {
+            Destroy(crosshairInstance);
+            crosshairInstance = null;
+        }
+
+        isAiming = false;
+    }
 
     [ClientRpc]
     void RpcOnDeath()
@@ -410,6 +457,8 @@ public class PlayerController : NetworkBehaviour
             Debug.Log($"{gameObject.name} bloqueó el daño porque está cubierto.");
             return; // No recibe daño
         }
+
+        GetComponent<NetworkAnimator>().animator.Play("ReceiveDamage");
 
         health--;
         Debug.Log($"{gameObject.name} recibió daño. Vida restante: {health}");

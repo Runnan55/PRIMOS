@@ -52,13 +52,20 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator DecisionPhase()
     {
+        foreach (var player in players)
+        {
+            player.TargetPlayButtonAnimation(player.connectionToClient, "Venir", true);
+            player.GetComponent<NetworkAnimator>().animator.Play("Idle");
+            player.UpdateUI();
+        }
+
         isDecisionPhase = true;
         actionsQueue.Clear();
 
-        currentDecisionTime = decisionTime; // 🔹 Restaurar el tiempo original
+        currentDecisionTime = decisionTime; //Restaurar el tiempo original
         timerText.gameObject.SetActive(true);
 
-        Debug.Log("Comienza la fase de decisión. Elige rápido wey");
+        Debug.Log("Comienza la fase de decisión. Jugadores decidiendo acciones");
 
         while (currentDecisionTime > 0)
         {
@@ -66,6 +73,12 @@ public class GameManager : NetworkBehaviour
             currentDecisionTime = Mathf.Max(0, currentDecisionTime - 1);
         }
         Debug.Log("Finalizó el tiempo de decisión.");
+
+        foreach (var player in players)
+        {
+            player.TargetPlayButtonAnimation(player.connectionToClient, "Irse", false);
+            player.RpcCancelAiming();
+        }
     }
 
     private IEnumerator ExecutionPhase()
@@ -83,11 +96,14 @@ public class GameManager : NetworkBehaviour
         foreach (var entry in actionsQueue)
         {
             if (entry.Value.type == ActionType.Cover)
-                entry.Key.isCovering = true; // Ahora el servidor lo maneja directamente
+            {
+                entry.Key.isCovering = true; //Manejado por el serivdor
                 entry.Key.RpcUpdateCover(true);
+                entry.Key.GetComponent<NetworkAnimator>().animator.Play("Cover");
+            }
         }
 
-        yield return new WaitForSeconds(0.5f); //Pausa antes del tiroteo
+        yield return new WaitForSeconds(0.1f); //Pausa antes del tiroteo
 
         //Luego aplica "Disparar" y "Recargar"
         foreach(var entry in actionsQueue)
@@ -96,9 +112,11 @@ public class GameManager : NetworkBehaviour
             {
                 case ActionType.Reload:
                     entry.Key.ServerReload();
+                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("Reload");
                     break;
                 case ActionType.Shoot:
                     entry.Key.ServerAttemptShoot(entry.Value.target);
+                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("Shoot");
                     break;
             }
         }
