@@ -10,7 +10,7 @@ public class GameManager : NetworkBehaviour
     public static GameManager Instance { get; private set; }
 
     [Header("Rondas")]
-    [SyncVar(hook = nameof(OnTimerChanged))]private float currentDecisionTime;
+    [SyncVar(hook = nameof(OnTimerChanged))] private float currentDecisionTime;
     [SerializeField] private float decisionTime = 10f; // Tiempo para elegir acción
     [SerializeField] private float executionTime = 3f; // Tiempo para mostrar resultados
     [SerializeField] private TMP_Text timerText;
@@ -42,7 +42,7 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator RoundCycle()
     {
-        while(true)
+        while (true)
         {
             yield return StartCoroutine(DecisionPhase());
             yield return StartCoroutine(ExecutionPhase());
@@ -105,10 +105,28 @@ public class GameManager : NetworkBehaviour
 
         yield return new WaitForSeconds(0.1f); //Pausa antes del tiroteo
 
-        //Luego aplica "Disparar" y "Recargar"
-        foreach(var entry in actionsQueue)
+        //SuperShoot
+        foreach (var entry in actionsQueue)
         {
-            switch(entry.Value.type)
+            if (entry.Value.type == ActionType.SuperShoot)
+            {
+                PlayerController shooter = entry.Key;
+                PlayerController target = entry.Value.target;
+
+                if (shooter.ammo > 3) // Verificar que aún tenga balas suficientes
+                {
+                    shooter.ammo -= 3; // Consume 3 balas
+
+                    shooter.ServerAttemptShoot(target); // Ahora dispara normal
+                    shooter.GetComponent<NetworkAnimator>().animator.Play("Shoot");
+                }
+            }
+        }
+
+        //Luego aplica "Disparar" y "Recargar"
+        foreach (var entry in actionsQueue)
+        {
+            switch (entry.Value.type)
             {
                 case ActionType.Reload:
                     entry.Key.ServerReload();
@@ -212,7 +230,7 @@ public class GameManager : NetworkBehaviour
     #endregion
 
     #region Victoria/Derrota
-   
+
     #endregion
 
     #region UI HOOKS

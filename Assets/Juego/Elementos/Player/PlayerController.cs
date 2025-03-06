@@ -8,7 +8,8 @@ public enum ActionType
     None, //Opción por si el jugador no elige nada
     Shoot,
     Reload,
-    Cover
+    Cover,
+    SuperShoot
 }
 
 public class PlayerAction
@@ -16,7 +17,7 @@ public class PlayerAction
     public ActionType type;
     public PlayerController target; //Se usa solo para el disparo
 
-    public PlayerAction(ActionType type,PlayerController target = null)
+    public PlayerAction(ActionType type, PlayerController target = null)
     {
         this.type = type;
         this.target = target;
@@ -29,7 +30,7 @@ public class PlayerController : NetworkBehaviour
     [SyncVar(hook = nameof(OnAmmoChanged))] public int ammo = 3;
     [SyncVar(hook = nameof(OnHealthChanged))] public int health = 3;
     [SyncVar] public bool isCovering = false;
-    
+
     private static PlayerController targetEnemy; //Enemigo seleccionado
     private static bool isAiming = false; //Indica si se está apuntando
 
@@ -50,6 +51,7 @@ public class PlayerController : NetworkBehaviour
     public Button shootButton;
     public Button reloadButton;
     public Button coverButton;
+    public Button superShootButton;
     private Button selectedButton = null; //Último botón seleccionado
     [SerializeField] private Color defaultButtonColor = Color.white; //Color por defecto
     [SerializeField] private Color highlightedColor = Color.yellow; //Color resaltado
@@ -77,11 +79,16 @@ public class PlayerController : NetworkBehaviour
 
             if (playerCanvas)
                 playerCanvas.SetActive(true);
-            
+
 
             if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
             if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());
             if (coverButton) coverButton.onClick.AddListener(() => OnCoverButton());
+            if (superShootButton)
+            {
+                superShootButton.onClick.AddListener(OnSuperShootButton);
+                superShootButton.interactable = false;
+            }
 
             UpdateUI();
 
@@ -191,6 +198,9 @@ public class PlayerController : NetworkBehaviour
 
         if (shootButton)
             shootButton.interactable = newAmmo > 0;
+
+        if (superShootButton)
+            superShootButton.interactable = newAmmo > 3;
     }
 
     public void UpdateUI()
@@ -231,12 +241,28 @@ public class PlayerController : NetworkBehaviour
         isAiming = true;
         Debug.Log("Modo de apuntado activado");
 
-        if(crosshairPrefab && crosshairInstance == null)
+        if (crosshairPrefab && crosshairInstance == null)
         {
             crosshairInstance = Instantiate(crosshairPrefab);
         }
 
         HighlightButton(shootButton);//Resaltar botón
+    }
+
+    private void OnSuperShootButton()
+    {
+        if (!isLocalPlayer) return;
+        if (isAiming) return;
+
+        isAiming = true;
+        Debug.Log("SuperShoot activado");
+
+        if (crosshairPrefab && crosshairInstance == null)
+        {
+            crosshairInstance = Instantiate(crosshairPrefab);
+        }
+
+        HighlightButton(superShootButton);
     }
 
     private void OnReloadButton()
@@ -249,7 +275,7 @@ public class PlayerController : NetworkBehaviour
 
     private void OnCoverButton()
     {
-        if(!isLocalPlayer) return;
+        if (!isLocalPlayer) return;
         CmdRegisterAction(ActionType.Cover, null);
 
         HighlightButton(coverButton);//Resaltar botón
@@ -351,7 +377,6 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcUpdateCover(bool coverState)
     {
-        Debug.Log($"[CLIENT] Recibido RpcUpdateCover({coverState}) en {gameObject.name}");
         isCovering = coverState;
         Debug.Log($"[CLIENT] {gameObject.name} -> isCovering actualizado a {isCovering}");
     }
@@ -380,7 +405,7 @@ public class PlayerController : NetworkBehaviour
             deathCanvas.SetActive(true);
             DisableButtons();
         }
-        
+
     }
 
     [ClientRpc]
@@ -411,6 +436,13 @@ public class PlayerController : NetworkBehaviour
 
         RpcSetTargetIndicator(this, target); //Indicador del cliente que disparó
 
+    }
+
+    [Command]
+    public void CmdRegisterSuperShoot(PlayerController target)
+    {
+        if (GameManager.Instance == null) return;
+        GameManager.Instance.RegisterAction(this, ActionType.SuperShoot, target);
     }
 
     #endregion
@@ -446,7 +478,7 @@ public class PlayerController : NetworkBehaviour
         ammo++;
         Debug.Log($"{gameObject.name} recargó. Balas actuales: {ammo}");
     }
-    
+
     [Server]
     public void TakeDamage()
     {
@@ -473,7 +505,6 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-#endregion
+    #endregion
 
 }
-
