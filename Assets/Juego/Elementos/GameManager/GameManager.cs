@@ -12,7 +12,7 @@ public class GameManager : NetworkBehaviour
     [Header("Rondas")]
     [SyncVar(hook = nameof(OnTimerChanged))] private float currentDecisionTime;
     [SerializeField] private float decisionTime = 10f; // Tiempo para elegir acción
-    [SerializeField] private float executionTime = 3f; // Tiempo para mostrar resultados
+    [SerializeField] private float executionTime = 4f; // Tiempo para mostrar resultados
     [SerializeField] private TMP_Text timerText;
 
     private bool isDecisionPhase = true;
@@ -52,14 +52,14 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator DecisionPhase()
     {
+        isDecisionPhase = true;
+
         foreach (var player in players)
         {
             player.TargetPlayButtonAnimation(player.connectionToClient, "Venir", true);
             player.GetComponent<NetworkAnimator>().animator.Play("Idle");
-            player.UpdateUI();
         }
-
-        isDecisionPhase = true;
+        
         actionsQueue.Clear();
 
         currentDecisionTime = decisionTime; //Restaurar el tiempo original
@@ -74,16 +74,19 @@ public class GameManager : NetworkBehaviour
         }
         Debug.Log("Finalizó el tiempo de decisión.");
 
+        isDecisionPhase = false;
+
         foreach (var player in players)
         {
             player.TargetPlayButtonAnimation(player.connectionToClient, "Irse", false);
             player.RpcCancelAiming();
         }
+
+        yield return new WaitForSeconds(0.5f);//Tiempo para que se ejecute la animación
     }
 
     private IEnumerator ExecutionPhase()
     {
-        isDecisionPhase = false;
         currentDecisionTime = 0;
 
         foreach (var player in players)
@@ -103,27 +106,9 @@ public class GameManager : NetworkBehaviour
             }
         }
 
-        yield return new WaitForSeconds(0.1f); //Pausa antes del tiroteo
+        yield return new WaitForSeconds(0.5f); //Pausa antes del tiroteo
 
-        //SuperShoot
-        foreach (var entry in actionsQueue)
-        {
-            if (entry.Value.type == ActionType.SuperShoot)
-            {
-                PlayerController shooter = entry.Key;
-                PlayerController target = entry.Value.target;
-
-                if (shooter.ammo > 3) // Verificar que aún tenga balas suficientes
-                {
-                    shooter.ammo -= 3; // Consume 3 balas
-
-                    shooter.ServerAttemptShoot(target); // Ahora dispara normal
-                    shooter.GetComponent<NetworkAnimator>().animator.Play("Shoot");
-                }
-            }
-        }
-
-        //Luego aplica "Disparar" y "Recargar"
+                //Luego aplica "Disparar" y "Recargar"
         foreach (var entry in actionsQueue)
         {
             switch (entry.Value.type)
@@ -136,7 +121,19 @@ public class GameManager : NetworkBehaviour
                     entry.Key.ServerAttemptShoot(entry.Value.target);
                     entry.Key.GetComponent<NetworkAnimator>().animator.Play("Shoot");
                     break;
+                case ActionType.SuperShoot:
+                    entry.Key.ServerAttemptShoot(entry.Value.target);
+                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("Shoot");
+                    break;
+                case ActionType.None:
+                    break;
             }
+        }
+
+        foreach (var player in players)
+        {
+            player.selectedAction = ActionType.None;
+            player.TargetUpdateUI(player.connectionToClient, player.ammo);
         }
 
         yield return new WaitForSeconds(executionTime);
@@ -173,6 +170,10 @@ public class GameManager : NetworkBehaviour
         }
     }
 
+    public bool IsDecisionPhase()
+    {
+        return isDecisionPhase; //Esta función sirve para que PlayerController pueda saber cuando es true DecisionPhase(), así saber cuando meter variables por ejemplo en el UpdateUI();
+    }
 
     public void RegisterAction(PlayerController player, ActionType actionType, PlayerController target = null)
     {
@@ -180,6 +181,16 @@ public class GameManager : NetworkBehaviour
 
         actionsQueue[player] = new PlayerAction(actionType, target);
         Debug.Log($"{player.gameObject.name} ha elegido {actionType}");
+
+        if (actionType == ActionType.SuperShoot)
+        {
+            Debug.Log($"{player.gameObject.name} ha elegido SUPER SHOOT contra {target.gameObject.name}");
+        }
+
+        if (actionType == ActionType.Shoot)
+        {
+            Debug.Log($"{player.gameObject.name} ha elegido SHOOT contra {target.gameObject.name}");
+        }
     }
 
     public void RegisterPlayer(PlayerController player)
