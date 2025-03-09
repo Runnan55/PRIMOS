@@ -100,30 +100,50 @@ public class GameManager : NetworkBehaviour
         {
             if (entry.Value.type == ActionType.Cover)
             {
-                entry.Key.isCovering = true; //Manejado por el serivdor
-                entry.Key.RpcUpdateCover(true);
-                entry.Key.GetComponent<NetworkAnimator>().animator.Play("Cover");
+                float probability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)];
+
+                if (Random.value <= probability)
+                {
+                    entry.Key.isCovering = true; //Manejado por el serivdor
+                    entry.Key.RpcUpdateCover(true);
+                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("Cover");
+                    entry.Key.consecutiveCovers++;
+                    Debug.Log($"[SERVER] {entry.Key.gameObject.name} se cubrió con éxito en el intento { entry.Key.consecutiveCovers + 1}");
+                }
+                else
+                {
+                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("CoverFail");
+                    Debug.Log($"[SERVER] {entry.Key.gameObject.name} intento cubrirse, pero falló en el intento {entry.Key.consecutiveCovers + 1}");
+                }
+                //El servidor envía la actualizacion de UI a cada cliente
+                float updatedProbability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)];
+                entry.Key.RpcUpdateCoverProbabilityUI(updatedProbability); //Actualizar UI de probabilidad de cubrirse
             }
         }
 
         yield return new WaitForSeconds(0.5f); //Pausa antes del tiroteo
-
-                //Luego aplica "Disparar" y "Recargar"
-        foreach (var entry in actionsQueue)
+                
+        foreach (var entry in actionsQueue) //Luego aplica "Disparar" y "Recargar"
         {
             switch (entry.Value.type)
             {
                 case ActionType.Reload:
                     entry.Key.ServerReload();
                     entry.Key.GetComponent<NetworkAnimator>().animator.Play("Reload");
+                    entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
+                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.Shoot:
                     entry.Key.ServerAttemptShoot(entry.Value.target);
                     entry.Key.GetComponent<NetworkAnimator>().animator.Play("Shoot");
+                    entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
+                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.SuperShoot:
                     entry.Key.ServerAttemptShoot(entry.Value.target);
-                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("Shoot");
+                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("SuperShoot");
+                    entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
+                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.None:
                     break;
@@ -137,6 +157,7 @@ public class GameManager : NetworkBehaviour
         }
 
         yield return new WaitForSeconds(executionTime);
+
         CheckGameOver();
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
     }

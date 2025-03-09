@@ -33,6 +33,8 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public bool isCovering = false;
     [SerializeField] private int minBulletS = 1;
     [SerializeField] private int minBulletSS = 3;
+    [SerializeField] public float[] coverProbabilities = { 1f, 0.5f, 0.01f };//Probabilidades 100%, 50%, 1%
+    [SyncVar] public int consecutiveCovers = 0;
 
     private static PlayerController targetEnemy; //Enemigo seleccionado
     private static bool isAiming = false; //Indica si se está apuntando
@@ -49,6 +51,7 @@ public class PlayerController : NetworkBehaviour
     public GameObject playerIndicator;
     public TMP_Text healthText;
     public TMP_Text ammoText;
+    public TMP_Text coverProbabilityText;
 
     [Header("UI Buttons")]
     public Button shootButton;
@@ -83,7 +86,6 @@ public class PlayerController : NetworkBehaviour
             if (playerCanvas)
                 playerCanvas.SetActive(true);
 
-
             if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
             if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());
             if (coverButton) coverButton.onClick.AddListener(() => OnCoverButton());
@@ -111,7 +113,6 @@ public class PlayerController : NetworkBehaviour
     {
         FindFirstObjectByType<GameManager>()?.RegisterPlayer(this);
     }
-
 
     private void Update()
     {
@@ -185,6 +186,15 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    [ClientRpc]
+    public void RpcUpdateCoverProbabilityUI(float updatedProbability)
+    {
+        if (coverProbabilityText != null)
+        {
+            coverProbabilityText.text = $"Cobertura\n{(updatedProbability * 100):0}%";
+        }
+    }
+
     // Hook para actualizar la UI de vida
     private void OnHealthChanged(int oldHealth, int newHealth)
     {
@@ -208,9 +218,6 @@ public class PlayerController : NetworkBehaviour
         if (ammoText)
             ammoText.text = $"Balas: {ammo}";
     }
-
-
-
 
     #endregion
 
@@ -321,17 +328,6 @@ public class PlayerController : NetworkBehaviour
     }
 
     #endregion
-
-    #region PlayerAnimation
-
-    [ClientRpc]
-    public void RpcPlayReceiveDamageAnimation()
-    {
-        GetComponent<NetworkAnimator>().animator.Play("ReceiveDamage"); //Sincroniza la animación en todos los clientes
-    }
-
-    #endregion
-
 
     [ClientRpc]
     public void RpcSetTargetIndicator(PlayerController shooter, PlayerController target)
@@ -478,7 +474,7 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcPlayAnimation(string animation)
     {
-        GetComponent<NetworkAnimator>().animator.Play(animation);
+        GetComponent<NetworkAnimator>().animator.Play(animation);//Esto sirve por ejemplo para que el player llame animación en otro player, tambien se puede llamar desde el Server
     }
 
     [Server]
