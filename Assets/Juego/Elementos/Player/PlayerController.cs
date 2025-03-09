@@ -52,6 +52,7 @@ public class PlayerController : NetworkBehaviour
     public TMP_Text healthText;
     public TMP_Text ammoText;
     public TMP_Text coverProbabilityText;
+    public TMP_Text countdownText;
 
     [Header("UI Buttons")]
     public Button shootButton;
@@ -187,6 +188,13 @@ public class PlayerController : NetworkBehaviour
     }
 
     [ClientRpc]
+    public void RpcSendLogToClients(string logMessage)
+    {
+        Debug.Log(logMessage);
+    }
+
+
+    [ClientRpc]
     public void RpcUpdateCoverProbabilityUI(float updatedProbability)
     {
         if (coverProbabilityText != null)
@@ -232,8 +240,6 @@ public class PlayerController : NetworkBehaviour
         reloadButton.interactable = enableButtons;
         coverButton.interactable = enableButtons;
 
-        Debug.Log($"[TARGETPLAYBUTTONANIMATION] Shoot Button: {shootButton.interactable}, SuperShoot Button: {superShootButton.interactable}");
-
         animator.SetTrigger(animationTrigger); // Ejecutar animación solo en el player local
     }
 
@@ -247,7 +253,6 @@ public class PlayerController : NetworkBehaviour
 
         isAiming = true;
         selectedAction = ActionType.Shoot;
-        Debug.Log("Shoot activado");
 
         if (crosshairPrefab && crosshairInstance == null)
         {
@@ -264,7 +269,6 @@ public class PlayerController : NetworkBehaviour
 
         isAiming = true;
         selectedAction = ActionType.SuperShoot;
-        Debug.Log("SuperShoot activado");
 
         if (crosshairPrefab && crosshairInstance == null)
         {
@@ -310,6 +314,39 @@ public class PlayerController : NetworkBehaviour
             selectedButton = button;// Guerdar el botón seleccionado
         }
     }
+
+    #region CuentaRegresivaFase
+
+    [ClientRpc]
+    public void RpcShowCountdown(float executionTime)
+    {
+        StartCoroutine(ShowCountdownUI(executionTime));
+    }
+
+    private IEnumerator ShowCountdownUI(float executionTime)
+    {
+        countdownText.gameObject.SetActive(true); // Mostrar el texto en pantalla
+
+        float waitTime = executionTime - 3f; // Esperar hasta los últimos 3 segundos
+        yield return new WaitForSeconds(waitTime);
+
+        // Últimos 3 segundos
+        countdownText.text = "PREPARADOS\n3";
+        yield return new WaitForSeconds(1f);
+
+        countdownText.text = "LISTOS\n2";
+        yield return new WaitForSeconds(1f);
+
+        countdownText.text = "¡YA!\n1";
+        yield return new WaitForSeconds(1f);
+
+        countdownText.text = "";
+
+        countdownText.gameObject.SetActive(false); // Ocultar el texto después de la cuenta regresiva
+    }
+
+
+    #endregion
 
     [ClientRpc]
     public void RpcResetButtonHightLight()
@@ -447,7 +484,6 @@ public class PlayerController : NetworkBehaviour
             return;
         }
 
-        Debug.Log($"[SERVER] selectedAction actual: {selectedAction}");
         if (selectedAction == ActionType.SuperShoot)
         {
             ammo++;// sumamos una bala para compensar la que perdimos antes
@@ -481,7 +517,6 @@ public class PlayerController : NetworkBehaviour
     public void ServerReload()
     {
         ammo++;
-        Debug.Log($"{gameObject.name} recargó. Balas actuales: {ammo}");
     }
 
     [Server]
@@ -490,21 +525,21 @@ public class PlayerController : NetworkBehaviour
         if (!isAlive) return;
 
         if (isCovering)
-        if (isCovering)
         {
             Debug.Log($"{gameObject.name} bloqueó el daño porque está cubierto.");
+            RpcSendLogToClients($"{gameObject.name} bloqueó el daño porque está cubierto.");
             return; // No recibe daño
         }
 
         GetComponent<NetworkAnimator>().animator.Play("ReceiveDamage");
 
         health--;
-        Debug.Log($"{gameObject.name} recibió daño. Vida restante: {health}");
 
         if (health <= 0)
         {
             isAlive = false;
             Debug.Log($"{gameObject.name} ha sido eliminado.");
+            RpcSendLogToClients($"{gameObject.name} ha sido eliminado.");
 
             RpcOnDeath(); // Notificar a todos los clientes que este jugador murió
             FindFirstObjectByType<GameManager>()?.PlayerDied(this);

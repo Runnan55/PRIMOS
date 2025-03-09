@@ -72,14 +72,21 @@ public class GameManager : NetworkBehaviour
             yield return new WaitForSeconds(1f);
             currentDecisionTime = Mathf.Max(0, currentDecisionTime - 1);
         }
-        Debug.Log("Finalizó el tiempo de decisión.");
 
         isDecisionPhase = false;
+        Debug.Log("Finalizó el tiempo de decisión.");
 
         foreach (var player in players)
         {
             player.TargetPlayButtonAnimation(player.connectionToClient, "Irse", false);
             player.RpcCancelAiming();
+
+            if(!actionsQueue.ContainsKey(player)) // Si no se eligió acción alguna se llama a None
+    {
+                actionsQueue[player] = new PlayerAction(ActionType.None);
+                Debug.Log($"[GameManager] {player.gameObject.name} no eligió ninguna acción, registrando 'None'.");
+                player.RpcSendLogToClients($"{player.gameObject.name} no eligió ninguna acción, registrando 'None'.");
+            }
         }
 
         yield return new WaitForSeconds(0.5f);//Tiempo para que se ejecute la animación
@@ -109,11 +116,13 @@ public class GameManager : NetworkBehaviour
                     entry.Key.GetComponent<NetworkAnimator>().animator.Play("Cover");
                     entry.Key.consecutiveCovers++;
                     Debug.Log($"[SERVER] {entry.Key.gameObject.name} se cubrió con éxito en el intento { entry.Key.consecutiveCovers + 1}");
+                    entry.Key.RpcSendLogToClients($"{entry.Key.gameObject.name} se cubrió con éxito en el intento {entry.Key.consecutiveCovers + 1}");
                 }
                 else
                 {
                     entry.Key.GetComponent<NetworkAnimator>().animator.Play("CoverFail");
                     Debug.Log($"[SERVER] {entry.Key.gameObject.name} intento cubrirse, pero falló en el intento {entry.Key.consecutiveCovers + 1}");
+                    entry.Key.RpcSendLogToClients($"{entry.Key.gameObject.name} intento cubrirse, pero falló en el intento {entry.Key.consecutiveCovers + 1}");
                 }
                 //El servidor envía la actualizacion de UI a cada cliente
                 float updatedProbability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)];
@@ -146,6 +155,7 @@ public class GameManager : NetworkBehaviour
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.None:
+                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("None");
                     break;
             }
         }
@@ -154,12 +164,22 @@ public class GameManager : NetworkBehaviour
         {
             player.selectedAction = ActionType.None;
             player.TargetUpdateUI(player.connectionToClient, player.ammo);
+
+            // Mostrar la cuenta regresiva en todos los clientes
+            player.RpcShowCountdown(executionTime);
         }
 
         yield return new WaitForSeconds(executionTime);
 
         CheckGameOver();
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
+    }
+
+    public void SetPause(bool pauseState)
+    {
+        Time.timeScale = pauseState ? 0f : 1f; //Si la consola está abierta, pausamos; si está cerrada, despausamos.
+
+        Debug.Log($"[GameManager] Pausa: {(pauseState ? "Activada" : "Desactivada")}");
     }
 
     #region Game Management
@@ -183,7 +203,6 @@ public class GameManager : NetworkBehaviour
             PlayerController winner = players.Find(player => player.isAlive);
             if (winner != null)
             {
-                Debug.Log($"{winner.gameObject.name} ha ganado la partida");
                 winner.RpcOnVictory();
             }
 
@@ -202,15 +221,18 @@ public class GameManager : NetworkBehaviour
 
         actionsQueue[player] = new PlayerAction(actionType, target);
         Debug.Log($"{player.gameObject.name} ha elegido {actionType}");
+        player.RpcSendLogToClients($"{player.gameObject.name} ha elegido {actionType}");
 
         if (actionType == ActionType.SuperShoot)
         {
             Debug.Log($"{player.gameObject.name} ha elegido SUPER SHOOT contra {target.gameObject.name}");
+            player.RpcSendLogToClients($"{player.gameObject.name} ha elegido SUPER SHOOT contra {target.gameObject.name}");
         }
 
         if (actionType == ActionType.Shoot)
         {
             Debug.Log($"{player.gameObject.name} ha elegido SHOOT contra {target.gameObject.name}");
+            player.RpcSendLogToClients($"{player.gameObject.name} ha elegido SHOOT contra {target.gameObject.name}");
         }
     }
 

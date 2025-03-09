@@ -411,7 +411,7 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   decisionTime: 5
-  executionTime: 3
+  executionTime: 5
   timerText: {fileID: 1576645957}
   players: []
 --- !u!1 &410087039
