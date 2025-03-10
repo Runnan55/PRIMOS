@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -26,6 +27,7 @@ public class DebugConsole : NetworkBehaviour
         {
             isConsoleVisible = !isConsoleVisible;
             consolePanel.SetActive(isConsoleVisible);
+            scrollRect.verticalNormalizedPosition = 0f; // Auto-scroll hacia abajo
 
             //Llamamos al Command en el GameManager
             if (isLocalPlayer)
@@ -56,7 +58,6 @@ public class DebugConsole : NetworkBehaviour
 
         logText.text = string.Join("\n", logHistory); //Mostrar todos los logs en UI
         Canvas.ForceUpdateCanvases(); //Actualizar Canvas
-        scrollRect.verticalNormalizedPosition = 0f; //Auto-Scroll al último mensaje
     }
 
     private void OnDestroy()

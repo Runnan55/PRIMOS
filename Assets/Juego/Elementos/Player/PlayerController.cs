@@ -234,6 +234,8 @@ public class PlayerController : NetworkBehaviour
     [TargetRpc]
     public void TargetPlayButtonAnimation(NetworkConnection target, string animationTrigger, bool enableButtons)
     {
+        if (!isAlive || !gameObject.activeInHierarchy) return;// Evita ejecutar si el jugador está muerto o desactivado
+
         // Solo habilitar los botones si enableButtons es true y cumplen con sus respectivas condiciones
         shootButton.interactable = enableButtons && ammo >= minBulletS;
         superShootButton.interactable = enableButtons && ammo >= minBulletSS;
@@ -369,7 +371,7 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcSetTargetIndicator(PlayerController shooter, PlayerController target)
     {
-        if (!isLocalPlayer || this != shooter) return; //Solo ejecuta en el cliente que disparó
+        if (!isLocalPlayer || !isAlive || this != shooter) return; //Solo ejecuta en el cliente que disparó
 
         //Desactivamos cualquier indicador previo
         PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
@@ -510,6 +512,7 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcPlayAnimation(string animation)
     {
+        if (!isAlive) return;
         GetComponent<NetworkAnimator>().animator.Play(animation);//Esto sirve por ejemplo para que el player llame animación en otro player, tambien se puede llamar desde el Server
     }
 
@@ -537,12 +540,18 @@ public class PlayerController : NetworkBehaviour
 
         if (health <= 0)
         {
+            if (!isAlive) return; // Segunda verificación para evitar doble ejecución
             isAlive = false;
+
             Debug.Log($"{gameObject.name} ha sido eliminado.");
             RpcSendLogToClients($"{gameObject.name} ha sido eliminado.");
 
-            RpcOnDeath(); // Notificar a todos los clientes que este jugador murió
-            FindFirstObjectByType<GameManager>()?.PlayerDied(this);
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.PlayerDied(this);
+            }
+
+            RpcOnDeath(); // Notificar a todos los clientes
         }
     }
 

@@ -17,6 +17,7 @@ public class GameManager : NetworkBehaviour
 
     private bool isDecisionPhase = true;
     [SerializeField] private List<PlayerController> players = new List<PlayerController>();
+    [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>();
     private Dictionary<PlayerController, PlayerAction> actionsQueue = new Dictionary<PlayerController, PlayerAction>();
 
     private void Awake()
@@ -37,8 +38,15 @@ public class GameManager : NetworkBehaviour
         {
             StartCoroutine(RoundCycle()); // Solo el servidor inicia el ciclo de rondas
         }
-
     }
+
+    public void RegisterPlayer(PlayerController player)//Registra a cada jugador usando OnStartServer() en PlayerController
+    {
+        if (!players.Contains(player))
+            players.Add(player);
+    }
+
+    #region GameCycles
 
     private IEnumerator RoundCycle()
     {
@@ -175,14 +183,7 @@ public class GameManager : NetworkBehaviour
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
     }
 
-    public void SetPause(bool pauseState)
-    {
-        Time.timeScale = pauseState ? 0f : 1f; //Si la consola está abierta, pausamos; si está cerrada, despausamos.
-
-        Debug.Log($"[GameManager] Pausa: {(pauseState ? "Activada" : "Desactivada")}");
-    }
-
-    #region Game Management
+    public bool IsDecisionPhase() => isDecisionPhase;//Sirve para que PlayerController pueda saber cuando es true DecisionPhase(), así saber cuando meter variables por ejemplo en el UpdateUI();
 
     private void CheckGameOver()
     {
@@ -209,15 +210,59 @@ public class GameManager : NetworkBehaviour
             StopAllCoroutines();
         }
     }
-
-    public bool IsDecisionPhase()
+    
+    //Eliminar esto en etapas finales o comentar, sirve solo para el testeo
+    public void SetPause(bool pauseState)
     {
-        return isDecisionPhase; //Esta función sirve para que PlayerController pueda saber cuando es true DecisionPhase(), así saber cuando meter variables por ejemplo en el UpdateUI();
+        Time.timeScale = pauseState ? 0f : 1f; //Si la consola está abierta, pausamos; si está cerrada, despausamos.
+
+        Debug.Log($"[GameManager] Pausa: {(pauseState ? "Activada" : "Desactivada")}");
     }
 
-    public void RegisterAction(PlayerController player, ActionType actionType, PlayerController target = null)
+    #endregion
+
+    #region SERVER
+    [Server]
+    public void PlayerDied(PlayerController deadPlayer)
     {
-        if (!isDecisionPhase) return; //Solo se pueden elegir acciones en la fase de decisión
+        if (!isServer) return;
+        if (!players.Contains(deadPlayer)) return; // Asegurar que no intente eliminar dos veces
+
+        // Agregar un delay antes de procesar la muerte
+        StartCoroutine(HandlePlayerDeath(deadPlayer));
+    }
+
+    private IEnumerator HandlePlayerDeath(PlayerController deadPlayer)
+    {
+        yield return new WaitForSeconds(0.1f); // Pequeño delay para registrar todas las acciones antes de procesar la muerte
+        players.Remove(deadPlayer);
+        deadPlayers.Add(deadPlayer); // Movemos al jugador del grupo de vivos a muertos
+
+        yield return new WaitForSeconds(0.1f);//Otro pequeño delay para permitir el registro de muertes antes del CheckGameOver()
+        CheckGameOver();
+    }
+
+
+    [Server]
+    private void ResetAllCovers()//Elimina coberturas al finalizar una ronda
+    {
+        // Buscar todos los PlayerController en la escena
+        PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+
+        foreach (var player in allPlayers)
+        {
+            if (player != null)
+            {
+                player.isCovering = false;
+                player.RpcUpdateCover(false);
+            }
+        }
+    }
+
+    //Se supone que acá va [Server], pero no lo he puesto porque GameManager está siempre en servidor así que quiero probar como va así
+    public void RegisterAction(PlayerController player, ActionType actionType, PlayerController target = null)//Registra decisiones de jugadores durante DecisionPhase()
+    {
+        if (!isDecisionPhase || !player.isAlive) return; //Solo se pueden elegir acciones en la fase de decisión ni si estás muerto
 
         actionsQueue[player] = new PlayerAction(actionType, target);
         Debug.Log($"{player.gameObject.name} ha elegido {actionType}");
@@ -236,65 +281,16 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    public void RegisterPlayer(PlayerController player)
-    {
-        if (!players.Contains(player))
-            players.Add(player);
-    }
-
-    #endregion
-
-    #region SERVER
-    [Server]
-    public void PlayerDied(PlayerController deadPlayer)
-    {
-        if (!isServer) return;
-
-        players.Remove(deadPlayer);
-
-        CheckGameOver();
-    }
-
-
-    [Server]
-    private void ResetAllCovers()
-    {
-        // Buscar todos los PlayerController en la escena
-        PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-
-        foreach (var player in allPlayers)
-        {
-            if (player != null)
-            {
-                player.isCovering = false;
-                player.RpcUpdateCover(false);
-            }
-        }
-    }
-
-    [Server]
-    public void ServerRegisterShoot(PlayerController shooter, PlayerController target)
-    {
-        if (shooter == null || target == null) return;
-
-        //En lugar de disparar de inmediato, solo guardamos la acción en la cola
-        RegisterAction(shooter, ActionType.Shoot, target);
-    }
-
-    #endregion
-
-    #region Victoria/Derrota
-
     #endregion
 
     #region UI HOOKS
 
-    private void OnTimerChanged(float oldTime, float newTime)
+    private void OnTimerChanged(float oldTime, float newTime) //Control de timer de Decision
     {
         if (timerText != null)
         {
             timerText.text = $"Tiempo: {newTime}";
-            timerText.gameObject.SetActive(newTime > 0);  // 🔹 Se oculta automáticamente cuando es 0
+            timerText.gameObject.SetActive(newTime > 0);  //Se oculta automáticamente cuando es 0
         }
     }
 
