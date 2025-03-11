@@ -17,6 +17,8 @@ public class GameManager : NetworkBehaviour
     [SerializeField] private TMP_Text timerText;
 
     private bool isDecisionPhase = true;
+    private bool isGameOver = false;
+
     [SerializeField] private List<PlayerController> players = new List<PlayerController>(); //Lista de jugadores que entran
     [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>(); //Lista de jugadores muertos
     private HashSet<PlayerController> damagedPlayers = new HashSet<PlayerController>(); // Para almacenar jugadores que ya recibieron daño en la ronda
@@ -195,15 +197,20 @@ public class GameManager : NetworkBehaviour
         {
             player.selectedAction = ActionType.None;
             player.TargetUpdateUI(player.connectionToClient, player.ammo);
-
-            // Mostrar la cuenta regresiva en todos los clientes
-            player.RpcShowCountdown(executionTime);
         }
-
-        yield return new WaitForSeconds(executionTime);
 
         damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
         CheckGameOver();
+
+        foreach (var player in players)
+        {
+            if (!isGameOver && player.isAlive)
+            {
+                // Mostrar la cuenta regresiva en todos los clientes
+                player.RpcShowCountdown(executionTime);
+            }
+        }
+        yield return new WaitForSeconds(executionTime);
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
     }
 
@@ -218,6 +225,7 @@ public class GameManager : NetworkBehaviour
         if (alivePlayers == 0)
         {
             Debug.Log("Todos los jugadores han muerto. Que montón de inútiles hahahaha");
+            isGameOver = true;
             StopAllCoroutines();
             return;
         }
@@ -231,6 +239,7 @@ public class GameManager : NetworkBehaviour
                 winner.RpcOnVictory();
             }
 
+            isGameOver = true;
             StopAllCoroutines();
         }
     }
