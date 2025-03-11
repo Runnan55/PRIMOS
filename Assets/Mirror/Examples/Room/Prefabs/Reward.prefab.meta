@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 8a652045f5e2c7a4aaf74b140e16a52e
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 129321
+  packageName: Mirror
+  packageVersion: 96.0.1
+  assetPath: Assets/Mirror/Examples/Room/Prefabs/Reward.prefab
+  uploadId: 736421

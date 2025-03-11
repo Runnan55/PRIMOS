@@ -8,6 +8,7 @@ using System.Linq;
 public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance { get; private set; }
+    [SerializeField] private bool allowAccumulatedDamage = true;
 
     [Header("Rondas")]
     [SyncVar(hook = nameof(OnTimerChanged))] private float currentDecisionTime;
@@ -16,8 +17,10 @@ public class GameManager : NetworkBehaviour
     [SerializeField] private TMP_Text timerText;
 
     private bool isDecisionPhase = true;
-    [SerializeField] private List<PlayerController> players = new List<PlayerController>();
-    [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>();
+    [SerializeField] private List<PlayerController> players = new List<PlayerController>(); //Lista de jugadores que entran
+    [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>(); //Lista de jugadores muertos
+    private HashSet<PlayerController> damagedPlayers = new HashSet<PlayerController>(); // Para almacenar jugadores que ya recibieron daño en la ronda
+
     private Dictionary<PlayerController, PlayerAction> actionsQueue = new Dictionary<PlayerController, PlayerAction>();
 
     private void Awake()
@@ -45,6 +48,26 @@ public class GameManager : NetworkBehaviour
         if (!players.Contains(player))
             players.Add(player);
     }
+
+    #region AccumulatedDamageY/N
+    public bool AllowAccumulatedDamage()
+    {
+        return allowAccumulatedDamage;
+    }
+
+    [Server]
+    public bool HasTakenDamage(PlayerController player)
+    {
+        return damagedPlayers.Contains(player);
+    }
+
+    [Server]
+    public void RegisterDamagedPlayer(PlayerController player)
+    {
+        damagedPlayers.Add(player);
+    }
+
+    #endregion
 
     #region GameCycles
 
@@ -179,6 +202,7 @@ public class GameManager : NetworkBehaviour
 
         yield return new WaitForSeconds(executionTime);
 
+        damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
         CheckGameOver();
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
     }
@@ -225,7 +249,6 @@ public class GameManager : NetworkBehaviour
     [Server]
     public void PlayerDied(PlayerController deadPlayer)
     {
-        if (!isServer) return;
         if (!players.Contains(deadPlayer)) return; // Asegurar que no intente eliminar dos veces
 
         // Agregar un delay antes de procesar la muerte

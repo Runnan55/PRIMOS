@@ -27,7 +27,7 @@ public class PlayerAction
 
 public class PlayerController : NetworkBehaviour
 {
-    [SyncVar(hook = nameof(OnAliveChanged))] public bool isAlive = true;
+    public bool isAlive = true;
     [SyncVar(hook = nameof(OnAmmoChanged))] public int ammo;
     [SyncVar(hook = nameof(OnHealthChanged))] public int health;
     [SyncVar] public bool isCovering = false;
@@ -176,16 +176,19 @@ public class PlayerController : NetworkBehaviour
 
     #region UI HOOKS
 
-    private void OnAliveChanged(bool oldValue, bool newValue)
+    [Server]
+    public void SetAliveState(bool state)
     {
-        if (!newValue) //Sí estás muerto..
-        {
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.PlayerDied(this);
-            }
-        }
+        isAlive = state;
+        RpcSyncAliveState(state); // Enviar la actualización a los clientes
     }
+
+    [ClientRpc]
+    void RpcSyncAliveState(bool state)
+    {
+        isAlive = state; // Solo actualizar visualmente si se necesita
+    }
+
 
     [ClientRpc]
     public void RpcSendLogToClients(string logMessage)
@@ -440,7 +443,6 @@ public class PlayerController : NetworkBehaviour
         if (isLocalPlayer)
         {
             deathCanvas.SetActive(true);
-            TargetPlayButtonAnimation(this.connectionToClient, "Irse", false);
         }
 
     }
@@ -451,7 +453,6 @@ public class PlayerController : NetworkBehaviour
         if (isLocalPlayer)
         {
             victoryCanvas.SetActive(true);
-            TargetPlayButtonAnimation(this.connectionToClient, "Irse", false);
         }
     }
 
@@ -525,13 +526,19 @@ public class PlayerController : NetworkBehaviour
     [Server]
     public void TakeDamage()
     {
-        if (!isAlive) return;
+        if (!isAlive || isCovering || GameManager.Instance == null) return;
 
-        if (isCovering)
+        if (!GameManager.Instance.AllowAccumulatedDamage() && GameManager.Instance.HasTakenDamage(this)) //Verificar si el daño se debe acumular o no
         {
-            Debug.Log($"{gameObject.name} bloqueó el daño porque está cubierto.");
-            RpcSendLogToClients($"{gameObject.name} bloqueó el daño porque está cubierto.");
-            return; // No recibe daño
+            Debug.Log($"{gameObject.name} ya recibió daño en esta ronda, ignorando el ataque.");
+            RpcSendLogToClients($"{gameObject.name} ya recibió daño en esta ronda, ignorando el ataque.");
+            return;
+        }
+
+        // Marcar que el jugador ha recibido daño en esta ronda si el daño no se acumula
+        if (!GameManager.Instance.AllowAccumulatedDamage())
+        {
+            GameManager.Instance.RegisterDamagedPlayer(this);
         }
 
         GetComponent<NetworkAnimator>().animator.Play("ReceiveDamage");
@@ -545,13 +552,13 @@ public class PlayerController : NetworkBehaviour
 
             Debug.Log($"{gameObject.name} ha sido eliminado.");
             RpcSendLogToClients($"{gameObject.name} ha sido eliminado.");
+            RpcOnDeath(); // Notificar a todos los clientes
 
-            if (GameManager.Instance != null)
+            if (isServer && GameManager.Instance != null)// Esto solo se ejecuta en el servidor para evitar errores
             {
                 GameManager.Instance.PlayerDied(this);
             }
 
-            RpcOnDeath(); // Notificar a todos los clientes
         }
     }
 

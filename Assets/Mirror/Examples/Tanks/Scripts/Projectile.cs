@@ -29,5 +29,18 @@ namespace Mirror.Examples.Tanks
 
         // ServerCallback because we don't want a warning
         // if OnTriggerEnter is called on the client
+        [ServerCallback]
+        void OnTriggerEnter(Collider other)
+        {
+            Debug.Log("Hit: " + other.name);
+            if (other.transform.parent.TryGetComponent(out Tank tank))
+            {
+                --tank.health;
+                if (tank.health == 0)
+                    NetworkServer.RemovePlayerForConnection(tank.netIdentity.connectionToClient, RemovePlayerOptions.Destroy);
+
+                DestroySelf();
+            }
+        }
     }
 }

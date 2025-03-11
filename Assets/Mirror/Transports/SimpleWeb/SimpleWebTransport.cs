@@ -281,7 +281,7 @@ namespace Mirror.SimpleWeb
             UriBuilder builder = new UriBuilder
             {
                 Scheme = GetServerScheme(),
-                Host = "localhost", //Nota de Luis Alejandro esto debe cambiarse por la IP o dominio fijo del servidor 
+                Host = Dns.GetHostName(),
                 Port = port
             };
             return builder.Uri;

@@ -1338,7 +1338,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -404.39984, y: 89.70002}
+  m_AnchoredPosition: {x: -404.39984, y: 89.70001}
   m_SizeDelta: {x: 808, y: 0}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &2443293469734736649
@@ -3168,8 +3168,8 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   isAlive: 1
-  ammo: 0
-  health: 3
+  ammo: 1
+  health: 1
   isCovering: 0
   minBulletS: 1
   minBulletSS: 3

@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: a8827af063e636241a3114fb23446de5
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 129321
+  packageName: Mirror
+  packageVersion: 96.0.1
+  assetPath: Assets/Mirror/Examples/PickupsDropsChilds/Prefabs/SceneObject.prefab
+  uploadId: 736421

@@ -410,10 +410,12 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
+  allowAccumulatedDamage: 0
   decisionTime: 5
   executionTime: 5
   timerText: {fileID: 1576645957}
   players: []
+  deadPlayers: []
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
