@@ -355,6 +355,7 @@ GameObject:
   - component: {fileID: 364480903}
   - component: {fileID: 364480904}
   - component: {fileID: 364480905}
+  - component: {fileID: 364480906}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -416,6 +417,21 @@ MonoBehaviour:
   timerText: {fileID: 1576645957}
   players: []
   deadPlayers: []
+--- !u!114 &364480906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 364480902}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2bd38ecbfd441134cacdf80e426b556a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0

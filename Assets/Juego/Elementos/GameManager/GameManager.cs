@@ -262,6 +262,13 @@ public class GameManager : NetworkBehaviour
 
         // Agregar un delay antes de procesar la muerte
         StartCoroutine(HandlePlayerDeath(deadPlayer));
+
+        PlayerController killer = players.FirstOrDefault(p => p.lastShotTarget == deadPlayer);
+
+        if (killer != null && RolesManager.Instance != null)
+        {
+            RolesManager.Instance.TransferParcaRole(killer, deadPlayer);
+        }
     }
 
     private IEnumerator HandlePlayerDeath(PlayerController deadPlayer)

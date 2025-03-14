@@ -28,8 +28,10 @@ public class PlayerAction
 public class PlayerController : NetworkBehaviour
 {
     public bool isAlive = true;
+    [SyncVar] public PlayerController lastShotTarget = null;
     [SyncVar(hook = nameof(OnAmmoChanged))] public int ammo;
     [SyncVar(hook = nameof(OnHealthChanged))] public int health;
+    private int fullHealth; //Esta vida no es variable es para saber cual es la vida máxima
     [SyncVar] public bool isCovering = false;
     [SerializeField] private int minBulletS = 1;
     [SerializeField] private int minBulletSS = 3;
@@ -49,6 +51,9 @@ public class PlayerController : NetworkBehaviour
     public GameObject victoryCanvas;
     public GameObject targetIndicator; //Indicador visual de objetivo elegido
     public GameObject playerIndicator;
+    [Header("Rol Elements")]
+    public GameObject parcaSprite;
+
     public TMP_Text healthText;
     public TMP_Text ammoText;
     public TMP_Text coverProbabilityText;
@@ -70,6 +75,8 @@ public class PlayerController : NetworkBehaviour
 
     private void Start()
     {
+        fullHealth = health; //guardamos el valor inicial de health
+
         animator = GetComponent<Animator>();
 
         if (targetIndicator != null)
@@ -229,6 +236,20 @@ public class PlayerController : NetworkBehaviour
         if (ammoText)
             ammoText.text = $"Balas: {ammo}";
     }
+
+    #endregion
+
+    #region Roles
+
+    [ClientRpc]
+    public void RpcSetParcaSprite(bool isActive)
+    {
+        if (parcaSprite != null)
+        {
+            parcaSprite.SetActive(isActive);
+        }
+    }
+
 
     #endregion
 
@@ -507,7 +528,37 @@ public class PlayerController : NetworkBehaviour
         }
 
         target.TakeDamage();
+        lastShotTarget = target; // Almacenar víctima de disparo
         Debug.Log($"{gameObject.name} disparó a {target.gameObject.name}. Balas restantes: {ammo}");
+
+        if (!target.isAlive)
+        {
+            RolesManager.Instance?.RegisterKill(this, target);
+        }
+    }
+
+    [Server]
+    public void ServerHeal(int amount)
+    {
+        health = Mathf.Min(health + amount, fullHealth);
+        RpcUpdateHealth(health);
+        Debug.Log($"{gameObject.name} se ha curado {amount} de vida.");
+    }
+
+    [Server]
+    public void ServerHealFull()
+    {
+        health = fullHealth; // Curación total
+        RpcUpdateHealth(health);
+        Debug.Log($"{gameObject.name} se ha curado completamente.");
+    }
+
+    [ClientRpc]
+    public void RpcUpdateHealth(int newHealth)
+    {
+        health = newHealth;
+        if (healthText)
+            healthText.text = $"Vida: {newHealth}";
     }
 
     [ClientRpc]
