@@ -904,7 +904,7 @@ MonoBehaviour:
   onlineScene: Assets/Juego/Scenes/RoomScene.unity
   offlineSceneLoadDelay: 0
   transport: {fileID: 526694692}
-  networkAddress: 16.170.157.93
+  networkAddress: 13.48.106.194
   maxConnections: 100
   disconnectInactiveConnections: 0
   disconnectInactiveTimeout: 60

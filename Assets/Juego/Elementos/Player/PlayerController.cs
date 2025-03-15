@@ -413,6 +413,7 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    #region Revisar esto
     //Mostrar pantalla de derrota (solo en el cliente del jugador muerto)
     [ClientRpc]
     public void RpcShowDefeat()
@@ -434,7 +435,9 @@ public class PlayerController : NetworkBehaviour
             victoryCanvas.SetActive(true);
         }
     }
-
+    #endregion
+    //Mostrar pantalla de derrota (solo en el cliente del jugador muerto)
+    
     [ClientRpc]
     public void RpcUpdateCover(bool coverState)
     {
@@ -464,8 +467,20 @@ public class PlayerController : NetworkBehaviour
         if (isLocalPlayer)
         {
             deathCanvas.SetActive(true);
+            
         }
 
+        StartCoroutine(PlayDeathAnimationWithDelay(0.1f));
+    }
+
+    private IEnumerator PlayDeathAnimationWithDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        GetComponent<NetworkAnimator>().animator.Play("Death");//Animacion de muerte 
+        coverProbabilityText.gameObject.SetActive(false);
+        healthText.gameObject.SetActive(false);
+        ammoText.gameObject.SetActive(false);
     }
 
     [ClientRpc]
@@ -592,7 +607,8 @@ public class PlayerController : NetworkBehaviour
             GameManager.Instance.RegisterDamagedPlayer(this);
         }
 
-        GetComponent<NetworkAnimator>().animator.Play("ReceiveDamage");
+        RpcPlayAnimation("ReceiveDamage");
+        //GetComponent<NetworkAnimator>().animator.Play("ReceiveDamage");
 
         health--;
 
@@ -603,6 +619,8 @@ public class PlayerController : NetworkBehaviour
 
             Debug.Log($"{gameObject.name} ha sido eliminado.");
             RpcSendLogToClients($"{gameObject.name} ha sido eliminado.");
+
+            
             RpcOnDeath(); // Notificar a todos los clientes
 
             if (isServer && GameManager.Instance != null)// Esto solo se ejecuta en el servidor para evitar errores

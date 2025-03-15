@@ -90,7 +90,7 @@ public class GameManager : NetworkBehaviour
         foreach (var player in players)
         {
             player.TargetPlayButtonAnimation(player.connectionToClient, "Venir", true);
-            player.GetComponent<NetworkAnimator>().animator.Play("Idle");
+            player.RpcPlayAnimation("Idle");
         }
         
         actionsQueue.Clear();
@@ -146,14 +146,15 @@ public class GameManager : NetworkBehaviour
                 {
                     entry.Key.isCovering = true; //Manejado por el serivdor
                     entry.Key.RpcUpdateCover(true);
-                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("Cover");
+                    entry.Key.RpcPlayAnimation("Cover");
                     entry.Key.consecutiveCovers++;
                     Debug.Log($"[SERVER] {entry.Key.gameObject.name} se cubrió con éxito en el intento { entry.Key.consecutiveCovers + 1}");
                     entry.Key.RpcSendLogToClients($"{entry.Key.gameObject.name} se cubrió con éxito en el intento {entry.Key.consecutiveCovers + 1}");
                 }
                 else
                 {
-                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("CoverFail");
+                    //entry.Key.GetComponent<NetworkAnimator>().animator.Play("CoverFail");
+                    entry.Key.RpcPlayAnimation("CoverFail");
                     Debug.Log($"[SERVER] {entry.Key.gameObject.name} intento cubrirse, pero falló en el intento {entry.Key.consecutiveCovers + 1}");
                     entry.Key.RpcSendLogToClients($"{entry.Key.gameObject.name} intento cubrirse, pero falló en el intento {entry.Key.consecutiveCovers + 1}");
                 }
@@ -171,24 +172,28 @@ public class GameManager : NetworkBehaviour
             {
                 case ActionType.Reload:
                     entry.Key.ServerReload();
-                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("Reload");
+                    //entry.Key.GetComponent<NetworkAnimator>().animator.Play("Reload");
+                    entry.Key.RpcPlayAnimation("Reload");
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.Shoot:
                     entry.Key.ServerAttemptShoot(entry.Value.target);
-                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("Shoot");
+                    //entry.Key.GetComponent<NetworkAnimator>().animator.Play("Shoot");
+                    entry.Key.RpcPlayAnimation("Shoot");
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.SuperShoot:
                     entry.Key.ServerAttemptShoot(entry.Value.target);
-                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("SuperShoot");
+                    //entry.Key.GetComponent<NetworkAnimator>().animator.Play("SuperShoot");
+                    entry.Key.RpcPlayAnimation("SuperShoot");
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.None:
-                    entry.Key.GetComponent<NetworkAnimator>().animator.Play("None");
+                    //entry.Key.GetComponent<NetworkAnimator>().animator.Play("None");
+                    entry.Key.RpcPlayAnimation("None");
                     break;
             }
         }
