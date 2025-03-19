@@ -50,7 +50,8 @@ public class PlayerController : NetworkBehaviour
     public GameObject deathCanvas;
     public GameObject victoryCanvas;
     public GameObject targetIndicator; //Indicador visual de objetivo elegido
-    public GameObject playerIndicator;
+
+
     [Header("Rol Elements")]
     public GameObject parcaSprite;
 
@@ -72,9 +73,38 @@ public class PlayerController : NetworkBehaviour
     public GameObject crosshairPrefab; //Prefab de la mirilla
     private GameObject crosshairInstance; //Instancia que crea el script cuando seleccionamos disparar
 
+    #region Name
+    public TMP_InputField nameInputField;
+    [SyncVar(hook = nameof(OnNameChanged))]
+    public string playerName;
 
+    public TMP_Text playerNameText;
+
+    void OnNameChanged(string oldName, string newName)
+    {
+        if (playerNameText != null)
+            playerNameText.text = newName;
+
+    }
+
+    [Command]
+    void CmdSetPlayerName(string newName)
+    {
+        playerName = newName; // Se sincroniza con todos los clientes
+    }
+    #endregion
     private void Start()
     {
+        if (isLocalPlayer)
+        {
+            nameInputField.gameObject.SetActive(true);
+            nameInputField.onEndEdit.AddListener(delegate { CmdSetPlayerName(nameInputField.text); });
+        }
+        else
+        {
+            nameInputField.gameObject.SetActive(false);
+        }
+
         fullHealth = health; //guardamos el valor inicial de health
 
         animator = GetComponent<Animator>();
@@ -82,8 +112,8 @@ public class PlayerController : NetworkBehaviour
         if (targetIndicator != null)
             targetIndicator.SetActive(false);
 
-        if (playerIndicator != null)
-            playerIndicator.SetActive(isLocalPlayer);
+        /*if (playerIndicator != null)
+            playerIndicator.SetActive(isLocalPlayer);*/
 
         if (isLocalPlayer)
         {

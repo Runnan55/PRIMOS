@@ -23,7 +23,7 @@ public class DebugConsole : NetworkBehaviour
 
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.M))
+        if (Input.GetKeyDown(KeyCode.Alpha1))
         {
             isConsoleVisible = !isConsoleVisible;
             consolePanel.SetActive(isConsoleVisible);
