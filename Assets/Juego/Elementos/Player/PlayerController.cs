@@ -50,6 +50,7 @@ public class PlayerController : NetworkBehaviour
     public GameObject deathCanvas;
     public GameObject victoryCanvas;
     public GameObject targetIndicator; //Indicador visual de objetivo elegido
+    public GameObject localPlayerIndicator; //Indicador visual de tu jugador
 
 
     [Header("Rol Elements")]
@@ -73,6 +74,24 @@ public class PlayerController : NetworkBehaviour
     public GameObject crosshairPrefab; //Prefab de la mirilla
     private GameObject crosshairInstance; //Instancia que crea el script cuando seleccionamos disparar
 
+    #region JugadorEligioNombreEnviarConfirmacionAGameManager
+
+    [SyncVar(hook = nameof(OnNameConfirmedChanged))]
+    public bool hasConfirmedName = false;
+
+    public GameObject canvasInicioPartida;
+
+    void OnNameConfirmedChanged(bool oldValue, bool newValue)
+    {
+        if (isLocalPlayer && newValue)
+        {
+            canvasInicioPartida.SetActive(false);
+        }
+    }
+
+
+    #endregion
+
     #region Name
     public TMP_InputField nameInputField;
     [SyncVar(hook = nameof(OnNameChanged))]
@@ -90,15 +109,48 @@ public class PlayerController : NetworkBehaviour
     [Command]
     void CmdSetPlayerName(string newName)
     {
-        playerName = newName; // Se sincroniza con todos los clientes
+        if (!string.IsNullOrWhiteSpace(newName)) //Evitar nombres vacios de jugadores
+        {
+            playerName = newName;
+            hasConfirmedName = true;
+            GameManager.Instance.CheckAllPlayersReady(); //Llamar al servidor para iniciar partida
+        }
     }
+
+
     #endregion
     private void Start()
     {
+        if(isLocalPlayer)
+        {
+            shootButton.interactable = (false);
+            superShootButton.interactable = (false);
+            reloadButton.interactable = (false);
+            coverButton.interactable = (false);
+        }
+
+        if (isLocalPlayer)
+        {
+            canvasInicioPartida.SetActive(true); // Solo el jugador local ve su propio Canvas
+            localPlayerIndicator.SetActive(true);
+        }
+        else
+        {
+            canvasInicioPartida.SetActive(false); // Ocultar para los demás jugadores
+            localPlayerIndicator.SetActive(false);
+        }
+
+
         if (isLocalPlayer)
         {
             nameInputField.gameObject.SetActive(true);
-            nameInputField.onEndEdit.AddListener(delegate { CmdSetPlayerName(nameInputField.text); });
+            nameInputField.onEndEdit.AddListener(delegate
+            {
+                if (!string.IsNullOrWhiteSpace(nameInputField.text)) // Solo aceptar si tiene texto
+                {
+                    CmdSetPlayerName(nameInputField.text);
+                }
+            });
         }
         else
         {
@@ -183,12 +235,12 @@ public class PlayerController : NetworkBehaviour
                     //Verifica que la acción seleccionada sea Shoot o SuperShoot antes de registrar la acción
                     if (selectedAction == ActionType.Shoot)
                     { 
-                        Debug.Log($"Objetivo seleccionado: {clickedPlayer.gameObject.name}");
+                        Debug.Log($"Objetivo seleccionado: {clickedPlayer.playerName}");
                         CmdRegisterAction(ActionType.Shoot, clickedPlayer);
                     }
                     if (selectedAction == ActionType.SuperShoot)
                     {
-                        Debug.Log($"Objetivo seleccionado: {clickedPlayer.gameObject.name}");
+                        Debug.Log($"Objetivo seleccionado: {clickedPlayer.playerName}");
                         CmdRegisterAction(ActionType.SuperShoot, clickedPlayer);
                     }
                     Destroy(crosshairInstance);
@@ -439,7 +491,7 @@ public class PlayerController : NetworkBehaviour
         if (target != null && target.targetIndicator != null)
         {
             target.targetIndicator.SetActive(true);
-            Debug.Log($"[CLIENT] Indicador de objetivo activado en {target.gameObject.name}");
+            Debug.Log($"[CLIENT] Indicador de objetivo activado en {target.playerName}");
         }
     }
 
@@ -472,7 +524,7 @@ public class PlayerController : NetworkBehaviour
     public void RpcUpdateCover(bool coverState)
     {
         isCovering = coverState;
-        Debug.Log($"[CLIENT] {gameObject.name} -> isCovering actualizado a {isCovering}");
+        Debug.Log($"[CLIENT] {playerName} -> isCovering actualizado a {isCovering}");
     }
 
     #region UI Handling
@@ -549,7 +601,7 @@ public class PlayerController : NetworkBehaviour
 
         if (!target.isAlive)
         {
-            Debug.Log($"{gameObject.name} le disparó al cadaver de {target.gameObject.name}.");
+            Debug.Log($"{playerName} le disparó al cadaver de {target.playerName}.");
             return;
         }
 
@@ -562,19 +614,19 @@ public class PlayerController : NetworkBehaviour
                 target.isCovering = false; //Desactiva la cobertura del objetivo en el servidor
                 target.RpcUpdateCover(false);// Sincroniza la cobertura con los demás clientes
                 target.RpcPlayAnimation("CoverBroken");
-                Debug.Log($"{gameObject.name} usó SUPERSHOOT y forzó a {target.gameObject.name} a salir de cobertura");
+                Debug.Log($"{playerName} usó SUPERSHOOT y forzó a {target.playerName} a salir de cobertura");
             }
         }
 
         if (target.isCovering)
         {
-            Debug.Log($"[SERVER] {target.gameObject.name} está cubierto. Disparo bloqueado..");
+            Debug.Log($"[SERVER] {target.playerName} está cubierto. Disparo bloqueado..");
             return;
         }
 
         target.TakeDamage();
         lastShotTarget = target; // Almacenar víctima de disparo
-        Debug.Log($"{gameObject.name} disparó a {target.gameObject.name}. Balas restantes: {ammo}");
+        Debug.Log($"{playerName} disparó a {target.playerName}. Balas restantes: {ammo}");
 
         if (!target.isAlive)
         {
@@ -587,7 +639,7 @@ public class PlayerController : NetworkBehaviour
     {
         health = Mathf.Min(health + amount, fullHealth);
         RpcUpdateHealth(health);
-        Debug.Log($"{gameObject.name} se ha curado {amount} de vida.");
+        Debug.Log($"{playerName} se ha curado {amount} de vida.");
     }
 
     [Server]
@@ -595,7 +647,7 @@ public class PlayerController : NetworkBehaviour
     {
         health = fullHealth; // Curación total
         RpcUpdateHealth(health);
-        Debug.Log($"{gameObject.name} se ha curado completamente.");
+        Debug.Log($"{playerName} se ha curado completamente.");
     }
 
     [ClientRpc]
@@ -626,8 +678,8 @@ public class PlayerController : NetworkBehaviour
 
         if (!GameManager.Instance.AllowAccumulatedDamage() && GameManager.Instance.HasTakenDamage(this)) //Verificar si el daño se debe acumular o no
         {
-            Debug.Log($"{gameObject.name} ya recibió daño en esta ronda, ignorando el ataque.");
-            RpcSendLogToClients($"{gameObject.name} ya recibió daño en esta ronda, ignorando el ataque.");
+            Debug.Log($"{playerName} ya recibió daño en esta ronda, ignorando el ataque.");
+            RpcSendLogToClients($"{playerName} ya recibió daño en esta ronda, ignorando el ataque.");
             return;
         }
 
@@ -647,8 +699,8 @@ public class PlayerController : NetworkBehaviour
             if (!isAlive) return; // Segunda verificación para evitar doble ejecución
             isAlive = false;
 
-            Debug.Log($"{gameObject.name} ha sido eliminado.");
-            RpcSendLogToClients($"{gameObject.name} ha sido eliminado.");
+            Debug.Log($"{playerName} ha sido eliminado.");
+            RpcSendLogToClients($"{playerName} ha sido eliminado.");
 
             
             RpcOnDeath(); // Notificar a todos los clientes
