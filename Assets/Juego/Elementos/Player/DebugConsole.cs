@@ -54,14 +54,6 @@ public class DebugConsole : NetworkBehaviour
             logHistory.Dequeue(); //Eliminar mensajes antiguos
         }
 
-        foreach (var player in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
-        {
-            if (!string.IsNullOrEmpty(player.playerName))
-            {
-                logString = logString.Replace(player.gameObject.name, player.playerName);
-            }
-        }
-
         logHistory.Enqueue(logString); // Agregar mensaje al historial
 
         logText.text = string.Join("\n", logHistory); //Mostrar todos los logs en UI
@@ -70,6 +62,6 @@ public class DebugConsole : NetworkBehaviour
 
     private void OnDestroy()
     {
-        Application.logMessageReceived -= HandleLog; //Evita referencias al destruir
+        Application.logMessageReceived -= HandleLog; //Evita llamadas de HandleLog() si el objeto que contiene DebugConsole está destruido
     }
 }

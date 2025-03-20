@@ -38,6 +38,7 @@ public class RolesManager : NetworkBehaviour
         }
 
         playerKills[killer]++;
+        killer.kills = playerKills[killer];//Actualizar contador de kills de jugador
 
         Debug.Log($"{killer.gameObject.name} ha matado a {victim.gameObject.name}. Total de kills: {playerKills[killer]}");
 

@@ -30,8 +30,11 @@ public class PlayerController : NetworkBehaviour
     public bool isAlive = true;
     [SyncVar] public PlayerController lastShotTarget = null;
     [SyncVar(hook = nameof(OnAmmoChanged))] public int ammo;
-    [SyncVar(hook = nameof(OnHealthChanged))] public int health;
-    private int fullHealth; //Esta vida no es variable es para saber cual es la vida máxima
+    [SyncVar(hook = nameof(OnHealthChanged))] public int health; private int fullHealth; //Esta vida no es variable es para saber cual es la vida máxima
+    [SyncVar(hook = nameof(OnNameConfirmedChanged))] public bool hasConfirmedName = false; //Decir al server que el jugador eligió nombre
+    [SyncVar(hook = nameof(OnNameChanged))] public string playerName;
+    [SyncVar(hook = nameof(OnKillsChanged))] public int kills = 0;
+
     [SyncVar] public bool isCovering = false;
     [SerializeField] private int minBulletS = 1;
     [SerializeField] private int minBulletSS = 3;
@@ -46,12 +49,16 @@ public class PlayerController : NetworkBehaviour
     public ActionType selectedAction = ActionType.None;
 
     [Header("UI Elements")]
+    public GameObject canvasInicioPartida; //Elegir nombre jugador
     public GameObject playerCanvas;
     public GameObject deathCanvas;
     public GameObject victoryCanvas;
     public GameObject targetIndicator; //Indicador visual de objetivo elegido
     public GameObject localPlayerIndicator; //Indicador visual de tu jugador
 
+    [Header("Crosshair")]
+    public GameObject crosshairPrefab; //Prefab de la mirilla
+    private GameObject crosshairInstance; //Instancia que crea el script cuando seleccionamos disparar
 
     [Header("Rol Elements")]
     public GameObject parcaSprite;
@@ -60,6 +67,8 @@ public class PlayerController : NetworkBehaviour
     public TMP_Text ammoText;
     public TMP_Text coverProbabilityText;
     public TMP_Text countdownText;
+    public TMP_Text playerNameText;
+    public TMP_InputField nameInputField;
 
     [Header("UI Buttons")]
     public Button shootButton;
@@ -70,55 +79,9 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private Color defaultButtonColor = Color.white; //Color por defecto
     [SerializeField] private Color highlightedColor = Color.yellow; //Color resaltado
 
-    [Header("Crosshair")]
-    public GameObject crosshairPrefab; //Prefab de la mirilla
-    private GameObject crosshairInstance; //Instancia que crea el script cuando seleccionamos disparar
+    [Header("GameModifierType")]
+    public bool isDarkReloadEnabled = false;
 
-    #region JugadorEligioNombreEnviarConfirmacionAGameManager
-
-    [SyncVar(hook = nameof(OnNameConfirmedChanged))]
-    public bool hasConfirmedName = false;
-
-    public GameObject canvasInicioPartida;
-
-    void OnNameConfirmedChanged(bool oldValue, bool newValue)
-    {
-        if (isLocalPlayer && newValue)
-        {
-            canvasInicioPartida.SetActive(false);
-        }
-    }
-
-
-    #endregion
-
-    #region Name
-    public TMP_InputField nameInputField;
-    [SyncVar(hook = nameof(OnNameChanged))]
-    public string playerName;
-
-    public TMP_Text playerNameText;
-
-    void OnNameChanged(string oldName, string newName)
-    {
-        if (playerNameText != null)
-            playerNameText.text = newName;
-
-    }
-
-    [Command]
-    void CmdSetPlayerName(string newName)
-    {
-        if (!string.IsNullOrWhiteSpace(newName)) //Evitar nombres vacios de jugadores
-        {
-            playerName = newName;
-            hasConfirmedName = true;
-            GameManager.Instance.CheckAllPlayersReady(); //Llamar al servidor para iniciar partida
-        }
-    }
-
-
-    #endregion
     private void Start()
     {
         if(isLocalPlayer)
@@ -127,33 +90,29 @@ public class PlayerController : NetworkBehaviour
             superShootButton.interactable = (false);
             reloadButton.interactable = (false);
             coverButton.interactable = (false);
-        }
 
-        if (isLocalPlayer)
-        {
             canvasInicioPartida.SetActive(true); // Solo el jugador local ve su propio Canvas
             localPlayerIndicator.SetActive(true);
+
+            nameInputField.gameObject.SetActive(true);
+            nameInputField.onEndEdit.AddListener(CmdSetPlayerName);
+
+            deathCanvas.SetActive(false);
+            victoryCanvas.SetActive(false);
+            targetIndicator.SetActive(false);
+            playerCanvas.SetActive(true);
+
+            if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
+            if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());
+            if (coverButton) coverButton.onClick.AddListener(() => OnCoverButton());
+            if (superShootButton) superShootButton.onClick.AddListener(() => OnSuperShootButton());
         }
         else
         {
             canvasInicioPartida.SetActive(false); // Ocultar para los demás jugadores
+            playerCanvas.SetActive(false);
             localPlayerIndicator.SetActive(false);
-        }
 
-
-        if (isLocalPlayer)
-        {
-            nameInputField.gameObject.SetActive(true);
-            nameInputField.onEndEdit.AddListener(delegate
-            {
-                if (!string.IsNullOrWhiteSpace(nameInputField.text)) // Solo aceptar si tiene texto
-                {
-                    CmdSetPlayerName(nameInputField.text);
-                }
-            });
-        }
-        else
-        {
             nameInputField.gameObject.SetActive(false);
         }
 
@@ -163,32 +122,6 @@ public class PlayerController : NetworkBehaviour
 
         if (targetIndicator != null)
             targetIndicator.SetActive(false);
-
-        /*if (playerIndicator != null)
-            playerIndicator.SetActive(isLocalPlayer);*/
-
-        if (isLocalPlayer)
-        {
-            deathCanvas.SetActive(false);
-            victoryCanvas.SetActive(false);
-            targetIndicator.SetActive(false);
-
-            if (playerCanvas)
-                playerCanvas.SetActive(true);
-
-            if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
-            if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());
-            if (coverButton) coverButton.onClick.AddListener(() => OnCoverButton());
-            if (superShootButton) superShootButton.onClick.AddListener(() => OnSuperShootButton());
-
-            shootButton.interactable = ammo >= minBulletS;
-            superShootButton.interactable = ammo >= minBulletSS;
-        }
-        else
-        {
-            if (playerCanvas)
-                playerCanvas.SetActive(false);
-        }
     }
 
     //Forzar sincronización inicial, sino no se verán los datos de los otros jugadores al inicio
@@ -197,6 +130,7 @@ public class PlayerController : NetworkBehaviour
         base.OnStartClient();
         OnHealthChanged(health, health); //Forzamos mostrar vida al inicio aunque no cambie
         OnAmmoChanged(ammo, ammo); //Forzamos mostrar munición al inicio aunque no cambie
+        //No forzamos un OnNameChanged porque el nombre se actualiza al inicio de la partida
     }
 
     public override void OnStartServer()
@@ -278,13 +212,11 @@ public class PlayerController : NetworkBehaviour
         isAlive = state; // Solo actualizar visualmente si se necesita
     }
 
-
     [ClientRpc]
-    public void RpcSendLogToClients(string logMessage)
+    public void RpcSendLogToClients(string logMessage) //Recibir Debug.Log del server para mostrarlos en la DebugConsole
     {
         Debug.Log(logMessage);
     }
-
 
     [ClientRpc]
     public void RpcUpdateCoverProbabilityUI(float updatedProbability)
@@ -293,6 +225,26 @@ public class PlayerController : NetworkBehaviour
         {
             coverProbabilityText.text = $"Cobertura\n{(updatedProbability * 100):0}%";
         }
+    }
+
+    void OnKillsChanged(int oldValue, int newValue)
+    {
+        Debug.Log($"{playerName} ahora tiene {newValue} kills.");
+    }
+
+    void OnNameConfirmedChanged(bool oldValue, bool newValue) //Indicar al server que este player eligio nombre
+    {
+        if (isLocalPlayer && newValue)
+        {
+            canvasInicioPartida.SetActive(false);
+        }
+    }
+
+    void OnNameChanged(string oldName, string newName)
+    {
+        if (playerNameText != null)
+            playerNameText.text = newName;
+
     }
 
     // Hook para actualizar la UI de vida
@@ -309,16 +261,6 @@ public class PlayerController : NetworkBehaviour
             ammoText.text = $"Balas: {newAmmo}";
     }
 
-    [TargetRpc]
-    public void TargetUpdateUI(NetworkConnection target, int updatedAmmo)
-    {
-        if (healthText)
-            healthText.text = $"Vida: {health}";
-
-        if (ammoText)
-            ammoText.text = $"Balas: {ammo}";
-    }
-
     #endregion
 
     #region Roles
@@ -331,7 +273,6 @@ public class PlayerController : NetworkBehaviour
             parcaSprite.SetActive(isActive);
         }
     }
-
 
     #endregion
 
@@ -349,6 +290,13 @@ public class PlayerController : NetworkBehaviour
         coverButton.interactable = enableButtons;
 
         animator.SetTrigger(animationTrigger); // Ejecutar animación solo en el player local
+    }
+
+    [ClientRpc]
+    public void RpcPlayAnimation(string animation)
+    {
+        if (!isAlive) return;
+        GetComponent<NetworkAnimator>().animator.Play(animation);//Esto sirve por ejemplo para que el player llame animación en otro player, tambien se puede llamar desde el Server
     }
 
     #endregion
@@ -402,27 +350,6 @@ public class PlayerController : NetworkBehaviour
         HighlightButton(coverButton);//Resaltar botón
     }
 
-    #region HighlightButton
-    private void HighlightButton(Button button)
-    {
-        if (selectedButton != null) //Si hay un botón seleccionado previamente, restablecer su color
-        {
-            ColorBlock colors = selectedButton.colors;
-            colors.normalColor = defaultButtonColor;
-            selectedButton.colors = colors;
-        }
-
-        if (button != null)// Resaltar nuevo botón
-        {
-            ColorBlock newColors = button.colors;
-            newColors.normalColor = highlightedColor;
-            newColors.selectedColor = highlightedColor; //Mantener nuevo color
-            button.colors = newColors;
-
-            selectedButton = button;// Guerdar el botón seleccionado
-        }
-    }
-
     #region CuentaRegresivaFase
 
     [ClientRpc]
@@ -455,6 +382,29 @@ public class PlayerController : NetworkBehaviour
 
 
     #endregion
+
+    #region HighlightButton
+    private void HighlightButton(Button button)
+    {
+        if (selectedButton != null) //Si hay un botón seleccionado previamente, restablecer su color
+        {
+            ColorBlock colors = selectedButton.colors;
+            colors.normalColor = defaultButtonColor;
+            selectedButton.colors = colors;
+        }
+
+        if (button != null)// Resaltar nuevo botón
+        {
+            ColorBlock newColors = button.colors;
+            newColors.normalColor = highlightedColor;
+            newColors.selectedColor = highlightedColor; //Mantener nuevo color
+            button.colors = newColors;
+
+            selectedButton = button;// Guerdar el botón seleccionado
+        }
+    }
+
+    
 
     [ClientRpc]
     public void RpcResetButtonHightLight()
@@ -491,33 +441,9 @@ public class PlayerController : NetworkBehaviour
         if (target != null && target.targetIndicator != null)
         {
             target.targetIndicator.SetActive(true);
-            Debug.Log($"[CLIENT] Indicador de objetivo activado en {target.playerName}");
         }
     }
 
-    #region Revisar esto
-    //Mostrar pantalla de derrota (solo en el cliente del jugador muerto)
-    [ClientRpc]
-    public void RpcShowDefeat()
-    {
-        if (isLocalPlayer && deathCanvas != null)
-        {
-            Debug.Log("Mostrando pantalla de derrota.");
-            deathCanvas.SetActive(true);
-        }
-    }
-
-    //Mostrar pantalla de victoria (solo en el cliente del ganador)
-    [ClientRpc]
-    public void RpcShowVictory()
-    {
-        if (isLocalPlayer && victoryCanvas != null)
-        {
-            Debug.Log("Mostrando pantalla de victoria.");
-            victoryCanvas.SetActive(true);
-        }
-    }
-    #endregion
     //Mostrar pantalla de derrota (solo en el cliente del jugador muerto)
     
     [ClientRpc]
@@ -588,7 +514,19 @@ public class PlayerController : NetworkBehaviour
         RpcSetTargetIndicator(this, target); //Indicador del cliente que disparó
 
     }
-        #endregion
+
+    [Command]
+    void CmdSetPlayerName(string newName)
+    {
+        if (!string.IsNullOrWhiteSpace(newName)) //Evitar nombres vacios de jugadores
+        {
+            playerName = newName;
+            hasConfirmedName = true;
+            GameManager.Instance.CheckAllPlayersReady(); //Llamar al servidor para iniciar partida
+        }
+    }
+
+    #endregion
 
     #region SERVER
 
@@ -635,40 +573,19 @@ public class PlayerController : NetworkBehaviour
     }
 
     [Server]
-    public void ServerHeal(int amount)
-    {
-        health = Mathf.Min(health + amount, fullHealth);
-        RpcUpdateHealth(health);
-        Debug.Log($"{playerName} se ha curado {amount} de vida.");
-    }
-
-    [Server]
-    public void ServerHealFull()
-    {
-        health = fullHealth; // Curación total
-        RpcUpdateHealth(health);
-        Debug.Log($"{playerName} se ha curado completamente.");
-    }
-
-    [ClientRpc]
-    public void RpcUpdateHealth(int newHealth)
-    {
-        health = newHealth;
-        if (healthText)
-            healthText.text = $"Vida: {newHealth}";
-    }
-
-    [ClientRpc]
-    public void RpcPlayAnimation(string animation)
-    {
-        if (!isAlive) return;
-        GetComponent<NetworkAnimator>().animator.Play(animation);//Esto sirve por ejemplo para que el player llame animación en otro player, tambien se puede llamar desde el Server
-    }
-
-    [Server]
     public void ServerReload()
     {
-        ammo++;
+        if (isDarkReloadEnabled)
+        {
+            ammo++;
+            ammo++;
+            Debug.Log($"{playerName} recargó 2 balas debido a Carga Oscura.");
+        }
+        else
+        {
+            ammo++;
+        }
+        
     }
 
     [Server]
@@ -702,7 +619,7 @@ public class PlayerController : NetworkBehaviour
             Debug.Log($"{playerName} ha sido eliminado.");
             RpcSendLogToClients($"{playerName} ha sido eliminado.");
 
-            
+
             RpcOnDeath(); // Notificar a todos los clientes
 
             if (isServer && GameManager.Instance != null)// Esto solo se ejecuta en el servidor para evitar errores
@@ -711,6 +628,20 @@ public class PlayerController : NetworkBehaviour
             }
 
         }
+    }
+
+    [Server]
+    public void ServerHeal(int amount)
+    {
+        health = Mathf.Min(health + amount, fullHealth);
+        Debug.Log($"{playerName} se ha curado {amount} de vida.");
+    }
+
+    [Server]
+    public void ServerHealFull()
+    {
+        health = fullHealth; // Curación total
+        Debug.Log($"{playerName} se ha curado completamente.");
     }
 
     #endregion

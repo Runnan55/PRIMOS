@@ -5,10 +5,20 @@ using UnityEngine;
 using TMPro;
 using System.Linq;
 
+public enum GameModifierType
+{
+    DobleAgente,
+    CaceriaDelLider,
+    GatilloFacil,
+    BalasOxidadas,
+    BendicionDelArsenal,
+    CargaOscura
+}
+
 public class GameManager : NetworkBehaviour
 {
     public static GameManager Instance { get; private set; }
-    [SerializeField] private bool allowAccumulatedDamage = true;
+    [SerializeField] private bool allowAccumulatedDamage = false; //Estilo de juego con daño acumulable o solo 1 de daño por turno
 
     [Header("Rondas")]
     [SyncVar(hook = nameof(OnTimerChanged))] private float currentDecisionTime;
@@ -24,6 +34,12 @@ public class GameManager : NetworkBehaviour
     private HashSet<PlayerController> damagedPlayers = new HashSet<PlayerController>(); // Para almacenar jugadores que ya recibieron daño en la ronda
 
     private Dictionary<PlayerController, PlayerAction> actionsQueue = new Dictionary<PlayerController, PlayerAction>();
+
+    [SerializeField] private GameModifierType SelectedModifier;
+
+    [SyncVar] private int currentRound = 0; // Contador de rondas
+    [SerializeField] private TMP_Text roundText; // Texto en UI para mostrar la ronda
+
 
     private void Awake()
     {
@@ -42,6 +58,42 @@ public class GameManager : NetworkBehaviour
         
     }
 
+    private void ApplyGameModifier(GameModifierType modifier)
+    {
+        switch (modifier)
+        {
+            case GameModifierType.DobleAgente:
+                Debug.Log("Doble Agente activado: Los jugadores eligen a dos enemigos y el disparo cae aleatoriamente.");
+                break;
+            case GameModifierType.CaceriaDelLider:
+                Debug.Log("Cacería del Líder activado: El o los jugadores con más vidas pierden la capacidad de cubrirse.");
+                break;
+            case GameModifierType.GatilloFacil:
+                Debug.Log("Gatillo Fácil activado: Los jugadores obtienen una bala más al iniciar partida.");
+                foreach (var player in players)
+                {
+                    player.ServerReload(); // Otorgar munición extra
+                }
+                break;
+            case GameModifierType.BalasOxidadas:
+                Debug.Log("Balas Oxidadas activado: Todos los disparos tienen un 25% de fallar esta partida.");
+                break;
+            case GameModifierType.BendicionDelArsenal:
+                Debug.Log("Bendición del Arsenal activado: Todos los jugadores reciben una bala gratis cada 3 rondas.");
+                break;
+            case GameModifierType.CargaOscura:
+                Debug.Log("Carga Oscura activado: Recarga 2 balas en lugar de 1.");
+                foreach (var player in players)
+                {
+                    player.isDarkReloadEnabled = true;
+                }
+                break;
+            default:
+                Debug.Log("No se ha seleccionado un modificador específico.");
+                break;
+        }
+    }
+
     public void CheckAllPlayersReady()
     {
         if (!isServer) return;
@@ -54,6 +106,9 @@ public class GameManager : NetworkBehaviour
                 return;
             }
         }
+
+        Debug.Log($"[GameManager] Modificador seleccionado: {SelectedModifier}");
+        ApplyGameModifier(SelectedModifier);
 
         Debug.Log("Todos los jugadores han ingresado su nombre. ¡La partida puede comenzar!");
         StartCoroutine(RoundCycle());
@@ -89,6 +144,8 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator RoundCycle()
     {
+        yield return new WaitForSeconds(0.1f);
+
         while (true)
         {
             yield return StartCoroutine(DecisionPhase());
@@ -97,16 +154,30 @@ public class GameManager : NetworkBehaviour
         }
     }
 
+    [ClientRpc]
+    public void RpcUpdateRoundUI(int roundNumber)
+    {
+        if (roundText != null)
+            roundText.text = $"Ronda: {roundNumber}";
+    }
+
+
     private IEnumerator DecisionPhase()
     {
         isDecisionPhase = true;
+        currentRound++;
+        RpcUpdateRoundUI(currentRound);
+
+        // Mostrar en pantalla la ronda actual
+        if (roundText != null)
+            roundText.text = $"Ronda: {currentRound}";
 
         foreach (var player in players)
         {
             player.TargetPlayButtonAnimation(player.connectionToClient, "Venir", true);
             player.RpcPlayAnimation("Idle");
         }
-        
+
         actionsQueue.Clear();
 
         currentDecisionTime = decisionTime; //Restaurar el tiempo original
@@ -162,15 +233,14 @@ public class GameManager : NetworkBehaviour
                     entry.Key.RpcUpdateCover(true);
                     entry.Key.RpcPlayAnimation("Cover");
                     entry.Key.consecutiveCovers++;
-                    Debug.Log($"[SERVER] {entry.Key.playerName} se cubrió con éxito en el intento { entry.Key.consecutiveCovers + 1}");
-                    entry.Key.RpcSendLogToClients($"{entry.Key.playerName} se cubrió con éxito en el intento {entry.Key.consecutiveCovers + 1}");
+                    Debug.Log($"[SERVER] {entry.Key.playerName} se cubrió con éxito en el intento { entry.Key.consecutiveCovers}");
+                    entry.Key.RpcSendLogToClients($"{entry.Key.playerName} se cubrió con éxito en el intento {entry.Key.consecutiveCovers}");
                 }
                 else
                 {
-                    //entry.Key.GetComponent<NetworkAnimator>().animator.Play("CoverFail");
                     entry.Key.RpcPlayAnimation("CoverFail");
-                    Debug.Log($"[SERVER] {entry.Key.playerName} intento cubrirse, pero falló en el intento {entry.Key.consecutiveCovers + 1}");
-                    entry.Key.RpcSendLogToClients($"{entry.Key.playerName} intento cubrirse, pero falló en el intento {entry.Key.consecutiveCovers + 1}");
+                    Debug.Log($"[SERVER] {entry.Key.playerName} intento cubrirse, pero falló después del {entry.Key.consecutiveCovers + 1} intento");
+                    entry.Key.RpcSendLogToClients($"{entry.Key.playerName} intento cubrirse, pero falló después del {entry.Key.consecutiveCovers + 1} intento");
                 }
                 //El servidor envía la actualizacion de UI a cada cliente
                 float updatedProbability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)];
@@ -186,27 +256,23 @@ public class GameManager : NetworkBehaviour
             {
                 case ActionType.Reload:
                     entry.Key.ServerReload();
-                    //entry.Key.GetComponent<NetworkAnimator>().animator.Play("Reload");
                     entry.Key.RpcPlayAnimation("Reload");
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.Shoot:
                     entry.Key.ServerAttemptShoot(entry.Value.target);
-                    //entry.Key.GetComponent<NetworkAnimator>().animator.Play("Shoot");
                     entry.Key.RpcPlayAnimation("Shoot");
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.SuperShoot:
                     entry.Key.ServerAttemptShoot(entry.Value.target);
-                    //entry.Key.GetComponent<NetworkAnimator>().animator.Play("SuperShoot");
                     entry.Key.RpcPlayAnimation("SuperShoot");
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.None:
-                    //entry.Key.GetComponent<NetworkAnimator>().animator.Play("None");
                     entry.Key.RpcPlayAnimation("None");
                     break;
             }
@@ -215,7 +281,6 @@ public class GameManager : NetworkBehaviour
         foreach (var player in players)
         {
             player.selectedAction = ActionType.None;
-            player.TargetUpdateUI(player.connectionToClient, player.ammo);
         }
 
         damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
@@ -233,7 +298,7 @@ public class GameManager : NetworkBehaviour
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
     }
 
-    public bool IsDecisionPhase() => isDecisionPhase;//Sirve para que PlayerController pueda saber cuando es true DecisionPhase(), así saber cuando meter variables por ejemplo en el UpdateUI();
+    public bool IsDecisionPhase() => isDecisionPhase;//para saber cuando es Fase de decision y meter variables por ejemplo en el UpdateUI();
 
     private void CheckGameOver()
     {
