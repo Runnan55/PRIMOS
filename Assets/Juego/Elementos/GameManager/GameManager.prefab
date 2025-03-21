@@ -34,7 +34,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 440, y: 220}
+  m_AnchoredPosition: {x: 400, y: 120}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3126109231882096734
@@ -209,8 +209,10 @@ MonoBehaviour:
   timerText: {fileID: 1968594395757050114}
   players: []
   deadPlayers: []
-  SelectedModifier: 5
   roundText: {fileID: 297458965862001750}
+  SelectedModifier: 0
+  veryHealthy: []
+  randomizeModifier: 1
 --- !u!114 &1084369661911532110
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -365,7 +367,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -380, y: 220}
+  m_AnchoredPosition: {x: 400, y: -60}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6312608857222998493

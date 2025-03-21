@@ -1415,7 +1415,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -404.40015, y: 89.700005}
+  m_AnchoredPosition: {x: -404.40015, y: 89.69999}
   m_SizeDelta: {x: 808, y: 0}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &2443293469734736649
@@ -4169,8 +4169,8 @@ MonoBehaviour:
   syncInterval: 0
   isAlive: 1
   lastShotTarget: {fileID: 0}
-  ammo: 0
-  health: 3
+  ammo: 6
+  health: 5
   hasConfirmedName: 0
   playerName: 
   kills: 0
@@ -4203,6 +4203,8 @@ MonoBehaviour:
   superShootButton: {fileID: 5774999069479955459}
   defaultButtonColor: {r: 1, g: 1, b: 1, a: 1}
   highlightedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  isDarkReloadEnabled: 0
+  isVeryHealthy: 0
 --- !u!114 &1995742921654557300
 MonoBehaviour:
   m_ObjectHideFlags: 0

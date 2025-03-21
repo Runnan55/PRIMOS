@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using Mirror;
+using NUnit.Framework.Constraints;
 using TMPro;
+using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -81,10 +83,12 @@ public class PlayerController : NetworkBehaviour
 
     [Header("GameModifierType")]
     public bool isDarkReloadEnabled = false;
+    [SyncVar(hook = nameof(OnIsVeryHealthyChanged))] public bool isVeryHealthy = false; //Si está en true (por Cacería de Lider) coverButton no funcionará
+
 
     private void Start()
     {
-        if(isLocalPlayer)
+        if (isLocalPlayer)
         {
             shootButton.interactable = (false);
             superShootButton.interactable = (false);
@@ -165,10 +169,10 @@ public class PlayerController : NetworkBehaviour
                 PlayerController clickedPlayer = hit.collider.GetComponent<PlayerController>();
 
                 if (clickedPlayer != null && clickedPlayer != this)
-                {   
+                {
                     //Verifica que la acción seleccionada sea Shoot o SuperShoot antes de registrar la acción
                     if (selectedAction == ActionType.Shoot)
-                    { 
+                    {
                         Debug.Log($"Objetivo seleccionado: {clickedPlayer.playerName}");
                         CmdRegisterAction(ActionType.Shoot, clickedPlayer);
                     }
@@ -247,14 +251,18 @@ public class PlayerController : NetworkBehaviour
 
     }
 
-    // Hook para actualizar la UI de vida
+    public void OnIsVeryHealthyChanged(bool oldValue, bool newValue)
+    {
+        // Opcional: actualiza visualmente al jugador, muestra íconos, colores, etc.
+        Debug.Log($"{playerName}: isVeryHealthy cambió a {newValue}");
+    }
+
     private void OnHealthChanged(int oldHealth, int newHealth)
     {
         if (healthText)
             healthText.text = $"Vida: {newHealth}";
     }
 
-    // Hook para actualizar la UI de balas
     private void OnAmmoChanged(int oldAmmo, int newAmmo)
     {
         if (ammoText)
@@ -278,6 +286,8 @@ public class PlayerController : NetworkBehaviour
 
     #region Animations
 
+    
+
     [TargetRpc]
     public void TargetPlayButtonAnimation(NetworkConnection target, string animationTrigger, bool enableButtons)
     {
@@ -287,7 +297,8 @@ public class PlayerController : NetworkBehaviour
         shootButton.interactable = enableButtons && ammo >= minBulletS;
         superShootButton.interactable = enableButtons && ammo >= minBulletSS;
         reloadButton.interactable = enableButtons;
-        coverButton.interactable = enableButtons;
+
+        coverButton.interactable = enableButtons && !isVeryHealthy; //Requiere también que el jugador no tenga el bool de Caceria de Lider activo
 
         animator.SetTrigger(animationTrigger); // Ejecutar animación solo en el player local
     }

@@ -4,14 +4,15 @@ using Mirror;
 using UnityEngine;
 using TMPro;
 using System.Linq;
+using System;
 
 public enum GameModifierType
 {
-    DobleAgente,
+    //DobleAgente,
     CaceriaDelLider,
     GatilloFacil,
-    BalasOxidadas,
-    BendicionDelArsenal,
+    //BalasOxidadas,
+    //BendicionDelArsenal,
     CargaOscura
 }
 
@@ -35,11 +36,30 @@ public class GameManager : NetworkBehaviour
 
     private Dictionary<PlayerController, PlayerAction> actionsQueue = new Dictionary<PlayerController, PlayerAction>();
 
-    [SerializeField] private GameModifierType SelectedModifier;
 
     [SyncVar] private int currentRound = 0; // Contador de rondas
     [SerializeField] private TMP_Text roundText; // Texto en UI para mostrar la ronda
 
+    [Header("MisionesDeInicio")]
+    [SerializeField] public GameModifierType SelectedModifier;
+    [SerializeField] public List<PlayerController> veryHealthy = new List<PlayerController>(); //Guardar jugadores con más vida
+    [SerializeField] private bool randomizeModifier = false;
+
+
+    private void IdentifyVeryHealthy()
+    {
+        if (players.Count == 0 || SelectedModifier != GameModifierType.CaceriaDelLider) return;
+
+        int maxHealth = players.Max(player => player.health); //Buscar la mayor cantidad de vida
+
+        veryHealthy = players.Where(player => player.health == maxHealth).ToList(); //Filtrar los que tienen vida maxima
+
+        foreach (var player in players)
+        {
+            bool shouldBeHealthy = veryHealthy.Contains(player);
+            player.isVeryHealthy = shouldBeHealthy;
+        }
+    }
 
     private void Awake()
     {
@@ -58,15 +78,24 @@ public class GameManager : NetworkBehaviour
         
     }
 
+    private void ChooseRandomModifier()
+    {
+        Array values = Enum.GetValues(typeof(GameModifierType));
+
+        SelectedModifier = (GameModifierType)values.GetValue(UnityEngine.Random.Range(0, values.Length));
+        Debug.Log($"[GameManager] Se ha elegido un modificador aleatorio: {SelectedModifier}");
+    }
+
     private void ApplyGameModifier(GameModifierType modifier)
     {
         switch (modifier)
         {
-            case GameModifierType.DobleAgente:
+            /*case GameModifierType.DobleAgente:
                 Debug.Log("Doble Agente activado: Los jugadores eligen a dos enemigos y el disparo cae aleatoriamente.");
-                break;
+                break;*/
             case GameModifierType.CaceriaDelLider:
                 Debug.Log("Cacería del Líder activado: El o los jugadores con más vidas pierden la capacidad de cubrirse.");
+                //Funciona pero en el inspector hay que seleccionar
                 break;
             case GameModifierType.GatilloFacil:
                 Debug.Log("Gatillo Fácil activado: Los jugadores obtienen una bala más al iniciar partida.");
@@ -75,12 +104,12 @@ public class GameManager : NetworkBehaviour
                     player.ServerReload(); // Otorgar munición extra
                 }
                 break;
-            case GameModifierType.BalasOxidadas:
+           /* case GameModifierType.BalasOxidadas:
                 Debug.Log("Balas Oxidadas activado: Todos los disparos tienen un 25% de fallar esta partida.");
                 break;
             case GameModifierType.BendicionDelArsenal:
                 Debug.Log("Bendición del Arsenal activado: Todos los jugadores reciben una bala gratis cada 3 rondas.");
-                break;
+                break;*/
             case GameModifierType.CargaOscura:
                 Debug.Log("Carga Oscura activado: Recarga 2 balas en lugar de 1.");
                 foreach (var player in players)
@@ -105,6 +134,11 @@ public class GameManager : NetworkBehaviour
                 Debug.Log("No todos los jugadores han ingresado su nombre");
                 return;
             }
+        }
+
+        if (randomizeModifier)
+        {
+            ChooseRandomModifier();
         }
 
         Debug.Log($"[GameManager] Modificador seleccionado: {SelectedModifier}");
@@ -168,6 +202,13 @@ public class GameManager : NetworkBehaviour
         currentRound++;
         RpcUpdateRoundUI(currentRound);
 
+        if (SelectedModifier == GameModifierType.CaceriaDelLider)
+        {
+            IdentifyVeryHealthy(); //buscar gente con mucha vida
+        }
+
+        yield return new WaitForSeconds(0.1f); //Esperar que se actualize la lista de los jugadores
+
         // Mostrar en pantalla la ronda actual
         if (roundText != null)
             roundText.text = $"Ronda: {currentRound}";
@@ -227,7 +268,7 @@ public class GameManager : NetworkBehaviour
             {
                 float probability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)];
 
-                if (Random.value <= probability)
+                if (UnityEngine.Random.value <= probability)
                 {
                     entry.Key.isCovering = true; //Manejado por el serivdor
                     entry.Key.RpcUpdateCover(true);
