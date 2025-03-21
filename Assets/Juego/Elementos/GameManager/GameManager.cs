@@ -11,7 +11,7 @@ public enum GameModifierType
     //DobleAgente,
     CaceriaDelLider,
     GatilloFacil,
-    //BalasOxidadas,
+    BalasOxidadas,
     //BendicionDelArsenal,
     CargaOscura
 }
@@ -88,32 +88,45 @@ public class GameManager : NetworkBehaviour
 
     private void ApplyGameModifier(GameModifierType modifier)
     {
+        
+        
+
         switch (modifier)
         {
             /*case GameModifierType.DobleAgente:
                 Debug.Log("Doble Agente activado: Los jugadores eligen a dos enemigos y el disparo cae aleatoriamente.");
+                foreach (var player in players) player.RpcPlayAnimation("GM_DobleAgente");
                 break;*/
             case GameModifierType.CaceriaDelLider:
                 Debug.Log("Cacería del Líder activado: El o los jugadores con más vidas pierden la capacidad de cubrirse.");
+                foreach (var player in players) player.RpcPlayAnimation("GM_CaceriaDelLider");
                 //Funciona pero en el inspector hay que seleccionar
                 break;
             case GameModifierType.GatilloFacil:
                 Debug.Log("Gatillo Fácil activado: Los jugadores obtienen una bala más al iniciar partida.");
                 foreach (var player in players)
                 {
+                    player.RpcPlayAnimation("GM_GatilloFacil");
                     player.ServerReload(); // Otorgar munición extra
                 }
-                break;
-           /* case GameModifierType.BalasOxidadas:
-                Debug.Log("Balas Oxidadas activado: Todos los disparos tienen un 25% de fallar esta partida.");
-                break;
-            case GameModifierType.BendicionDelArsenal:
-                Debug.Log("Bendición del Arsenal activado: Todos los jugadores reciben una bala gratis cada 3 rondas.");
-                break;*/
+                break; 
+            case GameModifierType.BalasOxidadas:
+                 Debug.Log("Balas Oxidadas activado: Todos los disparos tienen un 25% de fallar esta partida.");
+                foreach (var player in players)
+                {
+                    player.RpcPlayAnimation("GM_BalasOxidadas");
+                    player.rustyBulletsActive = true;
+                }
+                 break;
+             /*case GameModifierType.BendicionDelArsenal:
+                 Debug.Log("Bendición del Arsenal activado: Todos los jugadores reciben una bala gratis cada 3 rondas.");
+                 foreach (var player in players) player.RpcPlayAnimation("GM_BendicionDelArsenal");
+                 break;*/
             case GameModifierType.CargaOscura:
                 Debug.Log("Carga Oscura activado: Recarga 2 balas en lugar de 1.");
                 foreach (var player in players)
                 {
+                    player.RpcPlayAnimation("GM_CargaOscura");
                     player.isDarkReloadEnabled = true;
                 }
                 break;
@@ -297,19 +310,16 @@ public class GameManager : NetworkBehaviour
             {
                 case ActionType.Reload:
                     entry.Key.ServerReload();
-                    entry.Key.RpcPlayAnimation("Reload");
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.Shoot:
                     entry.Key.ServerAttemptShoot(entry.Value.target);
-                    entry.Key.RpcPlayAnimation("Shoot");
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
                 case ActionType.SuperShoot:
                     entry.Key.ServerAttemptShoot(entry.Value.target);
-                    entry.Key.RpcPlayAnimation("SuperShoot");
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;

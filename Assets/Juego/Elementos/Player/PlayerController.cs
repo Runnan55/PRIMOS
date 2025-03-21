@@ -2,7 +2,6 @@
 using Mirror;
 using NUnit.Framework.Constraints;
 using TMPro;
-using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -84,6 +83,7 @@ public class PlayerController : NetworkBehaviour
     [Header("GameModifierType")]
     public bool isDarkReloadEnabled = false;
     [SyncVar(hook = nameof(OnIsVeryHealthyChanged))] public bool isVeryHealthy = false; //Si está en true (por Cacería de Lider) coverButton no funcionará
+    public bool rustyBulletsActive = false; //Balas Oxidadas
 
 
     private void Start()
@@ -554,10 +554,33 @@ public class PlayerController : NetworkBehaviour
             return;
         }
 
+        if (selectedAction == ActionType.Shoot)
+        {
+            RpcPlayAnimation("Shoot");
+
+            // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
+            if (rustyBulletsActive && Random.value < 0.25f)
+            {
+                Debug.Log($"{playerName} disparó, pero la bala falló debido a Balas Oxidadas.");
+                RpcPlayAnimation("ShootFail");
+                return; // Bala se gasta, pero no hace daño
+            }
+        }
+
         if (selectedAction == ActionType.SuperShoot)
         {
             ammo++;// sumamos una bala para compensar la que perdimos antes
             ammo -= minBulletSS;// Restamos las balas especiales
+            RpcPlayAnimation("SuperShoot");
+
+            // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
+            if (rustyBulletsActive && Random.value < 0.25f)
+            {
+                Debug.Log($"{playerName} disparó, pero la bala falló debido a Balas Oxidadas.");
+                RpcPlayAnimation("ShootFail");
+                return; // Bala se gasta, pero no hace daño
+            }
+
             if (target.isCovering)
             {
                 target.isCovering = false; //Desactiva la cobertura del objetivo en el servidor
@@ -586,6 +609,7 @@ public class PlayerController : NetworkBehaviour
     [Server]
     public void ServerReload()
     {
+        RpcPlayAnimation("Reload");
         if (isDarkReloadEnabled)
         {
             ammo++;
@@ -607,7 +631,6 @@ public class PlayerController : NetworkBehaviour
         if (!GameManager.Instance.AllowAccumulatedDamage() && GameManager.Instance.HasTakenDamage(this)) //Verificar si el daño se debe acumular o no
         {
             Debug.Log($"{playerName} ya recibió daño en esta ronda, ignorando el ataque.");
-            RpcSendLogToClients($"{playerName} ya recibió daño en esta ronda, ignorando el ataque.");
             return;
         }
 
@@ -618,7 +641,6 @@ public class PlayerController : NetworkBehaviour
         }
 
         RpcPlayAnimation("ReceiveDamage");
-        //GetComponent<NetworkAnimator>().animator.Play("ReceiveDamage");
 
         health--;
 
@@ -628,8 +650,6 @@ public class PlayerController : NetworkBehaviour
             isAlive = false;
 
             Debug.Log($"{playerName} ha sido eliminado.");
-            RpcSendLogToClients($"{playerName} ha sido eliminado.");
-
 
             RpcOnDeath(); // Notificar a todos los clientes
 
