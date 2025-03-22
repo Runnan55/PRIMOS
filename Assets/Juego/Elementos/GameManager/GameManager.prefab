@@ -213,6 +213,8 @@ MonoBehaviour:
   SelectedModifier: 0
   veryHealthy: []
   randomizeModifier: 1
+  missionRounds: 010000000200000003000000
+  missionsPerRound: 1
 --- !u!114 &1084369661911532110
 MonoBehaviour:
   m_ObjectHideFlags: 0

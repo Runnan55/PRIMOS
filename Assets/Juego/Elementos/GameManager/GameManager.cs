@@ -5,6 +5,7 @@ using UnityEngine;
 using TMPro;
 using System.Linq;
 using System;
+using Mirror.BouncyCastle.Security;
 
 public enum GameModifierType
 {
@@ -14,6 +15,27 @@ public enum GameModifierType
     BalasOxidadas,
     //BendicionDelArsenal,
     CargaOscura
+}
+
+public enum QuickMissionType
+{
+    DealDamage, //Inflinge daño
+    BlockShot,  //Bloquea un disparo
+    ReloadAndTakeDamage, //Recarga y recibe daño
+    DoNothing //No hagas nada
+}
+
+public class QuickMission
+{
+    public QuickMissionType type;
+    public int assignedRound;
+    public bool completed = false;
+
+    public QuickMission(QuickMissionType type, int assignedRound)
+    {
+        this.type = type;
+        this.assignedRound = assignedRound;
+    }
 }
 
 public class GameManager : NetworkBehaviour
@@ -45,6 +67,12 @@ public class GameManager : NetworkBehaviour
     [SerializeField] public List<PlayerController> veryHealthy = new List<PlayerController>(); //Guardar jugadores con más vida
     [SerializeField] private bool randomizeModifier = false;
 
+    [Header("MisionesRápidas")]
+    [SerializeField] private List<int> missionRounds = new List<int> { }; //Rondas donde se activan misiones
+    [SerializeField] private int missionsPerRound = 1; //Cantidad de jugadores que reciben la mision por ronda
+
+    private Queue<PlayerController> missionQueue = new Queue<PlayerController>();
+    private HashSet<PlayerController> playersWhoHadMission = new HashSet<PlayerController>();
 
     private void IdentifyVeryHealthy()
     {
@@ -88,9 +116,6 @@ public class GameManager : NetworkBehaviour
 
     private void ApplyGameModifier(GameModifierType modifier)
     {
-        
-        
-
         switch (modifier)
         {
             /*case GameModifierType.DobleAgente:
@@ -208,7 +233,59 @@ public class GameManager : NetworkBehaviour
             roundText.text = $"Ronda: {roundNumber}";
     }
 
+    #region MisionRapida
+    [Server]
+    private void AssignRandomQuickMission(PlayerController player)
+    {
+        QuickMissionType type = (QuickMissionType) UnityEngine.Random.Range(0,Enum.GetValues(typeof(QuickMissionType)).Length);
+        player.currentQuickMission = new QuickMission(type, currentRound);
+    }
 
+    private bool EvaluateQuickMission(PlayerController player, QuickMission mission)
+    {
+        switch (mission.type)
+        {
+            case QuickMissionType.DealDamage:
+                return player.lastShotTarget != null;
+
+            case QuickMissionType.BlockShot:
+                return player.wasShotBlockedThisRound;
+
+            case QuickMissionType.ReloadAndTakeDamage:
+                return actionsQueue.TryGetValue(player, out var action) && action.type == ActionType.Reload && HasTakenDamage(player);
+
+            case QuickMissionType.DoNothing:
+                return actionsQueue.TryGetValue(player, out var action2) && action2.type == ActionType.None;
+
+            default:
+                return false;
+        }
+    }
+
+    [Server]
+    private void ApplyQuickMissionReward(QuickMissionType missionType, PlayerController player)
+    {
+        switch (missionType)
+        {
+            case QuickMissionType.DealDamage:
+                player.ammo += 2;
+                break;
+
+            case QuickMissionType.BlockShot:
+                player.shieldBoostActivate = true;
+                break;
+
+            case QuickMissionType.ReloadAndTakeDamage:
+                player.ServerHeal(1);
+                break;
+
+            case QuickMissionType.DoNothing:
+                player.hasDoubleDamage = true;
+                break;
+        }
+    }
+
+    #endregion
     private IEnumerator DecisionPhase()
     {
         isDecisionPhase = true;
@@ -218,6 +295,43 @@ public class GameManager : NetworkBehaviour
         if (SelectedModifier == GameModifierType.CaceriaDelLider)
         {
             IdentifyVeryHealthy(); //buscar gente con mucha vida
+        }
+
+        if (missionRounds.Contains(currentRound))
+        {
+            // Verificamos si ya todos los vivos han recibido misión
+            if (players.Where(p => p.isAlive).All(p => playersWhoHadMission.Contains(p)))
+            {
+                playersWhoHadMission.Clear();
+                Debug.Log("[QuickMission] Todos los vivos ya recibieron misión. Reiniciando lista.");
+            }
+
+            if (missionQueue.Count == 0) //Llenamos la cola solo si está vacía
+            {
+                var shuffled = players
+                    .Where (p => p.isAlive && !playersWhoHadMission.Contains(p))
+                    .OrderBy(p => UnityEngine.Random.value)
+                    .ToList();
+
+                foreach (var p in shuffled)
+                {
+                    missionQueue.Enqueue(p);
+                }
+            }
+
+            int missionsGiven = 0;
+
+            while (missionQueue.Count > 0 && missionsGiven < missionsPerRound)
+            {
+                var selected = missionQueue.Dequeue();
+                if (!selected.isAlive) continue;
+
+                AssignRandomQuickMission(selected);
+                playersWhoHadMission.Add(selected);
+                missionsGiven++;
+
+                Debug.Log($"[QuickMission] {selected.playerName} recibió misión en ronda {currentRound}");
+            }
         }
 
         yield return new WaitForSeconds(0.1f); //Esperar que se actualize la lista de los jugadores
@@ -230,6 +344,12 @@ public class GameManager : NetworkBehaviour
         {
             player.TargetPlayButtonAnimation(player.connectionToClient, "Venir", true);
             player.RpcPlayAnimation("Idle");
+
+            if (player.currentQuickMission != null)
+            {
+                string animName = "QM_Start_" + player.currentQuickMission.type.ToString(); // El nombre exacto de la misión como string
+                player.RpcPlayAnimation(animName); // Llama la animación que tiene ese nombre
+            }
         }
 
         actionsQueue.Clear();
@@ -279,7 +399,14 @@ public class GameManager : NetworkBehaviour
         {
             if (entry.Value.type == ActionType.Cover)
             {
-                float probability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)];
+                float probability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)]; //Disminuye la probabilidad de cobertura por cada uso
+
+                if (entry.Key.shieldBoostActivate) //Si se cumple la mision
+                {
+                    entry.Key.consecutiveCovers = 0; //Lo seteamos otra ves al 100%
+                    entry.Key.shieldBoostActivate = false;
+                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]);
+                }
 
                 if (UnityEngine.Random.value <= probability)
                 {
@@ -332,6 +459,28 @@ public class GameManager : NetworkBehaviour
         foreach (var player in players)
         {
             player.selectedAction = ActionType.None;
+
+            var mission = player.currentQuickMission;
+
+            if (mission != null && mission.assignedRound == currentRound)
+            {
+                bool success = EvaluateQuickMission(player, mission);
+
+                if (success)
+                {
+                    ApplyQuickMissionReward(mission.type, player);
+                    player.RpcSendLogToClients("¡Completaste tu misión rápida!");
+                }
+                else
+                {
+                    player.RpcSendLogToClients("Fallaste tu misión rápida.");
+                }
+
+                // SIEMPRE limpiamos la misión al final de la ronda
+                player.currentQuickMission = null;
+
+                player.RpcPlayAnimation("QM_ContainerIrse");
+            }
         }
 
         damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
@@ -339,6 +488,8 @@ public class GameManager : NetworkBehaviour
 
         foreach (var player in players)
         {
+            player.wasShotBlockedThisRound = false; //Limpiar el bool para poder volver a usar
+
             if (!isGameOver && player.isAlive)
             {
                 // Mostrar la cuenta regresiva en todos los clientes

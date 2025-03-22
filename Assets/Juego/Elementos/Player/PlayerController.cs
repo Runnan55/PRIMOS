@@ -61,8 +61,7 @@ public class PlayerController : NetworkBehaviour
     public GameObject crosshairPrefab; //Prefab de la mirilla
     private GameObject crosshairInstance; //Instancia que crea el script cuando seleccionamos disparar
 
-    [Header("Rol Elements")]
-    public GameObject parcaSprite;
+    
 
     public TMP_Text healthText;
     public TMP_Text ammoText;
@@ -80,11 +79,19 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private Color defaultButtonColor = Color.white; //Color por defecto
     [SerializeField] private Color highlightedColor = Color.yellow; //Color resaltado
 
+    [Header("Rol Elements")]
+    public GameObject parcaSprite;
+
     [Header("GameModifierType")]
     public bool isDarkReloadEnabled = false;
     [SyncVar(hook = nameof(OnIsVeryHealthyChanged))] public bool isVeryHealthy = false; //Si está en true (por Cacería de Lider) coverButton no funcionará
     public bool rustyBulletsActive = false; //Balas Oxidadas
 
+    [Header("MisionesRápidas")]
+    public QuickMission currentQuickMission = null;
+    [SyncVar] public bool wasShotBlockedThisRound = false;
+    [SyncVar] public bool hasDoubleDamage = false;
+    [SyncVar] public bool shieldBoostActivate = false;
 
     private void Start()
     {
@@ -554,6 +561,15 @@ public class PlayerController : NetworkBehaviour
             return;
         }
 
+        int damage = 1;
+
+        if (hasDoubleDamage)
+        {
+            damage = 2;
+            hasDoubleDamage = false;
+            Debug.Log($"{playerName} tiene DAÑO DOBLE activo.");
+        }
+
         if (selectedAction == ActionType.Shoot)
         {
             RpcPlayAnimation("Shoot");
@@ -593,10 +609,12 @@ public class PlayerController : NetworkBehaviour
         if (target.isCovering)
         {
             Debug.Log($"[SERVER] {target.playerName} está cubierto. Disparo bloqueado..");
+
+            target.wasShotBlockedThisRound = true;
             return;
         }
 
-        target.TakeDamage();
+        target.TakeDamage(damage);
         lastShotTarget = target; // Almacenar víctima de disparo
         Debug.Log($"{playerName} disparó a {target.playerName}. Balas restantes: {ammo}");
 
@@ -624,7 +642,7 @@ public class PlayerController : NetworkBehaviour
     }
 
     [Server]
-    public void TakeDamage()
+    public void TakeDamage(int damageAmount)
     {
         if (!isAlive || isCovering || GameManager.Instance == null) return;
 
@@ -642,7 +660,7 @@ public class PlayerController : NetworkBehaviour
 
         RpcPlayAnimation("ReceiveDamage");
 
-        health--;
+        health -= damageAmount;
 
         if (health <= 0)
         {
