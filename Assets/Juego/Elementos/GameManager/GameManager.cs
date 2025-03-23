@@ -239,6 +239,9 @@ public class GameManager : NetworkBehaviour
     {
         QuickMissionType type = (QuickMissionType) UnityEngine.Random.Range(0,Enum.GetValues(typeof(QuickMissionType)).Length);
         player.currentQuickMission = new QuickMission(type, currentRound);
+
+        string animName = "QM_Start_" + player.currentQuickMission.type.ToString(); // El nombre exacto de la misión como string
+        player.TargetPlayAnimation(animName);
     }
 
     private bool EvaluateQuickMission(PlayerController player, QuickMission mission)
@@ -272,11 +275,11 @@ public class GameManager : NetworkBehaviour
                 break;
 
             case QuickMissionType.BlockShot:
-                player.shieldBoostActivate = true;
+                player.ServerHeal(1);
                 break;
 
             case QuickMissionType.ReloadAndTakeDamage:
-                player.ServerHeal(1);
+                player.shieldBoostActivate = true;
                 break;
 
             case QuickMissionType.DoNothing:
@@ -285,6 +288,7 @@ public class GameManager : NetworkBehaviour
         }
     }
 
+    [Server]
     #endregion
     private IEnumerator DecisionPhase()
     {
@@ -331,6 +335,8 @@ public class GameManager : NetworkBehaviour
                 missionsGiven++;
 
                 Debug.Log($"[QuickMission] {selected.playerName} recibió misión en ronda {currentRound}");
+                selected.RpcSendLogToClients($"[QuickMission] {selected.playerName} recibió misión en ronda {currentRound}");
+
             }
         }
 
@@ -344,12 +350,6 @@ public class GameManager : NetworkBehaviour
         {
             player.TargetPlayButtonAnimation(player.connectionToClient, "Venir", true);
             player.RpcPlayAnimation("Idle");
-
-            if (player.currentQuickMission != null)
-            {
-                string animName = "QM_Start_" + player.currentQuickMission.type.ToString(); // El nombre exacto de la misión como string
-                player.RpcPlayAnimation(animName); // Llama la animación que tiene ese nombre
-            }
         }
 
         actionsQueue.Clear();
@@ -384,6 +384,7 @@ public class GameManager : NetworkBehaviour
         yield return new WaitForSeconds(0.5f);//Tiempo para que se ejecute la animación
     }
 
+    [Server]
     private IEnumerator ExecutionPhase()
     {
         currentDecisionTime = 0;
@@ -469,17 +470,19 @@ public class GameManager : NetworkBehaviour
                 if (success)
                 {
                     ApplyQuickMissionReward(mission.type, player);
-                    player.RpcSendLogToClients("¡Completaste tu misión rápida!");
+                    player.RpcSendLogToClients($"{player.playerName}¡Completaste tu misión rápida!");
                 }
                 else
                 {
-                    player.RpcSendLogToClients("Fallaste tu misión rápida.");
+                    player.RpcSendLogToClients($"{player.playerName} Fallaste tu misión rápida.");
                 }
 
                 // SIEMPRE limpiamos la misión al final de la ronda
                 player.currentQuickMission = null;
 
-                player.RpcPlayAnimation("QM_ContainerIrse");
+                string animSuffix = success ? "Reward" : "Exit";
+                string animName = $"QM_{animSuffix}_{mission.type}";
+                player.TargetPlayAnimation(animName);
             }
         }
 

@@ -310,11 +310,17 @@ public class PlayerController : NetworkBehaviour
         animator.SetTrigger(animationTrigger); // Ejecutar animación solo en el player local
     }
 
-    [ClientRpc]
+    [ClientRpc] //Se ejecuta en todos los clientes siempre
     public void RpcPlayAnimation(string animation)
     {
         if (!isAlive) return;
         GetComponent<NetworkAnimator>().animator.Play(animation);//Esto sirve por ejemplo para que el player llame animación en otro player, tambien se puede llamar desde el Server
+    }
+
+    [TargetRpc] //Se ejecuta en solo un cliente especifico
+    public void TargetPlayAnimation(string animation)
+    {
+        GetComponent<Animator>().Play(animation); // SOLO ese jugador lo ve
     }
 
     #endregion
