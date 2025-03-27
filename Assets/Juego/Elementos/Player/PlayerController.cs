@@ -106,6 +106,7 @@ public class PlayerController : NetworkBehaviour
             localPlayerIndicator.SetActive(true);
 
             nameInputField.gameObject.SetActive(true);
+            nameInputField.characterLimit = 20; //Límite de caracteres en InputField
             nameInputField.onEndEdit.AddListener(CmdSetPlayerName);
 
             deathCanvas.SetActive(false);

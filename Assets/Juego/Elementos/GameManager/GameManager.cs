@@ -373,7 +373,12 @@ public class GameManager : NetworkBehaviour
             player.TargetPlayButtonAnimation(player.connectionToClient, "Irse", false);
             player.RpcCancelAiming();
 
-            if(!actionsQueue.ContainsKey(player)) // Si no se eligió acción alguna se llama a None
+            if (player.currentQuickMission == null)
+            {
+                player.TargetPlayAnimation("EmptyState");
+            }
+
+            if (!actionsQueue.ContainsKey(player)) // Si no se eligió acción alguna se llama a None
             {
                 actionsQueue[player] = new PlayerAction(ActionType.None);
                 Debug.Log($"[GameManager] {player.playerName} no eligió ninguna acción, registrando 'None'.");
@@ -513,7 +518,7 @@ public class GameManager : NetworkBehaviour
         //Si no queda nadie vivo, la partida se detiene
         if (alivePlayers == 0)
         {
-            Debug.Log("Todos los jugadores han muerto. Que montón de inútiles hahahaha");
+            Debug.Log("Todos los jugadores han muerto. Se declara empate");
             isGameOver = true;
             StopAllCoroutines();
             return;
@@ -611,14 +616,24 @@ public class GameManager : NetworkBehaviour
 
     #endregion
 
-    #region UI HOOKS
+    #region UI HOOKS (Time)
 
     private void OnTimerChanged(float oldTime, float newTime) //Control de timer de Decision
     {
         if (timerText != null)
         {
-            timerText.text = $"Tiempo: {newTime}";
-            timerText.gameObject.SetActive(newTime > 0);  //Se oculta automáticamente cuando es 0
+            int displayTime = Mathf.FloorToInt(newTime - 1.5f);
+
+            if(newTime > 0f && displayTime >= 0)
+            {
+                timerText.text = $"Tiempo: {displayTime}";
+                timerText.gameObject.SetActive(true);
+            }
+            else
+            {
+                timerText.gameObject.SetActive(false); // Ocultar cuando termina
+            }
+
         }
     }
 

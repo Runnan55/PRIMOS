@@ -204,7 +204,7 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   allowAccumulatedDamage: 0
-  decisionTime: 5
+  decisionTime: 6.5
   executionTime: 5
   timerText: {fileID: 1968594395757050114}
   players: []
@@ -213,7 +213,7 @@ MonoBehaviour:
   SelectedModifier: 0
   veryHealthy: []
   randomizeModifier: 1
-  missionRounds: 0400000005000000060000000700000008000000
+  missionRounds: 0400000005000000060000000700000008000000020000000300000001000000
   missionsPerRound: 1
 --- !u!114 &1084369661911532110
 MonoBehaviour:
