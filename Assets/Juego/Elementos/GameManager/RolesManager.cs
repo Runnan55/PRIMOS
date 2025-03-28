@@ -87,6 +87,7 @@ public class RolesManager : NetworkBehaviour
         hasParcaRole[newParca] = true;
         newParca.ServerHealFull();
         newParca.RpcSetParcaSprite(true);
+        newParca.ammo += 1;
 
         Debug.Log($"{newParca.gameObject.name} ha obtenido el rol PARCA");
         newParca.RpcSendLogToClients($"{newParca.gameObject.name} ha obtenido el rol PARCA y se ha curado completamente");

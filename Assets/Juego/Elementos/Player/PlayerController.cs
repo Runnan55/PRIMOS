@@ -54,14 +54,13 @@ public class PlayerController : NetworkBehaviour
     public GameObject playerCanvas;
     public GameObject deathCanvas;
     public GameObject victoryCanvas;
+    public GameObject drawCanvas;
     public GameObject targetIndicator; //Indicador visual de objetivo elegido
     public GameObject localPlayerIndicator; //Indicador visual de tu jugador
 
     [Header("Crosshair")]
     public GameObject crosshairPrefab; //Prefab de la mirilla
     private GameObject crosshairInstance; //Instancia que crea el script cuando seleccionamos disparar
-
-    
 
     public TMP_Text healthText;
     public TMP_Text ammoText;
@@ -93,6 +92,10 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public bool hasDoubleDamage = false;
     [SyncVar] public bool shieldBoostActivate = false;
 
+    [Header("ShootBulletAnimation")]
+    public GameObject projectilePrefab;
+    public Transform shootOrigin;
+
     private void Start()
     {
         if (isLocalPlayer)
@@ -111,6 +114,7 @@ public class PlayerController : NetworkBehaviour
 
             deathCanvas.SetActive(false);
             victoryCanvas.SetActive(false);
+            drawCanvas.SetActive(false);
             targetIndicator.SetActive(false);
             playerCanvas.SetActive(true);
 
@@ -324,6 +328,41 @@ public class PlayerController : NetworkBehaviour
         GetComponent<Animator>().Play(animation); // SOLO ese jugador lo ve
     }
 
+    [ClientRpc]
+    public void RpcPlayShootEffect(Vector3 targetPosition)
+    {
+        if (projectilePrefab == null || shootOrigin == null) return;
+
+        GameObject proj = Instantiate(projectilePrefab, shootOrigin.position, Quaternion.identity);
+
+        //Calcular la dirección hacia el objetivo
+        Vector3 direction = (targetPosition - shootOrigin.position).normalized;
+
+        //Rotar la bala para que mire hacia el objetivo (2D, solo rotación en Z)
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+        proj.transform.rotation = Quaternion.Euler(new Vector3(0, 0, angle));
+
+        StartCoroutine(MoveProjectileToTarget(proj, targetPosition));
+    }
+
+    private IEnumerator MoveProjectileToTarget(GameObject projectile, Vector3 targetPos)
+    {
+        float duration = 1f;
+        float elapsed = 0f;
+
+        Vector3 start = projectile.transform.position;
+
+        while (elapsed < duration)
+        {
+             elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            projectile.transform.position = Vector3.Lerp(start, targetPos, t);
+            yield return null;
+        }
+
+        Destroy(projectile);
+    }
+
     #endregion
 
     #region CLIENT
@@ -495,17 +534,33 @@ public class PlayerController : NetworkBehaviour
     }
 
     [ClientRpc]
-    void RpcOnDeath()
+    public void RpcOnDeath()
     {
         if (isLocalPlayer)
         {
             deathCanvas.SetActive(true);
-            
         }
 
-        StartCoroutine(PlayDeathAnimationWithDelay(0.1f));
+        GetComponent<NetworkAnimator>().animator.Play("Death");//Animacion de muerte 
+        coverProbabilityText.gameObject.SetActive(false);
+        healthText.gameObject.SetActive(false);
+        ammoText.gameObject.SetActive(false);
     }
 
+    [ClientRpc]
+    public void RpcOnDeathOrDraw()
+    {
+        if (isLocalPlayer)
+        {
+            drawCanvas.SetActive(true);
+        }
+
+        GetComponent<NetworkAnimator>().animator.Play("Death");//Animacion de muerte 
+        coverProbabilityText.gameObject.SetActive(false);
+        healthText.gameObject.SetActive(false);
+        ammoText.gameObject.SetActive(false);
+    }
+/*
     private IEnumerator PlayDeathAnimationWithDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
@@ -514,7 +569,7 @@ public class PlayerController : NetworkBehaviour
         coverProbabilityText.gameObject.SetActive(false);
         healthText.gameObject.SetActive(false);
         ammoText.gameObject.SetActive(false);
-    }
+    }*/
 
     [ClientRpc]
     public void RpcOnVictory()
@@ -562,11 +617,7 @@ public class PlayerController : NetworkBehaviour
 
         ammo--;
 
-        if (!target.isAlive)
-        {
-            Debug.Log($"{playerName} le disparó al cadaver de {target.playerName}.");
-            return;
-        }
+        RpcPlayShootEffect(target.transform.position);
 
         int damage = 1;
 
@@ -618,6 +669,12 @@ public class PlayerController : NetworkBehaviour
             Debug.Log($"[SERVER] {target.playerName} está cubierto. Disparo bloqueado..");
 
             target.wasShotBlockedThisRound = true;
+            return;
+        }
+
+        if (!target.isAlive)//Si el jugador estaba muerto antes de dispararle
+        {
+            Debug.Log($"{playerName} le disparó al cadaver de {target.playerName}.");
             return;
         }
 
@@ -675,8 +732,6 @@ public class PlayerController : NetworkBehaviour
             isAlive = false;
 
             Debug.Log($"{playerName} ha sido eliminado.");
-
-            RpcOnDeath(); // Notificar a todos los clientes
 
             if (isServer && GameManager.Instance != null)// Esto solo se ejecuta en el servidor para evitar errores
             {

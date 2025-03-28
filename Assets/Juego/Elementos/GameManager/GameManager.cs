@@ -6,6 +6,7 @@ using TMPro;
 using System.Linq;
 using System;
 using Mirror.BouncyCastle.Security;
+using Unity.VisualScripting;
 
 public enum GameModifierType
 {
@@ -51,6 +52,7 @@ public class GameManager : NetworkBehaviour
 
     private bool isDecisionPhase = true;
     private bool isGameOver = false;
+    private Coroutine roundCycleCoroutine;
 
     [SerializeField] private List<PlayerController> players = new List<PlayerController>(); //Lista de jugadores que entran
     [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>(); //Lista de jugadores muertos
@@ -61,6 +63,10 @@ public class GameManager : NetworkBehaviour
 
     [SyncVar] private int currentRound = 0; // Contador de rondas
     [SerializeField] private TMP_Text roundText; // Texto en UI para mostrar la ronda
+
+    [Header("Draw")]
+    private bool isDraw = false;
+
 
     [Header("MisionesDeInicio")]
     [SerializeField] public GameModifierType SelectedModifier;
@@ -183,7 +189,7 @@ public class GameManager : NetworkBehaviour
         ApplyGameModifier(SelectedModifier);
 
         Debug.Log("Todos los jugadores han ingresado su nombre. ¡La partida puede comenzar!");
-        StartCoroutine(RoundCycle());
+        roundCycleCoroutine = StartCoroutine(RoundCycle());
     }
 
     public void RegisterPlayer(PlayerController player)//Registra a cada jugador usando OnStartServer() en PlayerController
@@ -519,8 +525,14 @@ public class GameManager : NetworkBehaviour
         if (alivePlayers == 0)
         {
             Debug.Log("Todos los jugadores han muerto. Se declara empate");
+            isDraw = true;
             isGameOver = true;
-            StopAllCoroutines();
+
+            foreach (var player in players)
+            {
+                player.RpcOnDeathOrDraw();
+            }
+            StopCoroutine(roundCycleCoroutine);
             return;
         }
 
@@ -534,10 +546,11 @@ public class GameManager : NetworkBehaviour
             }
 
             isGameOver = true;
-            StopAllCoroutines();
+            StopCoroutine(roundCycleCoroutine);
+            return;
         }
     }
-    
+
     //Eliminar esto en etapas finales o comentar, sirve solo para el testeo
     public void SetPause(bool pauseState)
     {
@@ -572,7 +585,16 @@ public class GameManager : NetworkBehaviour
         deadPlayers.Add(deadPlayer); // Movemos al jugador del grupo de vivos a muertos
 
         yield return new WaitForSeconds(0.1f);//Otro pequeño delay para permitir el registro de muertes antes del CheckGameOver()
+
+        bool wasDraw = false;
+
         CheckGameOver();
+        wasDraw = isDraw;
+
+        if (!wasDraw)
+        {
+            deadPlayer.RpcOnDeath();
+        }
     }
 
 

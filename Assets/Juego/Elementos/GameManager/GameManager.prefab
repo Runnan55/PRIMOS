@@ -213,7 +213,7 @@ MonoBehaviour:
   SelectedModifier: 0
   veryHealthy: []
   randomizeModifier: 1
-  missionRounds: 0400000005000000060000000700000008000000020000000300000001000000
+  missionRounds: 0400000005000000060000000700000008000000
   missionsPerRound: 1
 --- !u!114 &1084369661911532110
 MonoBehaviour:
