@@ -53,6 +53,8 @@ public class GameManager : NetworkBehaviour
     private bool isDecisionPhase = true;
     private bool isGameOver = false;
     private Coroutine roundCycleCoroutine;
+    private Coroutine decisionPhaseCoroutine;
+    private Coroutine executionPhaseCoroutine;
 
     [SerializeField] private List<PlayerController> players = new List<PlayerController>(); //Lista de jugadores que entran
     [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>(); //Lista de jugadores muertos
@@ -79,6 +81,9 @@ public class GameManager : NetworkBehaviour
 
     private Queue<PlayerController> missionQueue = new Queue<PlayerController>();
     private HashSet<PlayerController> playersWhoHadMission = new HashSet<PlayerController>();
+
+    [Header("GameStatistics")]
+    [SerializeField] private GameStatistic gameStatistic;
 
     private void IdentifyVeryHealthy()
     {
@@ -226,8 +231,11 @@ public class GameManager : NetworkBehaviour
 
         while (true)
         {
-            yield return StartCoroutine(DecisionPhase());
-            yield return StartCoroutine(ExecutionPhase());
+            decisionPhaseCoroutine = StartCoroutine(DecisionPhase());
+            yield return decisionPhaseCoroutine;
+
+            executionPhaseCoroutine = StartCoroutine(ExecutionPhase());
+            yield return executionPhaseCoroutine;
             ResetAllCovers(); //Elimina coberturas
         }
     }
@@ -426,6 +434,7 @@ public class GameManager : NetworkBehaviour
                     entry.Key.RpcUpdateCover(true);
                     entry.Key.RpcPlayAnimation("Cover");
                     entry.Key.consecutiveCovers++;
+                    entry.Key.timesCovered++; //Sumar el contador de vecescubierto
                     Debug.Log($"[SERVER] {entry.Key.playerName} se cubrió con éxito en el intento { entry.Key.consecutiveCovers}");
                     entry.Key.RpcSendLogToClients($"{entry.Key.playerName} se cubrió con éxito en el intento {entry.Key.consecutiveCovers}");
                 }
@@ -498,6 +507,7 @@ public class GameManager : NetworkBehaviour
         }
 
         damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
+
         CheckGameOver();
 
         foreach (var player in players)
@@ -532,7 +542,17 @@ public class GameManager : NetworkBehaviour
             {
                 player.RpcOnDeathOrDraw();
             }
-            StopCoroutine(roundCycleCoroutine);
+
+            if (gameStatistic != null)
+            {
+                gameStatistic.Initialize(players);
+                gameStatistic.ShowLeaderboard();
+                Debug.Log("Enviando señal de activacion de statsCanvas");
+            }
+
+            StopGamePhases(); // Detiene las rondas de juego
+
+
             return;
         }
 
@@ -546,8 +566,37 @@ public class GameManager : NetworkBehaviour
             }
 
             isGameOver = true;
-            StopCoroutine(roundCycleCoroutine);
+            StopGamePhases(); // Detiene las rondas de juego
+
+            if (gameStatistic != null)
+            {
+                gameStatistic.Initialize(players);
+                gameStatistic.ShowLeaderboard();
+                Debug.Log("Enviando señal de activacion de statsCanvas");
+            }
+
             return;
+        }
+    }
+
+    private void StopGamePhases()
+    {
+        if (roundCycleCoroutine != null)
+        {
+            StopCoroutine(roundCycleCoroutine);
+            roundCycleCoroutine = null;
+        }
+
+        if (decisionPhaseCoroutine != null)
+        {
+            StopCoroutine(decisionPhaseCoroutine);
+            decisionPhaseCoroutine = null;
+        }
+
+        if (executionPhaseCoroutine != null)
+        {
+            StopCoroutine(executionPhaseCoroutine);
+            executionPhaseCoroutine = null;
         }
     }
 
@@ -657,6 +706,27 @@ public class GameManager : NetworkBehaviour
             }
 
         }
+    }
+
+    #endregion
+
+    #region OnPlayerDisconnect
+
+    [Server]
+
+    #endregion
+
+    #region OnPlayerDisconnect
+
+    public void PlayerDisconnected(PlayerController player)
+    {
+        if (players.Contains(player))
+        { 
+            players.Remove(player);
+            deadPlayers.Add(player);
+        }
+
+        CheckGameOver();
     }
 
     #endregion

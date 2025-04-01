@@ -96,6 +96,12 @@ public class PlayerController : NetworkBehaviour
     public GameObject projectilePrefab;
     public Transform shootOrigin;
 
+    [Header("GameStatistics")]
+    private int bulletsReloaded = 0;
+    private int bulletsFired = 0;
+    private int damageDealt = 0;
+    public int timesCovered = 0;
+
     private void Start()
     {
         if (isLocalPlayer)
@@ -297,8 +303,6 @@ public class PlayerController : NetworkBehaviour
     #endregion
 
     #region Animations
-
-    
 
     [TargetRpc]
     public void TargetPlayButtonAnimation(NetworkConnection target, string animationTrigger, bool enableButtons)
@@ -616,6 +620,7 @@ public class PlayerController : NetworkBehaviour
         if (ammo <= 0 || target == null) return;
 
         ammo--;
+        bulletsFired++; //Sumar el contador de balas disparadas
 
         RpcPlayShootEffect(target.transform.position);
 
@@ -697,10 +702,12 @@ public class PlayerController : NetworkBehaviour
             ammo++;
             ammo++;
             Debug.Log($"{playerName} recargó 2 balas debido a Carga Oscura.");
+            bulletsReloaded += 2;
         }
         else
         {
             ammo++;
+            bulletsReloaded++;
         }
         
     }
@@ -754,6 +761,25 @@ public class PlayerController : NetworkBehaviour
         health = fullHealth; // Curación total
         Debug.Log($"{playerName} se ha curado completamente.");
     }
+
+    #endregion
+
+    #region OnStopClient
+
+    public override void OnStopServer()
+    {
+        base.OnStopServer();
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.PlayerDisconnected(this);
+        }
+    }
+
+    #endregion
+
+    #region GameStatistics
+
 
     #endregion
 
