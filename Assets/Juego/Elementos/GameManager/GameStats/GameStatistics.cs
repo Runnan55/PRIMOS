@@ -17,16 +17,34 @@ public class GameStatistic : NetworkBehaviour
     {
         public string playerName;
         public int kills;
-        public int health;
+        public int bulletsReloaded;
+        public int bulletsFired;
+        public int damageDealt;
+        public int timesCovered;
+        public int points;
 
-        public PlayerInfo(string name, int kills, int health)
+        public PlayerInfo(string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered)
         {
             playerName = name;
             this.kills = kills;
-            this.health = health;
+            this.bulletsReloaded = bulletsReloaded;
+            this.bulletsFired  = bulletsFired;
+            this.damageDealt = damageDealt;
+            this.timesCovered = timesCovered;
+            this.points = CalculatePoints(kills, bulletsReloaded, bulletsFired, damageDealt, timesCovered);
+        }
+
+        private static int CalculatePoints(int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered)
+        {
+            int points = 0;
+            points += kills * 100;
+            points += (bulletsReloaded + bulletsFired + damageDealt + timesCovered) * 5;
+            return points;
+
         }
     }
 
+    [Server]
     public void Initialize(List<PlayerController> playerList)
     {
         players.Clear();
@@ -35,7 +53,13 @@ public class GameStatistic : NetworkBehaviour
         {
             if (player != null)
             {
-                players.Add(new PlayerInfo(player.playerName, player.kills, player.health));
+                players.Add(new PlayerInfo(
+                    player.playerName,
+                    player.kills,
+                    player.bulletsReloaded,
+                    player.bulletsFired,
+                    player.damageDealt,
+                    player.timesCovered));
             }
         }
 
@@ -61,6 +85,7 @@ public class GameStatistic : NetworkBehaviour
         }
 
         leaderboardCanvas.SetActive(true); // Activar el Canvas
+        ClearLeaderboard();
 
         if (leaderboardEntryPrefab == null)
         {
@@ -74,8 +99,6 @@ public class GameStatistic : NetworkBehaviour
             return;
         }
 
-        ClearLeaderboard();
-
         foreach (var player in players)
         {
             GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContent);
@@ -83,15 +106,19 @@ public class GameStatistic : NetworkBehaviour
             entry.transform.localScale = Vector3.one;
 
             var texts = entry.GetComponentsInChildren<TMP_Text>();
-            if (texts.Length < 3)
+            if (texts.Length < 7)
             {
-                Debug.LogError("[GameStatistic] No se encontraron suficientes TMP_Text en el prefab. Debe tener al menos 3.");
+                Debug.LogError("[GameStatistic] No se encontraron suficientes TMP_Text en el prefab. Debe tener al menos 7.");
                 continue;
             }
 
             texts[0].text = player.playerName;
-            texts[1].text = "Kills: " + player.kills.ToString();
-            texts[2].text = "Health: " + player.health.ToString();
+            texts[1].text = player.kills.ToString();
+            texts[2].text = player.bulletsReloaded.ToString();
+            texts[3].text = player.bulletsFired.ToString();
+            texts[4].text = player.damageDealt.ToString();
+            texts[5].text = player.timesCovered.ToString();
+            texts[6].text = player.points.ToString();
         }
     }
 

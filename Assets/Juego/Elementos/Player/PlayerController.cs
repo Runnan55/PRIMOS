@@ -97,10 +97,10 @@ public class PlayerController : NetworkBehaviour
     public Transform shootOrigin;
 
     [Header("GameStatistics")]
-    private int bulletsReloaded = 0;
-    private int bulletsFired = 0;
-    private int damageDealt = 0;
-    public int timesCovered = 0;
+    [SyncVar] public int bulletsReloaded = 0;
+    [SyncVar] public int bulletsFired = 0;
+    [SyncVar] public int damageDealt = 0;
+    [SyncVar] public int timesCovered = 0;
 
     private void Start()
     {
@@ -682,6 +682,8 @@ public class PlayerController : NetworkBehaviour
             Debug.Log($"{playerName} le disparó al cadaver de {target.playerName}.");
             return;
         }
+
+        damageDealt += damage; // Sumar daño hecho
 
         target.TakeDamage(damage);
         lastShotTarget = target; // Almacenar víctima de disparo
