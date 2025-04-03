@@ -543,15 +543,9 @@ public class GameManager : NetworkBehaviour
                 player.RpcOnDeathOrDraw();
             }
 
-            if (gameStatistic != null)
-            {
-                gameStatistic.Initialize(players);
-                gameStatistic.ShowLeaderboard();
-                Debug.Log("Enviando señal de activacion de statsCanvas");
-            }
-
+            StartCoroutine(StartGameStatistics());
+            
             StopGamePhases(); // Detiene las rondas de juego
-
 
             return;
         }
@@ -566,18 +560,41 @@ public class GameManager : NetworkBehaviour
             }
 
             isGameOver = true;
-            StopGamePhases(); // Detiene las rondas de juego
 
-            if (gameStatistic != null)
-            {
-                gameStatistic.Initialize(players);
-                gameStatistic.ShowLeaderboard();
-                Debug.Log("Enviando señal de activacion de statsCanvas");
-            }
+            StartCoroutine(StartGameStatistics());
+            
+            StopGamePhases(); // Detiene las rondas de juego
 
             return;
         }
     }
+
+    private IEnumerator StartGameStatistics()
+    {
+        // Esperar 2 segundos antes de procesar estadísticas
+        yield return new WaitForSeconds(2f);
+
+        if (gameStatistic != null)
+        {
+            // Combina los jugadores vivos y muertos
+            List<PlayerController> allPlayers = new List<PlayerController>(players); // Jugadores vivos
+
+            // Agrega jugadores muertos que NO están ya en la lista de jugadores vivos
+            foreach (var deadPlayer in deadPlayers)
+            {
+                if (!allPlayers.Contains(deadPlayer))
+                {
+                    allPlayers.Add(deadPlayer);
+                }
+            }
+
+            gameStatistic.Initialize(allPlayers); // Pasa TODOS los jugadores al leaderboard
+
+            gameStatistic.ShowLeaderboard();
+            Debug.Log("Enviando señal de activación de statsCanvas");
+        }
+    }
+
 
     private void StopGamePhases()
     {

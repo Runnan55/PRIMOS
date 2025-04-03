@@ -78,26 +78,8 @@ public class GameStatistic : NetworkBehaviour
     {
         Debug.Log("[GameStatistic] Cliente: Activando Leaderboard Canvas...");
 
-        if (leaderboardCanvas == null)
-        {
-            Debug.LogError("[GameStatistic] Leaderboard Canvas no está asignado.");
-            return;
-        }
-
         leaderboardCanvas.SetActive(true); // Activar el Canvas
         ClearLeaderboard();
-
-        if (leaderboardEntryPrefab == null)
-        {
-            Debug.LogError("[GameStatistic] Leaderboard Entry Prefab no está asignado.");
-            return;
-        }
-
-        if (players == null || players.Count == 0)
-        {
-            Debug.LogError("[GameStatistic] La lista de jugadores está vacía o no se ha inicializado.");
-            return;
-        }
 
         foreach (var player in players)
         {
