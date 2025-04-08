@@ -85,6 +85,15 @@ public class GameManager : NetworkBehaviour
     [Header("GameStatistics")]
     [SerializeField] private GameStatistic gameStatistic;
 
+    [Header("Talisman-Tiki")]
+    [SerializeField] private GameObject talismanIconPrefab;
+    private GameObject talismanIconInstance;
+    [SerializeField] private Vector3 talismanOffset = new Vector3(0, 1.5f, 0);
+    [SerializeField] private float talismanMoveDuration = 0.75f;
+
+    private PlayerController talismanHolder;
+    [SyncVar] private uint talismanHolderNetId;
+
     private void IdentifyVeryHealthy()
     {
         if (players.Count == 0 || SelectedModifier != GameModifierType.CaceriaDelLider) return;
@@ -114,7 +123,15 @@ public class GameManager : NetworkBehaviour
 
     private void Start()
     {
-        
+        if (isServer)
+        {
+            talismanHolder = players.FirstOrDefault(p => p.isAlive);
+            if (talismanHolder != null)
+            {
+                talismanHolderNetId = talismanHolder.netId;
+                RpcSpawnTalisman(talismanHolderNetId);
+            }
+        }
     }
 
     private void ChooseRandomModifier()
@@ -200,6 +217,16 @@ public class GameManager : NetworkBehaviour
 
         Debug.Log("Todos los jugadores han ingresado su nombre. ¡La partida puede comenzar!");
         roundCycleCoroutine = StartCoroutine(RoundCycle());
+
+        talismanHolder = players.FirstOrDefault(p => p.isAlive); // El primero con vida
+        Debug.Log($"[Talisman] Se asignó el talismán a {talismanHolder.playerName}");
+
+        if (talismanHolder != null)
+        {
+            talismanHolderNetId = talismanHolder.netId;
+            RpcSpawnTalisman(talismanHolder.netId);
+        }
+
     }
 
     public void RegisterPlayer(PlayerController player)//Registra a cada jugador usando OnStartServer() en PlayerController
@@ -455,6 +482,50 @@ public class GameManager : NetworkBehaviour
             }
         }
 
+        Dictionary<PlayerController, List<PlayerController>> targetToShooters = new();
+
+        foreach (var entry in actionsQueue)
+        {
+            if (entry.Value.type == ActionType.Shoot || entry.Value.type == ActionType.SuperShoot)
+            {
+                var shooter = entry.Key;
+                var target = entry.Value.target;
+
+                if (target == null || !target.isAlive) continue;
+
+                if (!targetToShooters.ContainsKey(target))
+                    targetToShooters[target] = new List<PlayerController>();
+
+                targetToShooters[target].Add(shooter);
+            }
+        }
+
+        foreach (var target in targetToShooters.Keys)
+        {
+            List<PlayerController> shooters = targetToShooters[target];
+
+            if (shooters.Count == 1)
+            {
+                shooters[0].ServerAttemptShoot(target);
+            }
+            else
+            {
+                PlayerController chosenShooter = GetClosestToTalisman(shooters);
+                chosenShooter.ServerAttemptShoot(target);
+
+                Debug.Log($"[Talisman] {chosenShooter.playerName} gana la prioridad para matar a {target.playerName}");
+
+                // Los demás fallan
+                foreach (var shooter in shooters)
+                {
+                    if (shooter != chosenShooter)
+                    {
+                        shooter.RpcPlayAnimation("ShootFail");
+                    }
+                }
+            }
+        }
+
         yield return new WaitForSeconds(0.5f); //Pausa antes del tiroteo
                 
         foreach (var entry in actionsQueue) //Luego aplica "Disparar" y "Recargar"
@@ -510,6 +581,7 @@ public class GameManager : NetworkBehaviour
                 player.TargetPlayAnimation(animName);
             }
         }
+        AdvanceTalisman();
 
         damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
 
@@ -530,6 +602,100 @@ public class GameManager : NetworkBehaviour
     }
 
     public bool IsDecisionPhase() => isDecisionPhase;//para saber cuando es Fase de decision y meter variables por ejemplo en el UpdateUI();
+
+    [ClientRpc]
+    private void RpcSpawnTalisman(uint holderNetId)
+    {
+        if (!NetworkClient.spawned.TryGetValue(holderNetId, out NetworkIdentity identity))
+            return;
+
+        PlayerController targetPlayer = identity.GetComponent<PlayerController>();
+        if (targetPlayer == null || talismanIconPrefab == null) return;
+
+        if (talismanIconInstance == null)
+        {
+            talismanIconInstance = Instantiate(talismanIconPrefab);
+        }
+
+        talismanIconInstance.transform.position = targetPlayer.transform.position + talismanOffset;
+    }
+
+    [Server]
+    private void AdvanceTalisman()
+    {
+        if (players.Count == 0) return;
+
+        int currentIndex = players.IndexOf(talismanHolder);
+
+        for (int i = 1; i <= players.Count; i++)
+        {
+            int nextIndex = (currentIndex + i) % players.Count;
+            if (players[nextIndex].isAlive)
+            {
+                PlayerController previousHolder = talismanHolder;
+                talismanHolder = players[nextIndex];
+                talismanHolderNetId = talismanHolder.netId;
+
+                RpcMoveTalisman(previousHolder.netId, talismanHolder.netId);
+                Debug.Log($"[Talisman] Ahora lo tiene {talismanHolder.playerName}");
+                break;
+            }
+        }
+    }
+
+    [ClientRpc]
+    private void RpcMoveTalisman(uint fromNetId, uint toNetId)
+    {
+        NetworkIdentity fromIdentity = NetworkClient.spawned[fromNetId];
+        NetworkIdentity toIdentity = NetworkClient.spawned[toNetId];
+
+        if (fromIdentity == null || toIdentity == null || talismanIconInstance == null) return;
+
+        Vector3 start = fromIdentity.transform.position + talismanOffset;
+        Vector3 end = toIdentity.transform.position + talismanOffset;
+
+        StopAllCoroutines();
+        StartCoroutine(MoveTalismanVisual(start, end));
+    }
+
+    private IEnumerator MoveTalismanVisual(Vector3 start, Vector3 end)
+    {
+        float elapsed = 0f;
+        Vector3 peak = (start + end) / 2 + Vector3.up * 1.5f;
+
+        while (elapsed < talismanMoveDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / talismanMoveDuration);
+            Vector3 pos = Mathf.Pow(1 - t, 2) * start + 2 * (1 - t) * t * peak + Mathf.Pow(t, 2) * end;
+            talismanIconInstance.transform.position = pos;
+            yield return null;
+        }
+
+        talismanIconInstance.transform.position = end;
+    }
+
+    private PlayerController GetClosestToTalisman(List<PlayerController> shooters)
+    {
+        int talismanIndex = players.IndexOf(talismanHolder);
+
+        int minSteps = players.Count;
+        PlayerController chosen = null;
+
+        foreach (var shooter in shooters)
+        {
+            int shooterIndex = players.IndexOf(shooter);
+            int steps = (shooterIndex - talismanIndex + players.Count) % players.Count;
+
+            if (steps < minSteps)
+            {
+                minSteps = steps;
+                chosen = shooter;
+            }
+        }
+
+        return chosen;
+    }
 
     private void CheckGameOver()
     {

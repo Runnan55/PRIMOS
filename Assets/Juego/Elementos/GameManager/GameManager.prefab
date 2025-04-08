@@ -218,6 +218,9 @@ MonoBehaviour:
   missionRounds: 0400000005000000060000000700000008000000
   missionsPerRound: 1
   gameStatistic: {fileID: 530012246276789366}
+  talismanIconPrefab: {fileID: 8773022760893761464, guid: 8975341e867cb0b47a721bb2bd2ccc5f, type: 3}
+  talismanOffset: {x: 0.7, y: 3, z: 0}
+  talismanMoveDuration: 0.75
 --- !u!114 &530012246276789366
 MonoBehaviour:
   m_ObjectHideFlags: 0
