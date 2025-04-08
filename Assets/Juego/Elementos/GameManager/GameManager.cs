@@ -176,6 +176,11 @@ public class GameManager : NetworkBehaviour
     {
         if (!isServer) return;
 
+        if (gameStatistic != null)
+        {
+            gameStatistic.Initialize(players);
+        }
+
         foreach (var player in players)
         {
             if (!player.hasConfirmedName)
@@ -729,18 +734,20 @@ public class GameManager : NetworkBehaviour
 
     #region OnPlayerDisconnect
 
-    [Server]
-
-    #endregion
-
-    #region OnPlayerDisconnect
-
     public void PlayerDisconnected(PlayerController player)
     {
         if (players.Contains(player))
-        { 
+        {
             players.Remove(player);
-            deadPlayers.Add(player);
+            if (!deadPlayers.Contains(player))
+            {
+                deadPlayers.Add(player); // Aquí está la clave
+            }
+        }
+
+        if (gameStatistic != null)
+        {
+            gameStatistic.UpdatePlayerStats(player); // Guardamos su estado final
         }
 
         CheckGameOver();

@@ -22,15 +22,17 @@ public class GameStatistic : NetworkBehaviour
         public int damageDealt;
         public int timesCovered;
         public int points;
+        public bool isDisconnected;
 
-        public PlayerInfo(string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered)
+        public PlayerInfo(string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered, bool isDisconnected = false)
         {
             playerName = name;
             this.kills = kills;
             this.bulletsReloaded = bulletsReloaded;
-            this.bulletsFired  = bulletsFired;
+            this.bulletsFired = bulletsFired;
             this.damageDealt = damageDealt;
             this.timesCovered = timesCovered;
+            this.isDisconnected = isDisconnected;
             this.points = CalculatePoints(kills, bulletsReloaded, bulletsFired, damageDealt, timesCovered);
         }
 
@@ -41,6 +43,15 @@ public class GameStatistic : NetworkBehaviour
             points += (bulletsReloaded + bulletsFired + damageDealt + timesCovered) * 5;
             return points;
 
+        }
+    }
+
+    [Server]
+    public void PrintAllStats()
+    {
+        foreach (var p in players)
+        {
+            Debug.Log($"{p.playerName}: {p.kills} kills, {p.points} puntos.");
         }
     }
 
@@ -64,6 +75,42 @@ public class GameStatistic : NetworkBehaviour
         }
 
         Debug.Log($"[GameStatistic] Inicializado con {players.Count} jugadores.");
+    }
+
+    [Server]
+    public void UpdatePlayerStats(PlayerController player, bool disconnected = false)
+    {
+        for (int i = 0; i < players.Count; i++)
+        {
+            if (players[i].playerName == player.playerName)
+            {
+                players[i] = new PlayerInfo(
+                    player.playerName,
+                    player.kills,
+                    player.bulletsReloaded,
+                    player.bulletsFired,
+                    player.damageDealt,
+                    player.timesCovered,
+                    disconnected);
+                return;
+            }
+        }
+
+        // Si no estaba en la lista, lo agregamos
+        players.Add(new PlayerInfo(
+            player.playerName,
+            player.kills,
+            player.bulletsReloaded,
+            player.bulletsFired,
+            player.damageDealt,
+            player.timesCovered,
+            disconnected));
+    }
+
+    [Server]
+    public void RemovePlayer(string playerName)
+    {
+        players.RemoveAll(p => p.playerName == playerName);
     }
 
     [Server]
@@ -101,6 +148,14 @@ public class GameStatistic : NetworkBehaviour
             texts[4].text = player.damageDealt.ToString();
             texts[5].text = player.timesCovered.ToString();
             texts[6].text = player.points.ToString();
+
+            string displayName = player.playerName;
+            if (player.isDisconnected)
+            {
+                displayName += " (Offline)";
+            }
+
+            texts[0].text = displayName;
         }
     }
 

@@ -102,6 +102,7 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public int damageDealt = 0;
     [SyncVar] public int timesCovered = 0;
 
+
     private void Start()
     {
         if (isLocalPlayer)
@@ -621,6 +622,7 @@ public class PlayerController : NetworkBehaviour
 
         ammo--;
         bulletsFired++; //Sumar el contador de balas disparadas
+        GameStatistic stat = FindFirstObjectByType<GameStatistic>(); if (stat != null && isServer) stat.UpdatePlayerStats(this); // Actualizar en el GameStatistics
 
         RpcPlayShootEffect(target.transform.position);
 
@@ -705,11 +707,15 @@ public class PlayerController : NetworkBehaviour
             ammo++;
             Debug.Log($"{playerName} recargó 2 balas debido a Carga Oscura.");
             bulletsReloaded += 2;
+
+            GameStatistic stat = FindFirstObjectByType<GameStatistic>(); if (stat != null && isServer) stat.UpdatePlayerStats(this); // Actualizar en el GameStatistics
         }
         else
         {
             ammo++;
             bulletsReloaded++;
+
+            GameStatistic stat = FindFirstObjectByType<GameStatistic>(); if (stat != null && isServer) stat.UpdatePlayerStats(this); // Actualizar en el GameStatistics
         }
         
     }
@@ -776,13 +782,14 @@ public class PlayerController : NetworkBehaviour
         {
             GameManager.Instance.PlayerDisconnected(this);
         }
+
+        GameStatistic stat = FindFirstObjectByType<GameStatistic>();
+
+        if (stat != null && isServer)
+        {
+            stat.UpdatePlayerStats(this, true);
+        }
     }
 
     #endregion
-
-    #region GameStatistics
-
-
-    #endregion
-
 }
