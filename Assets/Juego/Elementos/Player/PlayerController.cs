@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using Mirror;
 using NUnit.Framework.Constraints;
 using TMPro;
@@ -102,6 +103,12 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public int damageDealt = 0;
     [SyncVar] public int timesCovered = 0;
 
+    [Header("PlayersOrientation")]
+    public int playerPosition;
+    public GameObject spriteRendererContainer;
+    [SyncVar(hook = nameof(OnPositionChanged))]
+    public int syncedPlayerPosition;
+
 
     private void Start()
     {
@@ -147,6 +154,127 @@ public class PlayerController : NetworkBehaviour
             targetIndicator.SetActive(false);
     }
 
+    public void DetectSpawnPosition(Vector3 pos)
+    {
+        float x = pos.x;
+        float y = pos.y;
+
+        if (x < 0 && y < 0)
+            playerPosition = 1;
+        else if (x < 0 && Mathf.Approximately(y, 0))
+            playerPosition = 2;
+        else if (x < 0 && y > 0)
+            playerPosition = 3;
+        else if (x > 0 && y > 0)
+            playerPosition = 4;
+        else if (x > 0 && Mathf.Approximately(y, 0))
+            playerPosition = 5;
+        else if (x > 0 && y < 0)
+            playerPosition = 6;
+
+        syncedPlayerPosition = playerPosition;
+    }
+
+    #region SetPosition&AnimationFlip
+    void OnPositionChanged(int oldPos, int newPos)
+    {
+        SetOrientationByPosition(newPos);
+    }
+
+    private void SetOrientationByPosition(int pos)
+    {
+        bool flip = pos >= 4;
+
+        if (spriteRendererContainer != null)
+        {
+            Vector3 scale = spriteRendererContainer.transform.localScale;
+            scale.x = Mathf.Abs(scale.x) * (flip ? -1 : 1);
+            spriteRendererContainer.transform.localScale = scale;
+        }
+    }
+
+    public enum ShootDirection
+    {
+        Horizontal,
+        VerticalUp,
+        VerticalDown,
+        DiagonalUp,
+        DiagonalDown
+    }
+
+    public struct AnimationDecision
+    {
+        public ShootDirection direction;
+        public bool flipX;
+
+        public AnimationDecision(ShootDirection dir, bool flip)
+        {
+            direction = dir;
+            flipX = flip;
+        }
+    }
+
+    private AnimationDecision DecideShootAnimation(int shooterSpawn, int targetSpawn)
+    {
+        Dictionary<int, Vector2Int> spawnCoords = new()
+    {
+        {1, new Vector2Int(0, -1)},  // Spawn1
+        {2, new Vector2Int(-1, 0)},  // Spawn2
+        {3, new Vector2Int(0, 1)},   // Spawn3
+        {4, new Vector2Int(1, 1)},   // Spawn4
+        {5, new Vector2Int(2, 0)},   // Spawn5
+        {6, new Vector2Int(1, -1)},  // Spawn6
+    };
+
+        var shooterPos = spawnCoords[shooterSpawn];
+        var targetPos = spawnCoords[targetSpawn];
+        var delta = targetPos - shooterPos;
+
+        // Horizontal
+        if (delta.y == 0 && delta.x != 0)
+            return new AnimationDecision(ShootDirection.Horizontal, delta.x < 0);
+
+        // Vertical
+        if (delta.x == 0 && delta.y != 0)
+            return new AnimationDecision(
+                delta.y > 0 ? ShootDirection.VerticalUp : ShootDirection.VerticalDown,
+                false);
+
+        // Diagonal
+        if (Mathf.Abs(delta.x) == 1 && Mathf.Abs(delta.y) == 1)
+            return new AnimationDecision(
+                delta.y > 0 ? ShootDirection.DiagonalUp : ShootDirection.DiagonalDown,
+                delta.x < 0);
+
+        // Default fallback
+        return new AnimationDecision(ShootDirection.Horizontal, false);
+    }
+
+    private void ApplyShootAnimationAndFlip(AnimationDecision decision, bool isSuper = false)
+    {
+        string baseName = isSuper ? "SuperShoot" : "Shoot";
+        string animationName = decision.direction switch
+        {
+            ShootDirection.Horizontal => $"{baseName}_Horizontal",
+            ShootDirection.VerticalUp => $"{baseName}_VerticalUp",
+            ShootDirection.VerticalDown => $"{baseName}_VerticalDown",
+            ShootDirection.DiagonalUp => $"{baseName}_DiagonalUp",
+            ShootDirection.DiagonalDown => $"{baseName}_DiagonalDown",
+            _ => baseName
+        };
+
+        RpcPlayAnimation(animationName);
+
+        // Aplicar Flip
+        if (spriteRendererContainer != null)
+        {
+            Vector3 scale = spriteRendererContainer.transform.localScale;
+            scale.x = Mathf.Abs(scale.x) * (decision.flipX ? -1 : 1);
+            spriteRendererContainer.transform.localScale = scale;
+        }
+    }
+
+    #endregion
     //Forzar sincronización inicial, sino no se verán los datos de los otros jugadores al inicio
     public override void OnStartClient()
     {
@@ -159,6 +287,8 @@ public class PlayerController : NetworkBehaviour
     public override void OnStartServer()
     {
         FindFirstObjectByType<GameManager>()?.RegisterPlayer(this);
+
+        DetectSpawnPosition(transform.position); //Setear orientacion y posición usando la posición actual
     }
 
     private void Update()
@@ -637,7 +767,8 @@ public class PlayerController : NetworkBehaviour
 
         if (selectedAction == ActionType.Shoot)
         {
-            RpcPlayAnimation("Shoot");
+            var decision = DecideShootAnimation(playerPosition, target.playerPosition);
+            ApplyShootAnimationAndFlip(decision); // para disparo normal
 
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)
@@ -652,7 +783,9 @@ public class PlayerController : NetworkBehaviour
         {
             ammo++;// sumamos una bala para compensar la que perdimos antes
             ammo -= minBulletSS;// Restamos las balas especiales
-            RpcPlayAnimation("SuperShoot");
+
+            var decision = DecideShootAnimation(playerPosition, target.playerPosition);
+            ApplyShootAnimationAndFlip(decision, true); // true para que use el prefijo SuperShoot_
 
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)
