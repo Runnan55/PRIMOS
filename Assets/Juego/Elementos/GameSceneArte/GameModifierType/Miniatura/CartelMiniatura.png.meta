@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 3ff11245e954577469b242ec1ac0c13f
+guid: b3edd2872ea933a4bb6f5b01c4a194dc
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -43,7 +43,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 1
+  spriteMode: 2
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -121,12 +121,34 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites: []
+    sprites:
+    - serializedVersion: 2
+      name: CartelMiniatura_0
+      rect:
+        serializedVersion: 2
+        x: 168
+        y: 211
+        width: 1527
+        height: 1789
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 34a98abe792fa4a48bef3366c3ee17fa
+      internalID: -1049278380
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 5e97eb03825dee720800000000000000
+    spriteID: 4195dea39840a124582cc7d707716867
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +157,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      CartelMiniatura_0: -1049278380
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -342,6 +342,11 @@ public class GameManager : NetworkBehaviour
         currentRound++;
         RpcUpdateRoundUI(currentRound);
 
+        foreach (var player in players)
+        {
+            player.canDealDamageThisRound = true;
+        }
+
         if (SelectedModifier == GameModifierType.CaceriaDelLider)
         {
             IdentifyVeryHealthy(); //buscar gente con mucha vida
@@ -506,22 +511,18 @@ public class GameManager : NetworkBehaviour
 
             if (shooters.Count == 1)
             {
-                shooters[0].ServerAttemptShoot(target);
+                //shooters[0].ServerAttemptShoot(target);
             }
             else
             {
                 PlayerController chosenShooter = GetClosestToTalisman(shooters);
-                chosenShooter.ServerAttemptShoot(target);
+                //chosenShooter.ServerAttemptShoot(target);
 
-                Debug.Log($"[Talisman] {chosenShooter.playerName} gana la prioridad para matar a {target.playerName}");
+                Debug.Log($"[Talisman] {chosenShooter.playerName} gana la prioridad para atacar a {target.playerName}"); //Los demás fallan el tiro pero no se muestra
 
-                // Los demás fallan
                 foreach (var shooter in shooters)
                 {
-                    if (shooter != chosenShooter)
-                    {
-                        shooter.RpcPlayAnimation("ShootFail");
-                    }
+                    shooter.canDealDamageThisRound = (shooter == chosenShooter);
                 }
             }
         }

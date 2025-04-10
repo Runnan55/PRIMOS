@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: ba5834d85d2744b458ff325c29d1527f
+guid: ff6278c8a49435b4fb7303d57265e4cb
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -43,7 +43,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 1
+  spriteMode: 2
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -121,12 +121,34 @@ TextureImporter:
     forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
-    sprites: []
+    sprites:
+    - serializedVersion: 2
+      name: QuickMissionContainer_0
+      rect:
+        serializedVersion: 2
+        x: 281
+        y: 145
+        width: 1300
+        height: 3467
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bf63a65c71d7f8e428fb4a7e285da965
+      internalID: -153444224
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 5e97eb03825dee720800000000000000
+    spriteID: 0366df8099fb6724489f4531943e9d3c
     internalID: 0
     vertices: []
     indices: 
@@ -135,7 +157,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      QuickMissionContainer_0: -153444224
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

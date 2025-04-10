@@ -109,6 +109,8 @@ public class PlayerController : NetworkBehaviour
     [SyncVar(hook = nameof(OnPositionChanged))]
     public int syncedPlayerPosition;
 
+    [Header("TikiTalisman")]
+    [SyncVar] public bool canDealDamageThisRound = true;
 
     private void Start()
     {
@@ -154,6 +156,9 @@ public class PlayerController : NetworkBehaviour
             targetIndicator.SetActive(false);
     }
 
+    //Forzar sincronización inicial, sino no se verán los datos de los otros jugadores al inicio
+    #region SetPosition&AnimationFlip
+
     public void DetectSpawnPosition(Vector3 pos)
     {
         float x = pos.x;
@@ -175,7 +180,6 @@ public class PlayerController : NetworkBehaviour
         syncedPlayerPosition = playerPosition;
     }
 
-    #region SetPosition&AnimationFlip
     void OnPositionChanged(int oldPos, int newPos)
     {
         SetOrientationByPosition(newPos);
@@ -275,7 +279,7 @@ public class PlayerController : NetworkBehaviour
     }
 
     #endregion
-    //Forzar sincronización inicial, sino no se verán los datos de los otros jugadores al inicio
+
     public override void OnStartClient()
     {
         base.OnStartClient();
@@ -767,9 +771,6 @@ public class PlayerController : NetworkBehaviour
 
         if (selectedAction == ActionType.Shoot)
         {
-            var decision = DecideShootAnimation(playerPosition, target.playerPosition);
-            ApplyShootAnimationAndFlip(decision); // para disparo normal
-
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)
             {
@@ -777,15 +778,15 @@ public class PlayerController : NetworkBehaviour
                 RpcPlayAnimation("ShootFail");
                 return; // Bala se gasta, pero no hace daño
             }
+
+            var decision = DecideShootAnimation(playerPosition, target.playerPosition);
+            ApplyShootAnimationAndFlip(decision); // para disparo normal
         }
 
         if (selectedAction == ActionType.SuperShoot)
         {
             ammo++;// sumamos una bala para compensar la que perdimos antes
             ammo -= minBulletSS;// Restamos las balas especiales
-
-            var decision = DecideShootAnimation(playerPosition, target.playerPosition);
-            ApplyShootAnimationAndFlip(decision, true); // true para que use el prefijo SuperShoot_
 
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)
@@ -802,6 +803,9 @@ public class PlayerController : NetworkBehaviour
                 target.RpcPlayAnimation("CoverBroken");
                 Debug.Log($"{playerName} usó SUPERSHOOT y forzó a {target.playerName} a salir de cobertura");
             }
+
+            var decision = DecideShootAnimation(playerPosition, target.playerPosition);
+            ApplyShootAnimationAndFlip(decision, true); // true para que use el prefijo SuperShoot_
         }
 
         if (target.isCovering)
@@ -818,9 +822,15 @@ public class PlayerController : NetworkBehaviour
             return;
         }
 
-        damageDealt += damage; // Sumar daño hecho
+        if (!canDealDamageThisRound)
+        {
+            Debug.Log($"[Talisman] {playerName} disparó a {target.playerName}, pero perdió prioridad. No se causa daño.");
+            return;
+        }
 
+        damageDealt += damage; // Sumar daño hecho
         target.TakeDamage(damage);
+        
         lastShotTarget = target; // Almacenar víctima de disparo
         Debug.Log($"{playerName} disparó a {target.playerName}. Balas restantes: {ammo}");
 
