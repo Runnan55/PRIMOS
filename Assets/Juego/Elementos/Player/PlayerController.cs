@@ -77,7 +77,7 @@ public class PlayerController : NetworkBehaviour
     public Button superShootButton;
     private Button selectedButton = null; //Último botón seleccionado
     [SerializeField] private Color defaultButtonColor = Color.white; //Color por defecto
-    [SerializeField] private Color highlightedColor = Color.yellow; //Color resaltado
+    [SerializeField] private Color highlightedColor = Color.white; //Color resaltado
 
     [Header("Rol Elements")]
     public GameObject parcaSprite;

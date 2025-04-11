@@ -126,10 +126,10 @@ TextureImporter:
       name: Reward_0
       rect:
         serializedVersion: 2
-        x: 337
-        y: 184
-        width: 2950
-        height: 1805
+        x: 321
+        y: 183
+        width: 2981
+        height: 1806
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -138,8 +138,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 2e98161b662d32546b402e188b62f5ac
-      internalID: 773847210
+      spriteID: 17284249fc2dfa64c8a5b22334d15c95
+      internalID: -677490099
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 5b7fa654783b63243a86af048e64ed6e
+    spriteID: b6081f0a9b9aa5c4b85edba64009d102
     internalID: 0
     vertices: []
     indices: 
@@ -158,7 +158,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Reward_0: 773847210
+      Reward_0: -677490099
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
