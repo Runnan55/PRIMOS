@@ -178,6 +178,8 @@ public class PlayerController : NetworkBehaviour
             playerPosition = 6;
 
         syncedPlayerPosition = playerPosition;
+
+        UpdateFacingDirectionFromPosition();
     }
 
     void OnPositionChanged(int oldPos, int newPos)
@@ -196,6 +198,58 @@ public class PlayerController : NetworkBehaviour
             spriteRendererContainer.transform.localScale = scale;
         }
     }
+
+    [SyncVar(hook = nameof(OnDirectionChanged))]
+    public FacingDirection currentFacingDirection;
+
+    void OnDirectionChanged(FacingDirection oldDir, FacingDirection newDir)
+    {
+        PlayDirectionalAnimation("Idle");
+    }
+
+    public enum FacingDirection
+    {
+        Down,
+        DownLeft,
+        Left,
+        UpLeft,
+        Up,
+        UpRight,
+        Right,
+        DownRight
+    }
+
+    public void UpdateFacingDirectionFromPosition()
+    {
+        currentFacingDirection = playerPosition switch
+        {
+            1 => FacingDirection.Up,
+            2 => FacingDirection.Left,
+            3 => FacingDirection.Down,
+            4 => FacingDirection.DownRight,
+            5 => FacingDirection.Right,
+            6 => FacingDirection.UpRight,
+            _ => FacingDirection.Up
+        };
+    }
+
+    public void PlayDirectionalAnimation(string baseAnim)
+    {
+        string animName = baseAnim + "_" + currentFacingDirection.ToString();
+        Debug.Log($"[Animación] Ejecutando {animName}");
+
+        // Si estamos en el servidor, hacemos un Rpc para todos los clientes
+        if (isServer)
+        {
+            RpcPlayAnimation(animName);
+        }
+        // Si estamos en el cliente y no es host, lo reproducimos localmente
+        else if (isClient)
+        {
+            GetComponent<Animator>().Play(animName); // ⚠️ Sin RPC, local solamente
+        }
+    }
+
 
     public enum ShootDirection
     {
@@ -286,6 +340,13 @@ public class PlayerController : NetworkBehaviour
         OnHealthChanged(health, health); //Forzamos mostrar vida al inicio aunque no cambie
         OnAmmoChanged(ammo, ammo); //Forzamos mostrar munición al inicio aunque no cambie
         //No forzamos un OnNameChanged porque el nombre se actualiza al inicio de la partida
+
+    }
+
+    public override void OnStartAuthority()
+    {
+        base.OnStartAuthority();
+        PlayDirectionalAnimation("Idle"); // Esto asegura que el jugador local se ve correctamente
     }
 
     public override void OnStartServer()
@@ -293,6 +354,9 @@ public class PlayerController : NetworkBehaviour
         FindFirstObjectByType<GameManager>()?.RegisterPlayer(this);
 
         DetectSpawnPosition(transform.position); //Setear orientacion y posición usando la posición actual
+
+        string animName = "Idle_" + currentFacingDirection.ToString();
+        RpcPlayAnimation(animName); //Esto actualiza la animación en todos los clientes
     }
 
     private void Update()

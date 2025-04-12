@@ -400,7 +400,7 @@ public class GameManager : NetworkBehaviour
         foreach (var player in players)
         {
             player.TargetPlayButtonAnimation(player.connectionToClient, "Venir", true);
-            player.RpcPlayAnimation("Idle");
+            player.PlayDirectionalAnimation("Idle");
         }
 
         actionsQueue.Clear();
