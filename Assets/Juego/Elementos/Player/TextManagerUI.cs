@@ -11,6 +11,10 @@ public class TextManagerUI : MonoBehaviour
     public TMP_Text Reward_titleText;
     public TMP_Text Reward_descriptionText;
 
+    [Header("GameModeDescription")]
+    public TMP_Text GM_titleText;
+    public TMP_Text GM_descriptionText;
+
     public void SetMissionText(string key)
     {
         switch (key)
@@ -58,4 +62,27 @@ public class TextManagerUI : MonoBehaviour
 
         }
     }
+    public void SetGMFromId(string id)
+    {
+        switch (id)
+        {
+            case "CaceriaDelLider":
+                GM_titleText.text = "Cacería del Líder";
+                GM_descriptionText.text = "El o los jugadores con más vidas pierden la capacidad de cubrirse";
+                break;
+            case "GatilloFacil":
+                GM_titleText.text = "Gatillo Fácil";
+                GM_descriptionText.text = "Los jugadores obtienen una bala más al iniciar la partida";
+                break;
+            case "BalasOxidadas":
+                GM_titleText.text = "Balas Oxidadas";
+                GM_descriptionText.text = "Todos los disparos tienen un 25% de fallar esta partida";
+                break;
+            case "CargaOscura":
+                GM_titleText.text = "Carga Oscura";
+                GM_descriptionText.text = "Recarga 2 balas en lugar de 1";
+                break;
+        }
+    }
 }
+
