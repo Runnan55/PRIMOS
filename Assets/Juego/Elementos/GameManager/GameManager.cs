@@ -69,6 +69,8 @@ public class GameManager : NetworkBehaviour
     [Header("Draw")]
     private bool isDraw = false;
 
+    [Header("Animations")]
+    [SerializeField] private Animator timerAnimator;
 
     [Header("MisionesDeInicio")]
     [SerializeField] public GameModifierType SelectedModifier;
@@ -338,6 +340,8 @@ public class GameManager : NetworkBehaviour
     #endregion
     private IEnumerator DecisionPhase()
     {
+        timerAnimator.Play("TimerEnter");
+
         isDecisionPhase = true;
         currentRound++;
         RpcUpdateRoundUI(currentRound);
@@ -437,6 +441,8 @@ public class GameManager : NetworkBehaviour
             }
         }
 
+        timerAnimator.Play("TimerExit");
+
         yield return new WaitForSeconds(0.5f);//Tiempo para que se ejecute la animación
     }
 
@@ -469,7 +475,7 @@ public class GameManager : NetworkBehaviour
                 {
                     entry.Key.isCovering = true; //Manejado por el serivdor
                     entry.Key.RpcUpdateCover(true);
-                    entry.Key.RpcPlayAnimation("Cover");
+                    entry.Key.PlayDirectionalAnimation("Cover");
                     entry.Key.consecutiveCovers++;
                     entry.Key.timesCovered++; //Sumar el contador de vecescubierto
                     Debug.Log($"[SERVER] {entry.Key.playerName} se cubrió con éxito en el intento { entry.Key.consecutiveCovers}");
@@ -887,11 +893,11 @@ public class GameManager : NetworkBehaviour
             if(newTime > 0f && displayTime >= 0)
             {
                 timerText.text = $"Tiempo: {displayTime}";
-                timerText.gameObject.SetActive(true);
+                //timerText.gameObject.SetActive(true);
             }
             else
             {
-                timerText.gameObject.SetActive(false); // Ocultar cuando termina
+                //timerText.gameObject.SetActive(false); // Ocultar cuando termina
             }
 
         }

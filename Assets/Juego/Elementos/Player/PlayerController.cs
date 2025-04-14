@@ -106,8 +106,6 @@ public class PlayerController : NetworkBehaviour
     [Header("PlayersOrientation")]
     public int playerPosition;
     public GameObject spriteRendererContainer;
-    [SyncVar(hook = nameof(OnPositionChanged))]
-    public int syncedPlayerPosition;
 
     [Header("TikiTalisman")]
     [SyncVar] public bool canDealDamageThisRound = true;
@@ -156,183 +154,7 @@ public class PlayerController : NetworkBehaviour
             targetIndicator.SetActive(false);
     }
 
-    //Forzar sincronización inicial, sino no se verán los datos de los otros jugadores al inicio
-    #region SetPosition&AnimationFlip
-
-    public void DetectSpawnPosition(Vector3 pos)
-    {
-        float x = pos.x;
-        float y = pos.y;
-
-        if (x < 0 && y < 0)
-            playerPosition = 1;
-        else if (x < 0 && Mathf.Approximately(y, 0))
-            playerPosition = 2;
-        else if (x < 0 && y > 0)
-            playerPosition = 3;
-        else if (x > 0 && y > 0)
-            playerPosition = 4;
-        else if (x > 0 && Mathf.Approximately(y, 0))
-            playerPosition = 5;
-        else if (x > 0 && y < 0)
-            playerPosition = 6;
-
-        syncedPlayerPosition = playerPosition;
-
-        UpdateFacingDirectionFromPosition();
-    }
-
-    void OnPositionChanged(int oldPos, int newPos)
-    {
-        SetOrientationByPosition(newPos);
-    }
-
-    private void SetOrientationByPosition(int pos)
-    {
-        bool flip = pos >= 4;
-
-        if (spriteRendererContainer != null)
-        {
-            Vector3 scale = spriteRendererContainer.transform.localScale;
-            scale.x = Mathf.Abs(scale.x) * (flip ? -1 : 1);
-            spriteRendererContainer.transform.localScale = scale;
-        }
-    }
-
-    [SyncVar(hook = nameof(OnDirectionChanged))]
-    public FacingDirection currentFacingDirection;
-
-    void OnDirectionChanged(FacingDirection oldDir, FacingDirection newDir)
-    {
-        PlayDirectionalAnimation("Idle");
-    }
-
-    public enum FacingDirection
-    {
-        Down,
-        DownLeft,
-        Left,
-        UpLeft,
-        Up,
-        UpRight,
-        Right,
-        DownRight
-    }
-
-    public void UpdateFacingDirectionFromPosition()
-    {
-        currentFacingDirection = playerPosition switch
-        {
-            1 => FacingDirection.Up,
-            2 => FacingDirection.Left,
-            3 => FacingDirection.Down,
-            4 => FacingDirection.DownRight,
-            5 => FacingDirection.Right,
-            6 => FacingDirection.UpRight,
-            _ => FacingDirection.Up
-        };
-    }
-
-    public void PlayDirectionalAnimation(string baseAnim)
-    {
-        string animName = baseAnim + "_" + currentFacingDirection.ToString();
-        Debug.Log($"[Animación] Ejecutando {animName}");
-
-        // Si estamos en el servidor, hacemos un Rpc para todos los clientes
-        if (isServer)
-        {
-            RpcPlayAnimation(animName);
-        }
-        // Si estamos en el cliente y no es host, lo reproducimos localmente
-        else if (isClient)
-        {
-            GetComponent<Animator>().Play(animName); // ⚠️ Sin RPC, local solamente
-        }
-    }
-
-
-    public enum ShootDirection
-    {
-        Horizontal,
-        VerticalUp,
-        VerticalDown,
-        DiagonalUp,
-        DiagonalDown
-    }
-
-    public struct AnimationDecision
-    {
-        public ShootDirection direction;
-        public bool flipX;
-
-        public AnimationDecision(ShootDirection dir, bool flip)
-        {
-            direction = dir;
-            flipX = flip;
-        }
-    }
-
-    private AnimationDecision DecideShootAnimation(int shooterSpawn, int targetSpawn)
-    {
-        Dictionary<int, Vector2Int> spawnCoords = new()
-    {
-        {1, new Vector2Int(0, -1)},  // Spawn1
-        {2, new Vector2Int(-1, 0)},  // Spawn2
-        {3, new Vector2Int(0, 1)},   // Spawn3
-        {4, new Vector2Int(1, 1)},   // Spawn4
-        {5, new Vector2Int(2, 0)},   // Spawn5
-        {6, new Vector2Int(1, -1)},  // Spawn6
-    };
-
-        var shooterPos = spawnCoords[shooterSpawn];
-        var targetPos = spawnCoords[targetSpawn];
-        var delta = targetPos - shooterPos;
-
-        // Horizontal
-        if (delta.y == 0 && delta.x != 0)
-            return new AnimationDecision(ShootDirection.Horizontal, delta.x < 0);
-
-        // Vertical
-        if (delta.x == 0 && delta.y != 0)
-            return new AnimationDecision(
-                delta.y > 0 ? ShootDirection.VerticalUp : ShootDirection.VerticalDown,
-                false);
-
-        // Diagonal
-        if (Mathf.Abs(delta.x) == 1 && Mathf.Abs(delta.y) == 1)
-            return new AnimationDecision(
-                delta.y > 0 ? ShootDirection.DiagonalUp : ShootDirection.DiagonalDown,
-                delta.x < 0);
-
-        // Default fallback
-        return new AnimationDecision(ShootDirection.Horizontal, false);
-    }
-
-    private void ApplyShootAnimationAndFlip(AnimationDecision decision, bool isSuper = false)
-    {
-        string baseName = isSuper ? "SuperShoot" : "Shoot";
-        string animationName = decision.direction switch
-        {
-            ShootDirection.Horizontal => $"{baseName}_Horizontal",
-            ShootDirection.VerticalUp => $"{baseName}_VerticalUp",
-            ShootDirection.VerticalDown => $"{baseName}_VerticalDown",
-            ShootDirection.DiagonalUp => $"{baseName}_DiagonalUp",
-            ShootDirection.DiagonalDown => $"{baseName}_DiagonalDown",
-            _ => baseName
-        };
-
-        RpcPlayAnimation(animationName);
-
-        // Aplicar Flip
-        if (spriteRendererContainer != null)
-        {
-            Vector3 scale = spriteRendererContainer.transform.localScale;
-            scale.x = Mathf.Abs(scale.x) * (decision.flipX ? -1 : 1);
-            spriteRendererContainer.transform.localScale = scale;
-        }
-    }
-
-    #endregion
+    
 
     public override void OnStartClient()
     {
@@ -341,12 +163,7 @@ public class PlayerController : NetworkBehaviour
         OnAmmoChanged(ammo, ammo); //Forzamos mostrar munición al inicio aunque no cambie
         //No forzamos un OnNameChanged porque el nombre se actualiza al inicio de la partida
 
-    }
-
-    public override void OnStartAuthority()
-    {
-        base.OnStartAuthority();
-        PlayDirectionalAnimation("Idle"); // Esto asegura que el jugador local se ve correctamente
+        PlayDirectionalAnimation("Idle");
     }
 
     public override void OnStartServer()
@@ -354,9 +171,6 @@ public class PlayerController : NetworkBehaviour
         FindFirstObjectByType<GameManager>()?.RegisterPlayer(this);
 
         DetectSpawnPosition(transform.position); //Setear orientacion y posición usando la posición actual
-
-        string animName = "Idle_" + currentFacingDirection.ToString();
-        RpcPlayAnimation(animName); //Esto actualiza la animación en todos los clientes
     }
 
     private void Update()
@@ -501,6 +315,126 @@ public class PlayerController : NetworkBehaviour
 
     #endregion
 
+    //Forzar sincronización inicial, sino no se verán los datos de los otros jugadores al inicio
+    #region SetPosition&AnimationFlip
+
+    public void DetectSpawnPosition(Vector3 pos)
+    {
+        float x = pos.x;
+        float y = pos.y;
+
+        if (x < 0 && y < 0)
+            playerPosition = 1;
+        else if (x < 0 && Mathf.Approximately(y, 0))
+            playerPosition = 2;
+        else if (x < 0 && y > 0)
+            playerPosition = 3;
+        else if (x > 0 && y > 0)
+            playerPosition = 4;
+        else if (x > 0 && Mathf.Approximately(y, 0))
+            playerPosition = 5;
+        else if (x > 0 && y < 0)
+            playerPosition = 6;
+
+        UpdateFacingDirectionFromPosition();
+        ApplyVisualFlipFromDirection();
+    }
+
+    [SyncVar(hook = nameof(OnDirectionChanged))]
+    public FacingDirection currentFacingDirection;
+
+    private void ApplyVisualFlipFromDirection()
+    {
+        if (spriteRendererContainer == null) return;
+
+        bool flipX = currentFacingDirection switch
+        {
+            FacingDirection.Left => true,
+            FacingDirection.UpLeft => true,
+            FacingDirection.DownLeft => true,
+            _ => false
+        };
+
+        Vector3 scale = spriteRendererContainer.transform.localScale;
+        scale.x = Mathf.Abs(scale.x) * (flipX ? -1 : 1);
+        spriteRendererContainer.transform.localScale = scale;
+    }
+
+    void OnDirectionChanged(FacingDirection oldDir, FacingDirection newDir)
+    {
+        PlayDirectionalAnimation("Idle");
+    }
+
+    public enum FacingDirection { Down, DownLeft, Left, UpLeft, Up, UpRight, Right, DownRight }
+
+    public void UpdateFacingDirectionFromPosition()
+    {
+        currentFacingDirection = playerPosition switch
+        {
+            1 => FacingDirection.UpRight,
+            2 => FacingDirection.Right,
+            3 => FacingDirection.DownRight,
+            4 => FacingDirection.DownLeft,
+            5 => FacingDirection.Left,
+            6 => FacingDirection.UpLeft,
+            _ => FacingDirection.UpRight //Fallback
+        };
+    }
+
+    public void PlayDirectionalAnimation(string baseAnim)
+    {
+        string animName = baseAnim + "_" + currentFacingDirection.ToString();
+        Debug.Log($"[Animación] Ejecutando {animName}");
+
+        // Si estamos en el servidor, hacemos un Rpc para todos los clientes
+        if (isServer)
+        {
+            RpcPlayAnimation(animName);
+        }
+        // Si estamos en el cliente y no es host, lo reproducimos localmente
+        else if (isClient)
+        {
+            GetComponent<Animator>().Play(animName); // Sin RPC, local solamente
+        }
+    }
+
+    #endregion
+
+    #region ShootAnimation
+
+    private FacingDirection GetShootDirection(PlayerController target)
+    {
+        Vector3 myPos = transform.position;
+        Vector3 targetPos = target.transform.position;
+
+        Vector2 dir = (targetPos - myPos).normalized;
+
+        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+
+        // Normalizar ángulo entre 0 y 360
+        if (angle < 0) angle += 360;
+
+        if (angle >= 337.5 || angle < 22.5)
+            return FacingDirection.Right;
+        else if (angle >= 22.5 && angle < 67.5)
+            return FacingDirection.UpRight;
+        else if (angle >= 67.5 && angle < 112.5)
+            return FacingDirection.Up;
+        else if (angle >= 112.5 && angle < 157.5)
+            return FacingDirection.UpLeft;
+        else if (angle >= 157.5 && angle < 202.5)
+            return FacingDirection.Left;
+        else if (angle >= 202.5 && angle < 247.5)
+            return FacingDirection.DownLeft;
+        else if (angle >= 247.5 && angle < 292.5)
+            return FacingDirection.Down;
+        else
+            return FacingDirection.DownRight;
+    }
+
+
+    #endregion
+
     #region Animations
 
     [TargetRpc]
@@ -639,14 +573,13 @@ public class PlayerController : NetworkBehaviour
         countdownText.text = "LISTOS\n2";
         yield return new WaitForSeconds(1f);
 
-        countdownText.text = "¡YA!\n1";
+        countdownText.text = "YA!\n1";
         yield return new WaitForSeconds(1f);
 
         countdownText.text = "";
 
         countdownText.gameObject.SetActive(false); // Ocultar el texto después de la cuenta regresiva
     }
-
 
     #endregion
 
@@ -744,7 +677,7 @@ public class PlayerController : NetworkBehaviour
             deathCanvas.SetActive(true);
         }
 
-        GetComponent<NetworkAnimator>().animator.Play("Death");//Animacion de muerte 
+        PlayDirectionalAnimation("Death"); //Animacion de muerte 
         coverProbabilityText.gameObject.SetActive(false);
         healthText.gameObject.SetActive(false);
         ammoText.gameObject.SetActive(false);
@@ -758,21 +691,11 @@ public class PlayerController : NetworkBehaviour
             drawCanvas.SetActive(true);
         }
 
-        GetComponent<NetworkAnimator>().animator.Play("Death");//Animacion de muerte 
+        PlayDirectionalAnimation("Death"); //Animacion de muerte 
         coverProbabilityText.gameObject.SetActive(false);
         healthText.gameObject.SetActive(false);
         ammoText.gameObject.SetActive(false);
     }
-/*
-    private IEnumerator PlayDeathAnimationWithDelay(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-
-        GetComponent<NetworkAnimator>().animator.Play("Death");//Animacion de muerte 
-        coverProbabilityText.gameObject.SetActive(false);
-        healthText.gameObject.SetActive(false);
-        ammoText.gameObject.SetActive(false);
-    }*/
 
     [ClientRpc]
     public void RpcOnVictory()
@@ -843,8 +766,8 @@ public class PlayerController : NetworkBehaviour
                 return; // Bala se gasta, pero no hace daño
             }
 
-            var decision = DecideShootAnimation(playerPosition, target.playerPosition);
-            ApplyShootAnimationAndFlip(decision); // para disparo normal
+            FacingDirection shootDir = GetShootDirection(target);
+            RpcPlayAnimation("Shoot_" + shootDir.ToString());
         }
 
         if (selectedAction == ActionType.SuperShoot)
@@ -868,8 +791,8 @@ public class PlayerController : NetworkBehaviour
                 Debug.Log($"{playerName} usó SUPERSHOOT y forzó a {target.playerName} a salir de cobertura");
             }
 
-            var decision = DecideShootAnimation(playerPosition, target.playerPosition);
-            ApplyShootAnimationAndFlip(decision, true); // true para que use el prefijo SuperShoot_
+            FacingDirection shootDir = GetShootDirection(target);
+            RpcPlayAnimation("SuperShoot_" + shootDir.ToString());
         }
 
         if (target.isCovering)
@@ -907,7 +830,7 @@ public class PlayerController : NetworkBehaviour
     [Server]
     public void ServerReload()
     {
-        RpcPlayAnimation("Reload");
+        PlayDirectionalAnimation("Reload");
         if (isDarkReloadEnabled)
         {
             ammo++;
