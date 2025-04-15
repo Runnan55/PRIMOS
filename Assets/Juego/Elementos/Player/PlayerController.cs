@@ -41,7 +41,7 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private int minBulletS = 1;
     [SerializeField] private int minBulletSS = 3;
     [SerializeField] public float[] coverProbabilities = { 1f, 0.5f, 0.01f };//Probabilidades 100%, 50%, 1%
-    [SyncVar] public int consecutiveCovers = 0;
+    [SyncVar(hook = nameof (OnCoverLevelChanged))] public int consecutiveCovers = 0;
 
     private static PlayerController targetEnemy; //Enemigo seleccionado
     private static bool isAiming = false; //Indica si se está apuntando
@@ -109,6 +109,7 @@ public class PlayerController : NetworkBehaviour
 
     [Header("TikiTalisman")]
     [SyncVar] public bool canDealDamageThisRound = true;
+    [SyncVar] public int sucessfulShots = 0;
 
     private void Start()
     {
@@ -279,7 +280,6 @@ public class PlayerController : NetworkBehaviour
     {
         if (playerNameText != null)
             playerNameText.text = newName;
-
     }
 
     public void OnIsVeryHealthyChanged(bool oldValue, bool newValue)
@@ -298,6 +298,133 @@ public class PlayerController : NetworkBehaviour
     {
         if (ammoText)
             ammoText.text = $"Balas: {newAmmo}";
+
+        SuperShootButtonAnimation(newAmmo);
+    }
+
+    #endregion
+
+    #region Animations
+
+    [TargetRpc]
+    public void TargetPlayButtonAnimation(NetworkConnection target, bool enableButtons)
+    {
+        if (!isAlive || !gameObject.activeInHierarchy) return;// Evita ejecutar si el jugador está muerto o desactivado
+
+        // Solo habilitar los botones si enableButtons es true y cumplen con sus respectivas condiciones
+        shootButton.interactable = enableButtons && ammo >= minBulletS;
+        superShootButton.interactable = enableButtons && ammo >= minBulletSS;
+        reloadButton.interactable = enableButtons;
+
+        coverButton.interactable = enableButtons && !isVeryHealthy; //Requiere también que el jugador no tenga el bool de Caceria de Lider activo
+    }
+
+    [ClientRpc] //Se ejecuta en todos los clientes siempre
+    public void RpcPlayAnimation(string animation)
+    {
+        if (!isAlive) return;
+        GetComponent<NetworkAnimator>().animator.Play(animation);//Esto sirve por ejemplo para que el player llame animación en otro player, tambien se puede llamar desde el Server
+    }
+
+    [TargetRpc] //Se ejecuta en solo un cliente especifico
+    public void TargetPlayAnimation(string animation)
+    {
+        GetComponent<Animator>().Play(animation); // SOLO ese jugador lo ve
+    }
+
+    [ClientRpc]
+    public void RpcPlayShootEffect(Vector3 targetPosition)
+    {
+        if (projectilePrefab == null || shootOrigin == null) return;
+
+        GameObject proj = Instantiate(projectilePrefab, shootOrigin.position, Quaternion.identity);
+
+        //Calcular la dirección hacia el objetivo
+        Vector3 direction = (targetPosition - shootOrigin.position).normalized;
+
+        //Rotar la bala para que mire hacia el objetivo (2D, solo rotación en Z)
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+        proj.transform.rotation = Quaternion.Euler(new Vector3(0, 0, angle));
+
+        StartCoroutine(MoveProjectileToTarget(proj, targetPosition));
+    }
+
+    private IEnumerator MoveProjectileToTarget(GameObject projectile, Vector3 targetPos)
+    {
+        float duration = 1f;
+        float elapsed = 0f;
+
+        Vector3 start = projectile.transform.position;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            projectile.transform.position = Vector3.Lerp(start, targetPos, t);
+            yield return null;
+        }
+
+        Destroy(projectile);
+    }
+
+    #endregion
+
+    #region ButtonFunnyAnimations
+
+    private void OnCoverLevelChanged(int oldValue, int newValue)
+    {
+        CoverButtonAnimation(newValue);
+    }
+
+    private int lastCoverLevel = -1;
+
+    private void CoverButtonAnimation(int coverLevel)
+    {
+        if (!isLocalPlayer) return;
+
+        coverLevel = Mathf.Clamp(coverLevel, 0, 2); // 0 = 100%%, 1 = 50%, 2 = 1%
+        if (coverLevel == lastCoverLevel) return;
+
+        string animName = coverLevel switch
+        {
+            0 => "Cover100",
+            1 => "Cover50",
+            2 => "Cover1",
+            _ => null
+        };
+
+        if (!string.IsNullOrEmpty(animName))
+        {
+            GetComponent<Animator>().Play(animName);
+            lastCoverLevel = coverLevel;
+        }
+    }
+
+    private int lastSuperShootLevel = -1;
+
+    private void SuperShootButtonAnimation(int currentAmmo)
+    {
+        if (!isLocalPlayer) return;
+
+        int superShootLevel = Mathf.Clamp(currentAmmo, 0, 3);
+
+        if (superShootLevel == lastSuperShootLevel) return; // Solo reproducir si hay cambio de estado (evita volver a animar innecesariamente)
+        if (superShootLevel == 3 && lastSuperShootLevel >= 3) return; // No reproducir si el anterior era más de 3 tmb
+
+        string animName = superShootLevel switch
+        {
+            0 => "SuperShoot0",
+            1 => "SuperShoot1",
+            2 => "SuperShoot2",
+            3 => "SuperShoot3",
+            _ => null
+        };
+
+        if (!string.IsNullOrEmpty(animName))
+        {
+            GetComponent<Animator>().Play(animName);
+            lastSuperShootLevel = superShootLevel;
+        }
     }
 
     #endregion
@@ -432,73 +559,6 @@ public class PlayerController : NetworkBehaviour
             return FacingDirection.DownRight;
     }
 
-
-    #endregion
-
-    #region Animations
-
-    [TargetRpc]
-    public void TargetPlayButtonAnimation(NetworkConnection target, string animationTrigger, bool enableButtons)
-    {
-        if (!isAlive || !gameObject.activeInHierarchy) return;// Evita ejecutar si el jugador está muerto o desactivado
-
-        // Solo habilitar los botones si enableButtons es true y cumplen con sus respectivas condiciones
-        shootButton.interactable = enableButtons && ammo >= minBulletS;
-        superShootButton.interactable = enableButtons && ammo >= minBulletSS;
-        reloadButton.interactable = enableButtons;
-
-        coverButton.interactable = enableButtons && !isVeryHealthy; //Requiere también que el jugador no tenga el bool de Caceria de Lider activo
-
-        animator.SetTrigger(animationTrigger); // Ejecutar animación solo en el player local
-    }
-
-    [ClientRpc] //Se ejecuta en todos los clientes siempre
-    public void RpcPlayAnimation(string animation)
-    {
-        if (!isAlive) return;
-        GetComponent<NetworkAnimator>().animator.Play(animation);//Esto sirve por ejemplo para que el player llame animación en otro player, tambien se puede llamar desde el Server
-    }
-
-    [TargetRpc] //Se ejecuta en solo un cliente especifico
-    public void TargetPlayAnimation(string animation)
-    {
-        GetComponent<Animator>().Play(animation); // SOLO ese jugador lo ve
-    }
-
-    [ClientRpc]
-    public void RpcPlayShootEffect(Vector3 targetPosition)
-    {
-        if (projectilePrefab == null || shootOrigin == null) return;
-
-        GameObject proj = Instantiate(projectilePrefab, shootOrigin.position, Quaternion.identity);
-
-        //Calcular la dirección hacia el objetivo
-        Vector3 direction = (targetPosition - shootOrigin.position).normalized;
-
-        //Rotar la bala para que mire hacia el objetivo (2D, solo rotación en Z)
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        proj.transform.rotation = Quaternion.Euler(new Vector3(0, 0, angle));
-
-        StartCoroutine(MoveProjectileToTarget(proj, targetPosition));
-    }
-
-    private IEnumerator MoveProjectileToTarget(GameObject projectile, Vector3 targetPos)
-    {
-        float duration = 1f;
-        float elapsed = 0f;
-
-        Vector3 start = projectile.transform.position;
-
-        while (elapsed < duration)
-        {
-             elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / duration);
-            projectile.transform.position = Vector3.Lerp(start, targetPos, t);
-            yield return null;
-        }
-
-        Destroy(projectile);
-    }
 
     #endregion
 
@@ -816,6 +876,7 @@ public class PlayerController : NetworkBehaviour
         }
 
         damageDealt += damage; // Sumar daño hecho
+        sucessfulShots++; // Sumar 1 a disparo exitoso
         target.TakeDamage(damage);
         
         lastShotTarget = target; // Almacenar víctima de disparo

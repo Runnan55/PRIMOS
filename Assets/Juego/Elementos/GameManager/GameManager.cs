@@ -95,6 +95,7 @@ public class GameManager : NetworkBehaviour
 
     private PlayerController talismanHolder;
     [SyncVar] private uint talismanHolderNetId;
+    private List<PlayerController> tikiHistory = new List<PlayerController>();
 
     private void IdentifyVeryHealthy()
     {
@@ -227,6 +228,20 @@ public class GameManager : NetworkBehaviour
         {
             talismanHolderNetId = talismanHolder.netId;
             RpcSpawnTalisman(talismanHolder.netId);
+
+            // 🎯 Simular una ronda previa de Tiki para establecer prioridad de disparo desde el inicio
+            tikiHistory.Clear();
+
+            int startIndex = players.IndexOf(talismanHolder);
+            int count = players.Count;
+
+            for (int i = 1; i < count; i++) // No incluimos al actual poseedor todavía
+            {
+                int index = (startIndex + i) % count; // Avanza en sentido horario
+                tikiHistory.Add(players[index]);
+            }
+
+            tikiHistory.Add(talismanHolder); // El actual poseedor va al final (último en tenerlo)
         }
 
     }
@@ -403,7 +418,7 @@ public class GameManager : NetworkBehaviour
 
         foreach (var player in players)
         {
-            player.TargetPlayButtonAnimation(player.connectionToClient, "Venir", true);
+            player.TargetPlayButtonAnimation(player.connectionToClient, true);
             player.PlayDirectionalAnimation("Idle");
         }
 
@@ -425,7 +440,7 @@ public class GameManager : NetworkBehaviour
 
         foreach (var player in players)
         {
-            player.TargetPlayButtonAnimation(player.connectionToClient, "Irse", false);
+            player.TargetPlayButtonAnimation(player.connectionToClient, false);
             player.RpcCancelAiming();
 
             if (player.currentQuickMission == null)
@@ -644,11 +659,31 @@ public class GameManager : NetworkBehaviour
                 talismanHolderNetId = talismanHolder.netId;
 
                 RpcMoveTalisman(previousHolder.netId, talismanHolder.netId);
+
+                // ⬇️ ACTUALIZAR HISTORIAL
+                if (!tikiHistory.Contains(previousHolder))
+                    tikiHistory.Add(previousHolder);
+
+                if (!tikiHistory.Contains(talismanHolder))
+                    tikiHistory.Add(talismanHolder);
+                else
+                {
+                    // Moverlo al final si ya existía
+                    tikiHistory.Remove(talismanHolder);
+                    tikiHistory.Add(talismanHolder);
+                }
+
+
+                // Limitar a los últimos 7 portadores
+                if (tikiHistory.Count > 7)
+                    tikiHistory.RemoveAt(0); // Eliminar el más antiguo
+
                 Debug.Log($"[Talisman] Ahora lo tiene {talismanHolder.playerName}");
                 break;
             }
         }
     }
+
 
     [ClientRpc]
     private void RpcMoveTalisman(uint fromNetId, uint toNetId)
@@ -684,24 +719,17 @@ public class GameManager : NetworkBehaviour
 
     private PlayerController GetClosestToTalisman(List<PlayerController> shooters)
     {
-        int talismanIndex = players.IndexOf(talismanHolder);
-
-        int minSteps = players.Count;
-        PlayerController chosen = null;
-
-        foreach (var shooter in shooters)
+        // Evaluar desde el más reciente hacia el más antiguo
+        for (int i = tikiHistory.Count - 1; i >= 0; i--)
         {
-            int shooterIndex = players.IndexOf(shooter);
-            int steps = (shooterIndex - talismanIndex + players.Count) % players.Count;
-
-            if (steps < minSteps)
+            if (shooters.Contains(tikiHistory[i]))
             {
-                minSteps = steps;
-                chosen = shooter;
+                return tikiHistory[i];
             }
         }
 
-        return chosen;
+        // Fallback: si nadie está en la lista por alguna razón
+        return shooters.FirstOrDefault();
     }
 
     private void CheckGameOver()
