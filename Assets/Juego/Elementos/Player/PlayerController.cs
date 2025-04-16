@@ -664,8 +664,6 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-    
-
     [ClientRpc]
     public void RpcResetButtonHightLight()
     {

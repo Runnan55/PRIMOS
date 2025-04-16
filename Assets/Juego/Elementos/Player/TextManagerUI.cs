@@ -67,11 +67,11 @@ public class TextManagerUI : MonoBehaviour
         switch (id)
         {
             case "CaceriaDelLider":
-                GM_titleText.text = "Cacería del Líder";
-                GM_descriptionText.text = "El o los jugadores con más vidas pierden la capacidad de cubrirse";
+                GM_titleText.text = "Caceria del Lider";
+                GM_descriptionText.text = "El o los jugadores con mas vidas pierden la capacidad de cubrirse";
                 break;
             case "GatilloFacil":
-                GM_titleText.text = "Gatillo Fácil";
+                GM_titleText.text = "Gatillo Facil";
                 GM_descriptionText.text = "Los jugadores obtienen una bala más al iniciar la partida";
                 break;
             case "BalasOxidadas":
