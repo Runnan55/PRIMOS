@@ -6,25 +6,25 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Juego/Elementos/Scenes/GameScenes/Offline.unity
+    path: Assets/Juego/Scenes/GameScenes/Offline.unity
     guid: 77a8d8205a9ff1b4a92316904020404c
   - enabled: 1
-    path: Assets/Juego/Elementos/Scenes/GameScenes/RoomScene.unity
+    path: Assets/Juego/Scenes/GameScenes/RoomScene.unity
     guid: 9611ea54ddffbaa44a20134649134299
   - enabled: 1
-    path: Assets/Juego/Elementos/Scenes/GameScenes/GameScene.unity
+    path: Assets/Juego/Scenes/GameScenes/GameScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
-    path: Assets/Juego/Elementos/Scenes/LobbyScenes/LobbySceneCasual.unity
+    path: Assets/Juego/Scenes/LobbyScenes/LobbySceneCasual.unity
     guid: be3aaa978725cda47919da393811af8e
   - enabled: 1
-    path: Assets/Juego/Elementos/Scenes/LobbyScenes/LobbySceneRanked.unity
+    path: Assets/Juego/Scenes/LobbyScenes/LobbySceneRanked.unity
     guid: c4127d32b1a28354f98bdd5a0165aa02
   - enabled: 1
-    path: Assets/Juego/Elementos/Scenes/ScenesMainMenu/Offline2Scene.unity
+    path: Assets/Juego/Scenes/ScenesMainMenu/Offline2Scene.unity
     guid: b14a19670d4411e43a73799ee5498272
   - enabled: 1
-    path: Assets/Juego/Elementos/Scenes/ScenesMainMenu/MainScene.unity
+    path: Assets/Juego/Scenes/ScenesMainMenu/MainScene.unity
     guid: 0f3bcc44f76286045b55cd7259abf092
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
