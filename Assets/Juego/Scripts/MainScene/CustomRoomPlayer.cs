@@ -98,8 +98,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     public void TargetStartGame(NetworkConnectionToClient conn, string mode)
     {
         // Podrías cargar la escena de juego aquí
-        string gameScene = "GameScene"; // O "GameScene_Ranked", etc según el modo
-        SceneManager.LoadSceneAsync(gameScene, LoadSceneMode.Single);
+        SceneLoaderManager.Instance.SwitchScene("LobbySceneCasual", "GameScene");
     }
 
     [Command]

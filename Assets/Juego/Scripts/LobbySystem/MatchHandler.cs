@@ -1,8 +1,9 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEngine;
+using Mirror;
 
-public class MatchHandler : MonoBehaviour
+public class MatchHandler : NetworkBehaviour
 {
     public static MatchHandler Instance { get; private set; }
 

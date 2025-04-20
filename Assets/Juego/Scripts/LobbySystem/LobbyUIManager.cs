@@ -74,7 +74,18 @@ public class LobbyUIManager : MonoBehaviour
     {
         if (localPlayer != null)
         {
-            localPlayer.CmdLeaveMatch();
+            localPlayer.CmdLeaveMatch(); //Primero avisar al server que sales
+
+            //Ahora descargamos la escena de la room
+            if (!string.IsNullOrEmpty(localPlayer.currentMatchId))
+            {
+                string roomSceneName = "Room_" + localPlayer.currentMatchId;
+                if (SceneLoaderManager.Instance.IsSceneLoaded(roomSceneName))
+                {
+                    SceneLoaderManager.Instance.UnloadScene(roomSceneName);
+                }
+            }
+
             roomPanel.SetActive(false);
             lobbyPanel.SetActive(true);
         }
