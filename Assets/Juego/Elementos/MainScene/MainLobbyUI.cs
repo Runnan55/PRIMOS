@@ -1,5 +1,6 @@
 using Mirror;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class MainLobbyUI : MonoBehaviour
@@ -10,21 +11,14 @@ public class MainLobbyUI : MonoBehaviour
 
     private void Start()
     {
-        rankedButton.onClick.AddListener(() => StartGame("RankedScene"));
-        casualButton.onClick.AddListener(() => StartGame("CasualScene"));
+        rankedButton.onClick.AddListener(() => StartGame("LobbySceneRanked"));
+        casualButton.onClick.AddListener(() => StartGame("LobbySceneCasual"));
         exitButton.onClick.AddListener(() => Application.Quit());
     }
 
-    void StartGame(string sceneName)
+    void StartGame(string mode)
     {
-        if (NetworkServer.active && NetworkClient.isConnected)
-        {
-            CustomNetworkManager custom = (CustomNetworkManager)NetworkManager.singleton;
-            custom.SendPlayerToModeScene(NetworkServer.localConnection, sceneName);
-        }
-        else if (NetworkClient.isConnected)
-        {
-            Debug.Log("Soy un cliente putin, necesito enviar Command al host para cambiar de escena");
-        }
+        string lobbySceneName = mode == "Ranked" ? "lobbySceneRanked" : "LobbySceneCasual";
+        SceneManager.LoadSceneAsync(lobbySceneName, LoadSceneMode.Additive);
     }
 }

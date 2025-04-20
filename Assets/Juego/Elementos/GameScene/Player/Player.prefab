@@ -5209,6 +5209,7 @@ MonoBehaviour:
   playerPosition: 0
   spriteRendererContainer: {fileID: 4259181102962704885}
   canDealDamageThisRound: 1
+  sucessfulShots: 0
   currentFacingDirection: 0
 --- !u!114 &1995742921654557300
 MonoBehaviour:
