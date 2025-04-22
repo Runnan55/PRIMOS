@@ -92,6 +92,8 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public bool wasShotBlockedThisRound = false;
     [SyncVar] public bool hasDoubleDamage = false;
     [SyncVar] public bool shieldBoostActivate = false;
+    [SyncVar] public bool hasDamagedAnotherPlayerThisRound = false;
+    [SyncVar] public bool hasQMRewardThisRound = false;
 
     [Header("ShootBulletAnimation")]
     public GameObject projectilePrefab;
@@ -102,6 +104,7 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public int bulletsFired = 0;
     [SyncVar] public int damageDealt = 0;
     [SyncVar] public int timesCovered = 0;
+    [SyncVar] public int deathOrder = 0;
 
     [Header("PlayersOrientation")]
     public int playerPosition;
@@ -876,6 +879,7 @@ public class PlayerController : NetworkBehaviour
         damageDealt += damage; // Sumar daño hecho
         sucessfulShots++; // Sumar 1 a disparo exitoso
         target.TakeDamage(damage);
+        hasDamagedAnotherPlayerThisRound = true;
         
         lastShotTarget = target; // Almacenar víctima de disparo
         Debug.Log($"{playerName} disparó a {target.playerName}. Balas restantes: {ammo}");

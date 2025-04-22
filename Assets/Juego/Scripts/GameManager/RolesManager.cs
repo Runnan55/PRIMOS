@@ -13,7 +13,6 @@ public class RolesManager : NetworkBehaviour
     private PlayerController currentParca = null;
 
     private Dictionary<PlayerController, int> playerKills = new Dictionary<PlayerController, int>();
-    private Dictionary<PlayerController, bool> hasParcaRole = new Dictionary<PlayerController, bool>();
 
         private void Awake()
     {
@@ -42,10 +41,16 @@ public class RolesManager : NetworkBehaviour
 
         Debug.Log($"{killer.gameObject.name} ha matado a {victim.gameObject.name}. Total de kills: {playerKills[killer]}");
 
+        //Si el killer ya es la Parca, curarlo 1 de vida
+        if (currentParca == killer)
+        {
+            killer.ServerHeal(1);
+            Debug.Log($"{killer.gameObject.name} es la PARCA y se curó 1 vida por matar.");
+            killer.RpcSendLogToClients($"{killer.gameObject.name} se curó 1 vida por ser la PARCA y matar.");
+        }
+
         TryAssignParcaRole();
     }
-
-
 
     [Server]
     private void TryAssignParcaRole()
@@ -72,7 +77,7 @@ public class RolesManager : NetworkBehaviour
         // Verificar probabilidad antes de asignar el rol
         if (Random.value <= ParcaRewardProbability)
         {
-            AssignParcaRole(selectedParca);
+            AssignParcaRole(selectedParca, true);
         }
         else
         {
@@ -81,16 +86,25 @@ public class RolesManager : NetworkBehaviour
     }
 
     [Server]
-    private void AssignParcaRole(PlayerController newParca)
+    private void AssignParcaRole(PlayerController newParca, bool firstParca = true)
     {
         currentParca = newParca;
-        hasParcaRole[newParca] = true;
-        newParca.ServerHealFull();
         newParca.RpcSetParcaSprite(true);
         newParca.ammo += 1;
 
-        Debug.Log($"{newParca.gameObject.name} ha obtenido el rol PARCA");
-        newParca.RpcSendLogToClients($"{newParca.gameObject.name} ha obtenido el rol PARCA y se ha curado completamente");
+        if (firstParca)
+        {
+            newParca.ServerHeal(1);
+            Debug.Log($"{newParca.gameObject.name} ha obtenido un rol de PARCA y se ha CURADO SOLO 1 VIDA.");
+            newParca.RpcSendLogToClients($"{newParca.gameObject.name} ha obtenido el rol PARCA y se ha CURADO SOLO 1 VIDA");
+        }
+        else
+        {
+            newParca.ServerHealFull();
+            Debug.Log($"{newParca.gameObject.name} ha robado un rol PARCA y se ha CURADO TOTALMENTE.");
+            newParca.RpcSendLogToClients($"{newParca.gameObject.name} ha obtenido el rol PARCA y se ha CURADO TOTALMENTE");
+        }
+        
     }
 
 
@@ -100,7 +114,6 @@ public class RolesManager : NetworkBehaviour
         if (currentParca != oldParca) return;// Asegurar que la Parca actual es la que muere
 
         // Quitar el rol de la Parca anterior
-        hasParcaRole[oldParca] = false;
         oldParca.RpcSetParcaSprite(false);
         currentParca = null;
 
@@ -109,7 +122,7 @@ public class RolesManager : NetworkBehaviour
         // Si el asesino califica, hereda el rol
         if (playerKills.ContainsKey(newParca) && playerKills[newParca] >= ParcaKillRequirement)
         {
-            AssignParcaRole(newParca);
+            AssignParcaRole(newParca, false);
         }
         else
         {

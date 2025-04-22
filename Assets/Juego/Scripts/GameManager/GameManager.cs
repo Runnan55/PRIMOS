@@ -86,6 +86,7 @@ public class GameManager : NetworkBehaviour
 
     [Header("GameStatistics")]
     [SerializeField] private GameStatistic gameStatistic;
+    private int deathCounter = 1;
 
     [Header("Talisman-Tiki")]
     [SerializeField] private GameObject talismanIconPrefab;
@@ -312,7 +313,7 @@ public class GameManager : NetworkBehaviour
         switch (mission.type)
         {
             case QuickMissionType.DealDamage:
-                return player.lastShotTarget != null;
+                return player.hasDamagedAnotherPlayerThisRound;
 
             case QuickMissionType.BlockShot:
                 return player.wasShotBlockedThisRound;
@@ -364,6 +365,7 @@ public class GameManager : NetworkBehaviour
         foreach (var player in players)
         {
             player.canDealDamageThisRound = true;
+            player.hasDamagedAnotherPlayerThisRound = false;
         }
 
         if (SelectedModifier == GameModifierType.CaceriaDelLider)
@@ -581,6 +583,12 @@ public class GameManager : NetworkBehaviour
 
             var mission = player.currentQuickMission;
 
+            if (player.hasQMRewardThisRound)
+            {
+                player.hasQMRewardThisRound = false;
+                player.TargetPlayAnimation("QM_Reward_Exit");
+            }
+
             if (mission != null && mission.assignedRound == currentRound)
             {
                 bool success = EvaluateQuickMission(player, mission);
@@ -589,6 +597,8 @@ public class GameManager : NetworkBehaviour
                 {
                     ApplyQuickMissionReward(mission.type, player);
                     player.RpcSendLogToClients($"{player.playerName}¡Completaste tu misión rápida!");
+
+                    player.hasQMRewardThisRound= true;
                 }
                 else
                 {
@@ -740,6 +750,29 @@ public class GameManager : NetworkBehaviour
         //Si no queda nadie vivo, la partida se detiene
         if (alivePlayers == 0)
         {
+            if (talismanHolder != null && !talismanHolder.isAlive)
+            {
+                Debug.Log("[Tiki] El poseedor del Tiki revive por empate.");
+
+                // Buscar quién mató al portador del Tiki
+                PlayerController killer = players.FirstOrDefault(p => p.lastShotTarget == talismanHolder);
+
+                if (killer != null)
+                {
+                    killer.kills = Mathf.Max(0, killer.kills - 1); // Restar 1 kill, pero no bajarlo a negativo
+                    Debug.Log($"[Tiki] Se resta 1 kill a {killer.playerName} porque el Tiki salvó a {talismanHolder.playerName}.");
+                }
+
+                talismanHolder.isAlive = true;
+                talismanHolder.health = 1;
+                talismanHolder.RpcOnVictory();
+                isGameOver = true;
+
+                StartCoroutine(StartGameStatistics());
+                StopGamePhases();
+                return;
+            }
+
             Debug.Log("Todos los jugadores han muerto. Se declara empate");
             isDraw = true;
             isGameOver = true;
@@ -750,9 +783,7 @@ public class GameManager : NetworkBehaviour
             }
 
             StartCoroutine(StartGameStatistics());
-            
             StopGamePhases(); // Detiene las rondas de juego
-
             return;
         }
 
@@ -852,6 +883,19 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator HandlePlayerDeath(PlayerController deadPlayer)
     {
+        if (deadPlayer.deathOrder == 0)
+        {
+            deadPlayer.deathOrder = deathCounter++;
+        }
+
+        if (deadPlayer.hasQMRewardThisRound)
+        {
+            deadPlayer.hasQMRewardThisRound = false;
+            deadPlayer.TargetPlayAnimation("QM_Reward_Exit");
+        }
+
+        deadPlayer.currentQuickMission = null;
+
         yield return new WaitForSeconds(0.1f); // Pequeño delay para registrar todas las acciones antes de procesar la muerte
         players.Remove(deadPlayer);
         deadPlayers.Add(deadPlayer); // Movemos al jugador del grupo de vivos a muertos

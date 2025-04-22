@@ -260,7 +260,7 @@ AnimationClip:
   m_HasMotionFloatCurves: 0
   m_Events:
   - time: 0
-    functionName: SetMissionText
+    functionName: SetQuickMissionText
     data: ReloadAndTakeDamage
     objectReferenceParameter: {fileID: 0}
     floatParameter: 0

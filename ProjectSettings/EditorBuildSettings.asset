@@ -19,7 +19,7 @@ EditorBuildSettings:
     guid: be3aaa978725cda47919da393811af8e
   - enabled: 1
     path: Assets/Juego/Scenes/LobbyScenes/LobbySceneRanked.unity
-    guid: c4127d32b1a28354f98bdd5a0165aa02
+    guid: 7af9dbf9aa2a39242ae4e54458a97377
   - enabled: 1
     path: Assets/Juego/Scenes/ScenesMainMenu/Offline2Scene.unity
     guid: b14a19670d4411e43a73799ee5498272

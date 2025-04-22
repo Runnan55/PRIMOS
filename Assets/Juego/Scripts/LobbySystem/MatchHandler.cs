@@ -26,30 +26,43 @@ public class MatchHandler : NetworkBehaviour
             matchId = matchId,
             mode = mode,
             admin = creator,
-            sceneName = "Room_" + matchId //Asignamos nombre de escena aditiva
+            sceneName = "Room_" + matchId
         };
         newMatch.players.Add(creator);
 
         matches.Add(matchId, newMatch);
-        partidasActivas++; // <--- aumentamos
+        partidasActivas++;
+
         Debug.Log($"[SERVER] Nueva partida creada. Total partidas activas: {partidasActivas}");
 
         creator.currentMatchId = matchId;
+        creator.currentMode = mode;   // Agrega esto para que se sincronice al cliente
         creator.isAdmin = true;
 
+        creator.RpcRefreshLobbyForAll();
+        RpcRefreshMatchList();
+
         return true;
     }
+
 
     public bool JoinMatch(string matchId, CustomRoomPlayer player)
-    { 
+    {
         if (!matches.ContainsKey(matchId)) return false;
 
-        matches[matchId].players.Add(player);
+        MatchInfo match = matches[matchId];
+        match.players.Add(player);
+
         player.currentMatchId = matchId;
+        player.currentMode = match.mode; // Agrega esto para que al unirse también sepa el modo
         player.isAdmin = false;
+
+        player.RpcRefreshLobbyForAll();
+        RpcRefreshMatchList();
 
         return true;
     }
+
 
     public void LeaveMatch(CustomRoomPlayer player)
     {
@@ -89,6 +102,17 @@ public class MatchHandler : NetworkBehaviour
         player.currentMatchId = null;
         player.isAdmin = false;
     }
+
+    [ClientRpc]
+    public void RpcRefreshMatchList()
+    {
+        LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
+        if (ui != null)
+        {
+            ui.RequestMatchList(); // Pedimos actualizar lista
+        }
+    }
+
 
     public List<MatchInfo> GetMatches(string mode)
     {

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Mirror;
 using TMPro;
 using UnityEngine;
@@ -13,6 +14,8 @@ public class GameStatistic : NetworkBehaviour
     // Cambiar de List<PlayerController> a SyncList<PlayerInfo>
     [SyncVar] private SyncList<PlayerInfo> players = new SyncList<PlayerInfo>();
 
+    private int currentDeathCount = 1;
+
     public struct PlayerInfo
     {
         public string playerName;
@@ -23,8 +26,9 @@ public class GameStatistic : NetworkBehaviour
         public int timesCovered;
         public int points;
         public bool isDisconnected;
+        public int deathOrder;
 
-        public PlayerInfo(string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered, bool isDisconnected = false)
+        public PlayerInfo(string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered, bool isDisconnected = false, int deathOrder = 0)
         {
             playerName = name;
             this.kills = kills;
@@ -33,7 +37,9 @@ public class GameStatistic : NetworkBehaviour
             this.damageDealt = damageDealt;
             this.timesCovered = timesCovered;
             this.isDisconnected = isDisconnected;
-            this.points = CalculatePoints(kills, bulletsReloaded, bulletsFired, damageDealt, timesCovered);
+            this.deathOrder = deathOrder;
+
+            points = CalculatePoints(kills, bulletsReloaded, bulletsFired, damageDealt, timesCovered);
         }
 
         private static int CalculatePoints(int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered)
@@ -84,6 +90,12 @@ public class GameStatistic : NetworkBehaviour
         {
             if (players[i].playerName == player.playerName)
             {
+                int deathOrder = players[i].deathOrder;
+                if ((!player.isAlive || disconnected) && deathOrder == 0)
+                {
+                    deathOrder = currentDeathCount++;
+                }
+
                 players[i] = new PlayerInfo(
                     player.playerName,
                     player.kills,
@@ -91,12 +103,15 @@ public class GameStatistic : NetworkBehaviour
                     player.bulletsFired,
                     player.damageDealt,
                     player.timesCovered,
-                    disconnected);
+                    disconnected,
+                    deathOrder
+                );
                 return;
             }
         }
 
-        // Si no estaba en la lista, lo agregamos
+        // Si no estaba, lo agregamos
+        int newDeathOrder = (!player.isAlive || disconnected) ? currentDeathCount++ : 0;
         players.Add(new PlayerInfo(
             player.playerName,
             player.kills,
@@ -104,7 +119,9 @@ public class GameStatistic : NetworkBehaviour
             player.bulletsFired,
             player.damageDealt,
             player.timesCovered,
-            disconnected));
+            disconnected,
+            newDeathOrder
+        ));
     }
 
     [Server]
@@ -127,6 +144,9 @@ public class GameStatistic : NetworkBehaviour
 
         leaderboardCanvas.SetActive(true); // Activar el Canvas
         ClearLeaderboard();
+
+        // Ordenar jugadores antes de mostrar
+        var orderedPlayers = players.OrderBy(p => p.deathOrder == 0 ? int.MinValue : p.deathOrder).ToList();
 
         foreach (var player in players)
         {

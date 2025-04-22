@@ -5,19 +5,32 @@ using UnityEngine.EventSystems;
 
 public class SceneLoaderManager : MonoBehaviour
 {
-    public static SceneLoaderManager Instance {  get; private set; }
+    public static SceneLoaderManager Instance { get; private set; }
 
     private void Awake()
     {
-        if (Instance != null && Instance != this)
+        if (Instance == null)
         {
-            Destroy(this.gameObject);
-            return;
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded; // Nos suscribimos al evento de carga
         }
-        Instance = this;
+        else
+        {
+            Destroy(gameObject);
+        }
     }
 
-    //Cargar una escena aditivamente
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+    }
+
+    #region Scene Management
+
     public void LoadSceneAdditive(string sceneName)
     {
         StartCoroutine(LoadSceneAdditiveCoroutine(sceneName));
@@ -27,7 +40,7 @@ public class SceneLoaderManager : MonoBehaviour
     {
         if (IsSceneLoaded(sceneName))
         {
-            Debug.LogWarning($"Scene {sceneName} is already loaded.");
+            Debug.LogWarning($"[SceneLoaderManager] La escena {sceneName} ya está cargada.");
             yield break;
         }
 
@@ -37,10 +50,9 @@ public class SceneLoaderManager : MonoBehaviour
         {
             yield return null;
         }
-        Debug.Log($"Scene {sceneName} loaded additively.");
+        Debug.Log($"[SceneLoaderManager] Escena cargada aditivamente: {sceneName}");
     }
-        
-    //Descargar una escena
+
     public void UnloadScene(string sceneName)
     {
         StartCoroutine(UnloadSceneCoroutine(sceneName));
@@ -50,7 +62,7 @@ public class SceneLoaderManager : MonoBehaviour
     {
         if (!IsSceneLoaded(sceneName))
         {
-            Debug.LogWarning($"Scene {sceneName} is not loaded.");
+            Debug.LogWarning($"[SceneLoaderManager] La escena {sceneName} no está cargada.");
             yield break;
         }
 
@@ -60,10 +72,9 @@ public class SceneLoaderManager : MonoBehaviour
         {
             yield return null;
         }
-        Debug.Log($"Scene {sceneName} unloaded.");
+        Debug.Log($"[SceneLoaderManager] Escena descargada: {sceneName}");
     }
 
-    //Cambiar de una escena aditiva a otra
     public void SwitchScene(string fromScene, string toScene)
     {
         StartCoroutine(SwitchSceneCoroutine(fromScene, toScene));
@@ -75,7 +86,6 @@ public class SceneLoaderManager : MonoBehaviour
         yield return StartCoroutine(UnloadSceneCoroutine(fromScene));
     }
 
-    //Verificar si una escena ya está cargada
     public bool IsSceneLoaded(string sceneName)
     {
         for (int i = 0; i < SceneManager.sceneCount; i++)
@@ -89,4 +99,40 @@ public class SceneLoaderManager : MonoBehaviour
         return false;
     }
 
+    #endregion
+
+    #region Canvas Management
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (mode == LoadSceneMode.Additive)
+        {
+            Debug.Log($"[SceneLoaderManager] Procesando Canvas para escena: {scene.name}");
+            ManageCanvases(scene);
+        }
+    }
+
+    private void ManageCanvases(Scene activeScene)
+    {
+        Canvas[] allCanvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None); // true = incluye inactivos
+
+        foreach (Canvas canvas in allCanvases)
+        {
+            if (canvas.gameObject.scene == activeScene)
+            {
+                canvas.gameObject.SetActive(true); // Activar Canvas de la nueva escena
+            }
+            else if (canvas.gameObject.scene.isLoaded && !IsInDontDestroyOnLoad(canvas.gameObject))
+            {
+                canvas.gameObject.SetActive(false); // Desactivar Canvas de otras escenas cargadas
+            }
+        }
+    }
+
+    private bool IsInDontDestroyOnLoad(GameObject obj)
+    {
+        return obj.scene.name == null || obj.scene.name == "DontDestroyOnLoad";
+    }
+
+    #endregion
 }

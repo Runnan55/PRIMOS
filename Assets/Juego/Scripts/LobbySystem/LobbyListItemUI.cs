@@ -20,13 +20,14 @@ public class LobbyListItemUI : MonoBehaviour
     }
 
     void JoinThisMatch()
-    { 
+    {
         CustomRoomPlayer localPlayer = NetworkClient.connection.identity.GetComponent<CustomRoomPlayer>();
         if (localPlayer != null)
         {
             localPlayer.CmdJoinMatch(matchId);
-            lobbyManager.roomPanel.SetActive(true);
-            lobbyManager.lobbyPanel.SetActive(false);
+
+            // Mostrar el RoomPanel cuando te unes
+            FindFirstObjectByType<LobbyUIManager>()?.ShowRoomPanel();
         }
     }
 }

@@ -1,16 +1,62 @@
 using Mirror;
 using UnityEngine;
+using System;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
 
 public class CustomRoomPlayer : NetworkBehaviour
 {
+    public static CustomRoomPlayer LocalInstance { get; private set; }
+
     [SyncVar] public string playerName;
     [SyncVar] public bool isReady = false;
     [SyncVar] public bool isAdmin = false;
-    [SyncVar] public string currentMatchId;
     [SyncVar] public string playerId;
 
-    public static CustomRoomPlayer LocalInstance;
+    [SyncVar(hook = nameof(OnMatchIdChanged))]
+    public string currentMatchId;
+
+    [SyncVar(hook = nameof(OnModeChanged))]
+    public string currentMode; // "Casual" o "Ranked"
+
+    // (Opcional) nombre de sala y si es privada
+    [SyncVar(hook = nameof(OnRoomNameChanged))]
+    public string roomName;
+
+    [SyncVar(hook = nameof(OnPrivacyChanged))]
+    public bool isPrivateRoom;
+
+    public static event Action OnRoomDataUpdated; // Evento que llamaremos
+
+    #region SincronizeUI
+
+    public override void OnStartLocalPlayer()
+    {
+        base.OnStartLocalPlayer();
+        LocalInstance = this;
+    }
+
+    private void OnMatchIdChanged(string oldId, string newId)
+    {
+        OnRoomDataUpdated?.Invoke();
+    }
+
+    private void OnModeChanged(string oldMode, string newMode)
+    {
+        OnRoomDataUpdated?.Invoke();
+    }
+
+    private void OnRoomNameChanged(string oldName, string newName)
+    {
+        OnRoomDataUpdated?.Invoke();
+    }
+
+    private void OnPrivacyChanged(bool oldPriv, bool newPriv)
+    {
+        OnRoomDataUpdated?.Invoke();
+    }
+
+    #endregion
 
     private void Awake()
     {
@@ -66,7 +112,6 @@ public class CustomRoomPlayer : NetworkBehaviour
         if (MatchHandler.Instance.CreateMatch(matchId, mode, this))
         {
             RpcRefreshLobbyForAll();
-            LoadRoomScene(matchId);
         }
     }
 
@@ -76,7 +121,6 @@ public class CustomRoomPlayer : NetworkBehaviour
         if (MatchHandler.Instance.JoinMatch(matchId, this))
         {
             RpcRefreshLobbyForAll();
-            LoadRoomScene(matchId);
         }
     }
 
@@ -95,11 +139,26 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
 
     [TargetRpc]
-    public void TargetStartGame(NetworkConnectionToClient conn, string mode)
+    public async void TargetStartGame(NetworkConnectionToClient conn, string mode)
     {
-        // Podrías cargar la escena de juego aquí
-        SceneLoaderManager.Instance.SwitchScene("LobbySceneCasual", "GameScene");
+        string gameSceneName = "GameScene";
+
+        if (!SceneManager.GetSceneByName(gameSceneName).isLoaded)
+        {
+            Debug.Log($"[CLIENT] Cargando escena aditiva: {gameSceneName}");
+            var operation = SceneManager.LoadSceneAsync(gameSceneName, LoadSceneMode.Additive);
+
+            while (!operation.isDone)
+                await System.Threading.Tasks.Task.Yield();
+        }
+
+        // Ahora hacemos GameScene la escena activa
+        Scene gameScene = SceneManager.GetSceneByName(gameSceneName);
+        SceneManager.SetActiveScene(gameScene);
+
+        Debug.Log($"[CLIENT] Escena activa ahora: {SceneManager.GetActiveScene().name}");
     }
+
 
     [Command]
     public void CmdKickPlayer(string targetPlayerId)
@@ -141,15 +200,24 @@ public class CustomRoomPlayer : NetworkBehaviour
             ui.RefreshLobbyUI();           // <- Refrescás botones / lista
         }
     }
+    #endregion
 
-    //Funcion auxiliar para cargar escenas aditivas de sala
-    private void LoadRoomScene(string matchId)
+    #region buscarPartidas
+
+    [Command]
+    public void CmdRequestMatchList()
     {
-        string roomSceneName = "Room_" + matchId;
-        if (!SceneManager.GetSceneByName(roomSceneName).isLoaded)
+        var matches = MatchHandler.Instance.GetMatches(currentMode);
+        TargetReceiveMatchList(connectionToClient, matches);
+    }
+
+    [TargetRpc]
+    public void TargetReceiveMatchList(NetworkConnection target, List<MatchInfo> matches)
+    {
+        LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
+        if (ui != null)
         {
-            Debug.Log($"[CLIENT] Cargando escena aditiva: {roomSceneName}");
-            SceneManager.LoadSceneAsync(roomSceneName, LoadSceneMode.Additive);
+            ui.UpdateMatchList(matches);
         }
     }
 

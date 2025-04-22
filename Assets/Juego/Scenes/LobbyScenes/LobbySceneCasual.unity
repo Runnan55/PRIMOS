@@ -151,7 +151,7 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1443796217}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0.02399993}
+  m_AnchorMin: {x: 0, y: 0.023999846}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 20, y: 20}
@@ -1398,8 +1398,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 43351959}
   m_HandleRect: {fileID: 43351958}
   m_Direction: 2
-  m_Value: 1
-  m_Size: 0.9760001
+  m_Value: 0.99999154
+  m_Size: 0.97599995
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -2303,7 +2303,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1949696809}
   m_HandleRect: {fileID: 1949696808}
   m_Direction: 2
-  m_Value: 0.99999577
+  m_Value: 1
   m_Size: 0.97599995
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -2515,7 +2515,7 @@ MonoBehaviour:
   lobbyPanel: {fileID: 218536622}
   roomPanel: {fileID: 188560901}
   matchListContainer: {fileID: 792195159}
-  matchListItemPrefab: {fileID: 729187056687825779, guid: 5d2b0f1031cfb224aa5f5e0c5b259fdc, type: 3}
+  matchListItemPrefab: {fileID: 8927915014561251831, guid: 62e9bdd9b4a95f849bfdaec30693c641, type: 3}
   createRoomButton: {fileID: 243043091}
   refreshButton: {fileID: 830732156}
   readyButton: {fileID: 1116224293}
@@ -2523,6 +2523,7 @@ MonoBehaviour:
   playerListContainer: {fileID: 460372555}
   playerListItemPrefab: {fileID: 1472700762258838059, guid: a75323716ba2a4e4ebec2ceef19d7647, type: 3}
   localAdminId: 
+  roomInfoText: {fileID: 1680462629}
 --- !u!4 &1745025543
 Transform:
   m_ObjectHideFlags: 0

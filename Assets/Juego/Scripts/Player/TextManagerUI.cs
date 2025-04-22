@@ -15,7 +15,7 @@ public class TextManagerUI : MonoBehaviour
     public TMP_Text GM_titleText;
     public TMP_Text GM_descriptionText;
 
-    public void SetMissionText(string key)
+    public void SetQuickMissionText(string key)
     {
         switch (key)
         {
@@ -25,7 +25,7 @@ public class TextManagerUI : MonoBehaviour
                 break;
             case "DealDamage":
                 QM_titleText.text = "MISION RAPIDA";
-                QM_descriptionText.text = "Ataca a un jugador";
+                QM_descriptionText.text = "Lastima a un jugador";
                 break;
             case "DoNothing":
                 QM_titleText.text = "MISION RAPIDA";
@@ -39,7 +39,7 @@ public class TextManagerUI : MonoBehaviour
         }
     }
 
-    public void SetRewardText(string key)
+    public void SetQuickMissionRewardText(string key)
     {
         switch (key)
         {
@@ -62,7 +62,7 @@ public class TextManagerUI : MonoBehaviour
 
         }
     }
-    public void SetGMFromId(string id)
+    public void SetGlobalMissionFromId(string id)
     {
         switch (id)
         {
