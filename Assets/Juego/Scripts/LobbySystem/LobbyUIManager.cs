@@ -68,16 +68,17 @@ public class LobbyUIManager : MonoBehaviour
     // Nuevo método que recibirás para actualizar matches
     public void UpdateMatchList(List<MatchInfo> matches)
     {
-        // Borras la lista anterior
+        // Borrar lista anterior
         foreach (Transform child in matchListContainer)
             Destroy(child.gameObject);
 
-        // Reinstancias cada partida encontrada
+        // Instanciar nuevos ítems basados en la lista recibida
         foreach (var match in matches)
         {
             GameObject newItem = Instantiate(matchListItemPrefab, matchListContainer);
             LobbyListItemUI itemUI = newItem.GetComponent<LobbyListItemUI>();
-            itemUI.Setup(match.matchId, this);
+
+            itemUI.Setup(match.matchId, this); // Le pasás el ID de la sala y la referencia al LobbyUIManager
         }
     }
 

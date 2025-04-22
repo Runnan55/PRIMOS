@@ -21,13 +21,12 @@ public class LobbyListItemUI : MonoBehaviour
 
     void JoinThisMatch()
     {
-        CustomRoomPlayer localPlayer = NetworkClient.connection.identity.GetComponent<CustomRoomPlayer>();
+        CustomRoomPlayer localPlayer = CustomRoomPlayer.LocalInstance;
         if (localPlayer != null)
         {
             localPlayer.CmdJoinMatch(matchId);
-
-            // Mostrar el RoomPanel cuando te unes
-            FindFirstObjectByType<LobbyUIManager>()?.ShowRoomPanel();
+            lobbyManager.ShowRoomPanel();
+            joinButton.interactable = false;
         }
     }
 }

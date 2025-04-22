@@ -660,7 +660,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &339820879
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1817,7 +1817,7 @@ AudioListener:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1112290046}
-  m_Enabled: 0
+  m_Enabled: 1
 --- !u!20 &1112290048
 Camera:
   m_ObjectHideFlags: 0
@@ -2303,8 +2303,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1949696809}
   m_HandleRect: {fileID: 1949696808}
   m_Direction: 2
-  m_Value: 0.99999577
-  m_Size: 0.97599995
+  m_Value: 1
+  m_Size: 0.97599983
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -2523,6 +2523,7 @@ MonoBehaviour:
   playerListContainer: {fileID: 460372555}
   playerListItemPrefab: {fileID: 1472700762258838059, guid: a75323716ba2a4e4ebec2ceef19d7647, type: 3}
   localAdminId: 
+  roomInfoText: {fileID: 0}
 --- !u!4 &1745025543
 Transform:
   m_ObjectHideFlags: 0

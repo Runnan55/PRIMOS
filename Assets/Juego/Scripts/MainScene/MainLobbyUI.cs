@@ -19,6 +19,6 @@ public class MainLobbyUI : MonoBehaviour
     void StartGame(string mode)
     {
         string lobbySceneName = mode == "Ranked" ? "lobbySceneRanked" : "LobbySceneCasual";
-        SceneLoaderManager.Instance.LoadSceneAdditive(lobbySceneName);
+        SceneLoaderManager.Instance.LoadScene(lobbySceneName);
     }
 }

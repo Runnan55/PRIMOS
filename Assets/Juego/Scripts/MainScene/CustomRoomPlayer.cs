@@ -34,6 +34,19 @@ public class CustomRoomPlayer : NetworkBehaviour
     {
         base.OnStartLocalPlayer();
         LocalInstance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    public override void OnStopClient()
+    {
+        base.OnStopClient();
+
+        if (isLocalPlayer)
+        {
+            Debug.Log("[CustomRoomPlayer] Cliente detenido, destruyendo instancia local.");
+            LocalInstance = null;
+            Destroy(gameObject);
+        }
     }
 
     private void OnMatchIdChanged(string oldId, string newId)
@@ -57,22 +70,6 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
 
     #endregion
-
-    private void Awake()
-    {
-        // Solo si es el cliente local
-        if (isLocalPlayer)
-        {
-            if (LocalInstance != null)
-            {
-                Destroy(gameObject); // Ya existe uno, destruir este
-                return;
-            }
-
-            LocalInstance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-    }
 
     private void OnDestroy()
     {
@@ -139,26 +136,16 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
 
     [TargetRpc]
-    public async void TargetStartGame(NetworkConnectionToClient conn, string mode)
+    public void TargetStartGame(NetworkConnectionToClient conn, string mode)
     {
         string gameSceneName = "GameScene";
 
-        if (!SceneManager.GetSceneByName(gameSceneName).isLoaded)
+        if (SceneManager.GetActiveScene().name != gameSceneName)
         {
-            Debug.Log($"[CLIENT] Cargando escena aditiva: {gameSceneName}");
-            var operation = SceneManager.LoadSceneAsync(gameSceneName, LoadSceneMode.Additive);
-
-            while (!operation.isDone)
-                await System.Threading.Tasks.Task.Yield();
+            Debug.Log($"[CLIENT] Cambiando a escena: {gameSceneName}");
+            SceneLoaderManager.Instance.LoadScene(gameSceneName);
         }
-
-        // Ahora hacemos GameScene la escena activa
-        Scene gameScene = SceneManager.GetSceneByName(gameSceneName);
-        SceneManager.SetActiveScene(gameScene);
-
-        Debug.Log($"[CLIENT] Escena activa ahora: {SceneManager.GetActiveScene().name}");
     }
-
 
     [Command]
     public void CmdKickPlayer(string targetPlayerId)
@@ -208,7 +195,15 @@ public class CustomRoomPlayer : NetworkBehaviour
     public void CmdRequestMatchList()
     {
         var matches = MatchHandler.Instance.GetMatches(currentMode);
-        TargetReceiveMatchList(connectionToClient, matches);
+        List<MatchInfo> matchesToSend = new List<MatchInfo>();
+
+        foreach (var match in matches)
+        {
+            // Crear una versión limpia de MatchInfo
+            matchesToSend.Add(new MatchInfo(match.matchId, match.mode, match.isStarted));
+        }
+
+        TargetReceiveMatchList(connectionToClient, matchesToSend);
     }
 
     [TargetRpc]

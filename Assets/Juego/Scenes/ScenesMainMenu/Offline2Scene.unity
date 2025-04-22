@@ -377,24 +377,6 @@ MonoBehaviour:
   m_LightCookieSize: {x: 1, y: 1}
   m_LightCookieOffset: {x: 0, y: 0}
   m_SoftShadowQuality: 0
---- !u!1 &1880353338 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 3124671724160179898, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-  m_PrefabInstance: {fileID: 1993840786}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1880353343
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1880353338}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 224b637eb914ee048b263ffeeb8d6322, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  resourcesFolder: SpawnablePrefabs
 --- !u!1001 &1993840786
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -433,12 +415,20 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: spawnPrefabs.Array.size
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: 'spawnPrefabs.Array.data[0]'
       value: 
       objectReference: {fileID: 6960753788626952187, guid: a1b3bd588019ab344b680c80824c2a78, type: 3}
+    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
+      propertyPath: 'spawnPrefabs.Array.data[1]'
+      value: 
+      objectReference: {fileID: 729187056687825779, guid: 5d2b0f1031cfb224aa5f5e0c5b259fdc, type: 3}
+    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
+      propertyPath: 'spawnPrefabs.Array.data[2]'
+      value: 
+      objectReference: {fileID: 1472700762258838059, guid: a75323716ba2a4e4ebec2ceef19d7647, type: 3}
     - target: {fileID: 7249158169166256175, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.64808553
@@ -482,10 +472,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 3124671724160179898, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1880353343}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

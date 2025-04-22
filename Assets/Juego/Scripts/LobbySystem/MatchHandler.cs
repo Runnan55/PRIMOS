@@ -106,6 +106,8 @@ public class MatchHandler : NetworkBehaviour
     [ClientRpc]
     public void RpcRefreshMatchList()
     {
+        if (!isClientOnly) return; //Evitar que se llame en el server
+
         LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
         if (ui != null)
         {
