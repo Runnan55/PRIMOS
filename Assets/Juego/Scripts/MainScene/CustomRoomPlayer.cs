@@ -115,6 +115,15 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         // Guardar el modo actual en su SyncVar
         currentMode = mode;
+
+        // Refrescar lista tras entrar al lobby
+        TargetRequestMatchList(connectionToClient);
+    }
+
+    [TargetRpc]
+    public void TargetRequestMatchList(NetworkConnection target)
+    {
+        CmdRequestMatchList();
     }
 
 
@@ -150,6 +159,17 @@ public class CustomRoomPlayer : NetworkBehaviour
         isReady = !isReady;
         MatchHandler.Instance.CheckStartGame(currentMatchId);
         RpcRefreshLobbyForAll();
+    }
+
+    [TargetRpc]
+    public void TargetForceReturnToLobby(NetworkConnection target)
+    {
+        LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
+        if (ui != null)
+        {
+            ui.ShowLobbyPanel();       // Mostrar vista de partidas
+            ui.RequestMatchList();     // Forzar actualizar la lista
+        }
     }
 
     [TargetRpc]
@@ -211,12 +231,18 @@ public class CustomRoomPlayer : NetworkBehaviour
     [Command]
     public void CmdRequestMatchList()
     {
+        if (string.IsNullOrEmpty(currentMode))
+        {
+            Debug.LogWarning($"[SERVER] {playerName} pidió lista sin haber elegido modo.");
+            TargetReceiveMatchList(connectionToClient, new List<MatchInfo>());
+            return;
+        }
+
         var matches = MatchHandler.Instance.GetMatches(currentMode);
         List<MatchInfo> matchesToSend = new List<MatchInfo>();
 
         foreach (var match in matches)
         {
-            // Crear una versión limpia de MatchInfo
             matchesToSend.Add(new MatchInfo(match.matchId, match.mode, match.isStarted));
         }
 

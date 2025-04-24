@@ -37,6 +37,12 @@ public class LobbyUIManager : MonoBehaviour
         refreshButton.onClick.AddListener(RequestMatchList);
         readyButton.onClick.AddListener(ToogleReady);
         leaveRoomButton.onClick.AddListener(LeaveRoom);
+
+        if (CustomRoomPlayer.LocalInstance != null && !string.IsNullOrEmpty(CustomRoomPlayer.LocalInstance.currentMode))
+        {
+            Debug.Log("[LobbyUIManager] Lobby cargado, solicitando lista automáticamente...");
+            RequestMatchList();
+        }
     }
 
     void Update()
@@ -178,6 +184,7 @@ public class LobbyUIManager : MonoBehaviour
     {
         lobbyPanel.SetActive(true);
         roomPanel.SetActive(false);
+        RequestMatchList();
     }
 
     public void ShowRoomPanel()

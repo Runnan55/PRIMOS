@@ -45,7 +45,6 @@ public class MatchHandler : NetworkBehaviour
         return true;
     }
 
-
     public bool JoinMatch(string matchId, CustomRoomPlayer player)
     {
         if (!matches.ContainsKey(matchId)) return false;
@@ -62,7 +61,6 @@ public class MatchHandler : NetworkBehaviour
 
         return true;
     }
-
 
     public void LeaveMatch(CustomRoomPlayer player)
     {
@@ -101,6 +99,7 @@ public class MatchHandler : NetworkBehaviour
 
         player.currentMatchId = null;
         player.isAdmin = false;
+        player.TargetForceReturnToLobby(player.connectionToClient);
     }
 
     [ClientRpc]
@@ -114,7 +113,6 @@ public class MatchHandler : NetworkBehaviour
             ui.RequestMatchList(); // Pedimos actualizar lista
         }
     }
-
 
     public List<MatchInfo> GetMatches(string mode)
     {
