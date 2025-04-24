@@ -18,7 +18,10 @@ public class MainLobbyUI : MonoBehaviour
 
     void StartGame(string mode)
     {
-        string lobbySceneName = mode == "Ranked" ? "lobbySceneRanked" : "LobbySceneCasual";
+        string lobbySceneName = mode == "Ranked" ? "LobbySceneRanked" : "LobbySceneCasual";
         SceneLoaderManager.Instance.LoadScene(lobbySceneName);
+
+        // Notificar al servidor para mover al jugador
+        CustomRoomPlayer.LocalInstance?.CmdRequestJoinLobbyScene(mode);
     }
 }

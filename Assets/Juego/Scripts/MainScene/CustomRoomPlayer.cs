@@ -85,7 +85,6 @@ public class CustomRoomPlayer : NetworkBehaviour
         playerId = System.Guid.NewGuid().ToString(); // Genera un ID único
     }
 
-
     [Command]
     public void CmdSetPlayerName(string name)
     {
@@ -100,6 +99,24 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         RpcRefreshLobbyForAll();
     }
+
+    [Command]
+    public void CmdRequestJoinLobbyScene(string mode)
+    {
+        string sceneName = mode == "Ranked" ? "LobbySceneRanked" : "LobbySceneCasual";
+        Scene targetScene = SceneManager.GetSceneByName(sceneName);
+
+        if (targetScene.IsValid())
+        {
+            // Mover al jugador a la escena aditiva correspondiente en el servidor
+            SceneManager.MoveGameObjectToScene(gameObject, targetScene);
+            Debug.Log($"[SERVER] Jugador movido a escena: {sceneName}");
+        }
+
+        // Guardar el modo actual en su SyncVar
+        currentMode = mode;
+    }
+
 
     #region crearPartidas
 

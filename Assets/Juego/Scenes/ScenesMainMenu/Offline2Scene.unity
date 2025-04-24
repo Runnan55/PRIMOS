@@ -389,46 +389,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: CustomNetworkManager
       objectReference: {fileID: 0}
-    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: sendRate
-      value: 10
-      objectReference: {fileID: 0}
-    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: onlineScene
-      value: Assets/Juego/Scenes/ScenesMainMenu/MainScene.unity
-      objectReference: {fileID: 0}
-    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: offlineScene
-      value: Assets/Juego/Scenes/ScenesMainMenu/Offline2Scene.unity
-      objectReference: {fileID: 0}
-    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: playerPrefab
-      value: 
-      objectReference: {fileID: 6611139386470013384, guid: c441ff5b0517a014e8348f7b835358dc, type: 3}
-    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: headlessStartMode
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: playerSpawnMethod
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: spawnPrefabs.Array.size
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: 'spawnPrefabs.Array.data[0]'
-      value: 
-      objectReference: {fileID: 6960753788626952187, guid: a1b3bd588019ab344b680c80824c2a78, type: 3}
-    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: 'spawnPrefabs.Array.data[1]'
-      value: 
-      objectReference: {fileID: 729187056687825779, guid: 5d2b0f1031cfb224aa5f5e0c5b259fdc, type: 3}
-    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: 'spawnPrefabs.Array.data[2]'
-      value: 
-      objectReference: {fileID: 1472700762258838059, guid: a75323716ba2a4e4ebec2ceef19d7647, type: 3}
     - target: {fileID: 7249158169166256175, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.64808553

@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 4205052979057025816}
   - component: {fileID: 233103716309713200}
   - component: {fileID: 3316401913925202819}
+  - component: {fileID: 4406620194594105274}
   m_Layer: 0
   m_Name: CustomNetworkManager
   m_TagString: Untagged
@@ -48,11 +49,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dontDestroyOnLoad: 1
   runInBackground: 1
-  headlessStartMode: 0
+  headlessStartMode: 1
   editorAutoStart: 0
-  sendRate: 60
-  offlineScene: 
-  onlineScene: 
+  sendRate: 10
+  offlineScene: Assets/Juego/Scenes/ScenesMainMenu/Offline2Scene.unity
+  onlineScene: Assets/Juego/Scenes/ScenesMainMenu/MainScene.unity
   offlineSceneLoadDelay: 0
   transport: {fileID: 233103716309713200}
   networkAddress: localhost
@@ -60,10 +61,11 @@ MonoBehaviour:
   disconnectInactiveConnections: 0
   disconnectInactiveTimeout: 60
   authenticator: {fileID: 0}
-  playerPrefab: {fileID: 0}
+  playerPrefab: {fileID: 6611139386470013384, guid: c441ff5b0517a014e8348f7b835358dc, type: 3}
   autoCreatePlayer: 1
-  playerSpawnMethod: 0
-  spawnPrefabs: []
+  playerSpawnMethod: 1
+  spawnPrefabs:
+  - {fileID: 6960753788626952187, guid: a1b3bd588019ab344b680c80824c2a78, type: 3}
   exceptionsDisconnect: 1
   snapshotSettings:
     bufferTimeMultiplier: 2
@@ -124,3 +126,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   offsetX: 0
   offsetY: 0
+--- !u!114 &4406620194594105274
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3124671724160179898}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b979f26c95d34324ba005bfacfa9c4fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
