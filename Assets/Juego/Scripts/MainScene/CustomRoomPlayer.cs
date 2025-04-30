@@ -179,8 +179,31 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         if (SceneManager.GetActiveScene().name != gameSceneName)
         {
-            Debug.Log($"[CLIENT] Cambiando a escena: {gameSceneName}");
+            Debug.Log($"[CLIENT] Cargando escena: {gameSceneName}");
+            SceneManager.sceneLoaded += OnGameSceneLoaded;
             SceneLoaderManager.Instance.LoadScene(gameSceneName);
+        }
+    }
+
+    private void OnGameSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "GameScene")
+        {
+            SceneManager.sceneLoaded -= OnGameSceneLoaded;
+            CmdNotifySceneReady();
+        }
+    }
+
+    [Command]
+    private void CmdNotifySceneReady()
+    {
+        Debug.Log($"[SERVER] Cliente {playerName} avisó que cargó GameScene");
+
+        var identity = GetComponent<NetworkIdentity>();
+        if (identity != null)
+        {
+            identity.sceneId = 0;
+            NetworkServer.RebuildObservers(identity, true); // Reforzar visibilidad ahora que está en GameScene
         }
     }
 

@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEngine;
 using Mirror;
+using System.Collections;
+using UnityEngine.SceneManagement;
 
 public class MatchHandler : NetworkBehaviour
 {
@@ -152,27 +154,75 @@ public class MatchHandler : NetworkBehaviour
 
     public void CheckStartGame(string matchId)
     {
-        if (!matches.ContainsKey(matchId))
-            return;
+        if (!matches.ContainsKey(matchId)) return;
 
         MatchInfo match = matches[matchId];
+        if (match.isStarted) return;
 
-        // Si partida ya empezó, no hacer nada
-        if (match.isStarted)
-            return;
-
-        // Si todos están listos
         if (AreAllPlayersReady(matchId))
         {
             Debug.Log($"[SERVER] Todos los jugadores listos en {matchId}, empezando partida.");
-
             match.isStarted = true;
 
-            foreach (var player in match.players)
-            {
-                player.TargetStartGame(player.connectionToClient, match.mode);
-            }
+            StartCoroutine(CreateRuntimeGameScene(match)); // esto reemplaza el llamado anterior
         }
     }
 
+    [Server]
+    private IEnumerator CreateRuntimeGameScene(MatchInfo match)
+    {
+        string newSceneName = "GameScene_" + match.matchId;
+        Scene newScene = SceneManager.CreateScene(newSceneName);
+
+        yield return null; // Esperar un frame para asegurarnos que la escena esté lista
+
+        // Cargar el prefab base desde Resources
+        GameObject template = Resources.Load<GameObject>("GameSceneTemplate");
+
+        if (template == null)
+        {
+            Debug.LogError("[MatchHandler] No se encontró el prefab GameSceneTemplate en Resources.");
+            yield break;
+        }
+
+        GameObject instance = Instantiate(template);
+        SceneManager.MoveGameObjectToScene(instance, newScene);
+
+        // Mover todos los jugadores a la escena recién creada
+        foreach (var player in match.players)
+        {
+            SceneManager.MoveGameObjectToScene(player.gameObject, newScene);
+
+            var identity = player.GetComponent<NetworkIdentity>();
+            if (identity != null)
+            {
+                identity.sceneId = 0;
+                NetworkServer.RebuildObservers(identity, true);
+            }
+
+            Debug.Log($"[MatchHandler] Player {player.name} está ahora en escena: {player.gameObject.scene.name}");
+        }
+
+        match.sceneName = newScene.name;
+        Debug.Log($"[MatchHandler] Escena creada para partida {match.matchId}: {newScene.name}");
+
+        NotifyPlayersToLoadGameScene(match.matchId);
+        /*
+        // Enviar señal al cliente para que cargue su escena fija "GameScene"
+        foreach (var player in match.players)
+        {
+            player.TargetStartGame(player.connectionToClient, "GameScene");
+        }*/
+    }
+
+    [Server]
+    public void NotifyPlayersToLoadGameScene(string matchId)
+    {
+        if (!matches.TryGetValue(matchId, out MatchInfo match)) return;
+
+        foreach (var player in match.players)
+        {
+            player.TargetStartGame(player.connectionToClient, "GameScene");
+        }
+    }
 }
