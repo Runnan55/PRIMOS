@@ -6,6 +6,9 @@ using UnityEngine.SceneManagement;
 public class CustomNetworkManager : NetworkManager
 {
     public GameObject roomPlayerPrefab;
+    public GameObject gameManagerPrefab;
+    public GameObject playerControllerPrefab;
+
     public override void OnStartServer()
     {
         base.OnStartServer();
@@ -20,7 +23,7 @@ public class CustomNetworkManager : NetworkManager
         SceneManager.LoadSceneAsync("LobbySceneRanked", LoadSceneMode.Additive);
     }
 
-    public override void OnServerAddPlayer(NetworkConnectionToClient conn)
+    /*public override void OnServerAddPlayer(NetworkConnectionToClient conn)
     {
         if (conn.identity != null)
         {
@@ -30,7 +33,20 @@ public class CustomNetworkManager : NetworkManager
 
         GameObject player = Instantiate(roomPlayerPrefab);
         NetworkServer.AddPlayerForConnection(conn, player);
+    }*/
+
+    public override void OnServerConnect(NetworkConnectionToClient conn)
+    {
+        base.OnServerConnect(conn);
+
+        if (conn.identity == null)
+        {
+            GameObject playerObj = Instantiate(roomPlayerPrefab);
+            NetworkServer.AddPlayerForConnection(conn, playerObj);
+            Debug.Log("[SERVER] CustomRoomPlayer asignado automáticamente en OnServerConnect");
+        }
     }
+
 
     public void SendPlayerToModeScene(NetworkConnectionToClient conn, string sceneName)
     {

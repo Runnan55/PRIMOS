@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 4205052979057025816}
   - component: {fileID: 233103716309713200}
   - component: {fileID: 3316401913925202819}
-  - component: {fileID: 4406620194594105274}
+  - component: {fileID: 5224560498568177238}
   m_Layer: 0
   m_Name: CustomNetworkManager
   m_TagString: Untagged
@@ -61,11 +61,14 @@ MonoBehaviour:
   disconnectInactiveConnections: 0
   disconnectInactiveTimeout: 60
   authenticator: {fileID: 0}
-  playerPrefab: {fileID: 6611139386470013384, guid: c441ff5b0517a014e8348f7b835358dc, type: 3}
-  autoCreatePlayer: 1
+  playerPrefab: {fileID: 0}
+  autoCreatePlayer: 0
   playerSpawnMethod: 1
   spawnPrefabs:
+  - {fileID: 1813321752748107178, guid: 84876c097daff814691f6a043e7330d1, type: 3}
   - {fileID: 6960753788626952187, guid: a1b3bd588019ab344b680c80824c2a78, type: 3}
+  - {fileID: 6611139386470013384, guid: 0ff601bcb83d8344685798401727d690, type: 3}
+  - {fileID: 0}
   exceptionsDisconnect: 1
   snapshotSettings:
     bufferTimeMultiplier: 2
@@ -82,6 +85,8 @@ MonoBehaviour:
   evaluationInterval: 3
   timeInterpolationGui: 0
   roomPlayerPrefab: {fileID: 6960753788626952187, guid: a1b3bd588019ab344b680c80824c2a78, type: 3}
+  gameManagerPrefab: {fileID: 1813321752748107178, guid: 84876c097daff814691f6a043e7330d1, type: 3}
+  playerControllerPrefab: {fileID: 6611139386470013384, guid: 0ff601bcb83d8344685798401727d690, type: 3}
 --- !u!114 &233103716309713200
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -126,7 +131,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   offsetX: 0
   offsetY: 0
---- !u!114 &4406620194594105274
+--- !u!114 &5224560498568177238
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -135,6 +140,6 @@ MonoBehaviour:
   m_GameObject: {fileID: 3124671724160179898}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b979f26c95d34324ba005bfacfa9c4fc, type: 3}
+  m_Script: {fileID: 11500000, guid: 74694dc6893f58b4fa84ddc2f8bdb14f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 

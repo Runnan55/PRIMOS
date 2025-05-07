@@ -79,6 +79,12 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private Color defaultButtonColor = Color.white; //Color por defecto
     [SerializeField] private Color highlightedColor = Color.white; //Color resaltado
 
+    [Header("UI Timer/Round")]
+    [SyncVar(hook = nameof(OnRoundChanged))] public int syncedRound;
+    [SyncVar(hook = nameof(OnTimerChanged))] public float syncedTimer;
+    public TMP_Text roundTextUI;
+    public TMP_Text timerTextUI;
+
     [Header("Rol Elements")]
     public GameObject parcaSprite;
 
@@ -110,13 +116,52 @@ public class PlayerController : NetworkBehaviour
     public int playerPosition;
     public GameObject spriteRendererContainer;
 
-    [Header("TikiTalisman")]
+    [Header("TikiTalismanEffect")]
     [SyncVar] public bool canDealDamageThisRound = true;
     [SyncVar] public int sucessfulShots = 0;
 
+    [Header("TikiVisualIndicator")]
+    public GameObject tikiSprite;
+
+
+    [SyncVar] public uint gameManagerNetId;
+    private GameManager cachedGameManager;
+
+    public GameManager GameManager
+    {
+        get
+        {
+            if (cachedGameManager == null && gameManagerNetId != 0)
+            {
+                if (NetworkServer.spawned.TryGetValue(gameManagerNetId, out var identity))
+                {
+                    cachedGameManager = identity.GetComponent<GameManager>();
+                }
+            }
+            return cachedGameManager;
+        }
+    }
+
+
+
     private void Start()
     {
-        if (isLocalPlayer)
+        if (GameManager.Instance != null)
+        {
+            Debug.Log("GameManager en Cliente inexistente, pero estaba previsto");
+        }
+
+        if (!isLocalPlayer)
+        {
+            Debug.Log("El localPlayer no tiene poder sobre este prefab, pero estaba previsto");
+        }
+
+        if (isOwned)
+        {
+            Debug.Log("El jugador tiene autoridad sobre este playerprefab, pero el Network de Mirror no lo detecta como Local Player, pero está bien");
+        }
+
+        if (isLocalPlayer || isOwned)
         {
             shootButton.interactable = (false);
             superShootButton.interactable = (false);
@@ -158,7 +203,20 @@ public class PlayerController : NetworkBehaviour
             targetIndicator.SetActive(false);
     }
 
-    
+
+    #region ConectWithClient
+
+    [SyncVar] public string playerId;
+
+    public CustomRoomPlayer ownerRoomPlayer;
+/*
+    public override void OnStartLocalPlayer()
+    {
+        base.OnStartLocalPlayer();
+        Debug.Log($"[PlayerController] Soy el LocalPlayer de {playerName} (ID: {playerId})");
+    }*/
+
+    #endregion
 
     public override void OnStartClient()
     {
@@ -172,14 +230,23 @@ public class PlayerController : NetworkBehaviour
 
     public override void OnStartServer()
     {
-        FindFirstObjectByType<GameManager>()?.RegisterPlayer(this);
+        base.OnStartServer();
+
+        //FindFirstObjectByType<GameManager>()?.RegisterPlayer(this);
 
         DetectSpawnPosition(transform.position); //Setear orientacion y posición usando la posición actual
     }
 
+    [Client]
     private void Update()
     {
-        if (!isLocalPlayer) return;
+        if (isOwned)
+        {
+            Debug.Log("Estoy funcionando cariño");
+        }
+        // Esto funciona mierda HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH POR FIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIINB
+
+        if (!isLocalPlayer && !isOwned) return;
 
         //Mover mirilla con mouse
         if (isAiming && crosshairInstance)
@@ -236,6 +303,19 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    #region Tiki
+
+    [ClientRpc]
+    public void RpcSetTikiHolder(bool isHolder)
+    {
+        if (tikiSprite != null)
+        {
+            tikiSprite.SetActive(isHolder);
+        }
+    }
+
+    #endregion
+
     #region UI HOOKS
 
     [Server]
@@ -273,7 +353,7 @@ public class PlayerController : NetworkBehaviour
 
     void OnNameConfirmedChanged(bool oldValue, bool newValue) //Indicar al server que este player eligio nombre
     {
-        if (isLocalPlayer && newValue)
+        if ((isLocalPlayer || isOwned) && newValue)
         {
             canvasInicioPartida.SetActive(false);
         }
@@ -294,7 +374,7 @@ public class PlayerController : NetworkBehaviour
     private void OnHealthChanged(int oldHealth, int newHealth)
     {
         if (healthText)
-            healthText.text = $"Vida: {newHealth}";
+            healthText.text = new string('-', newHealth);
     }
 
     private void OnAmmoChanged(int oldAmmo, int newAmmo)
@@ -303,6 +383,39 @@ public class PlayerController : NetworkBehaviour
             ammoText.text = $"Balas: {newAmmo}";
 
         SuperShootButtonAnimation(newAmmo);
+    }
+
+    #endregion
+
+    #region Timer/RoundUI
+
+    public void OnRoundChanged(int oldRound, int newRound)
+    {
+        if (roundTextUI != null)
+        {
+            roundTextUI.text = $"Ronda: {newRound}";
+        }
+    }
+
+    private void OnTimerChanged(float oldTimer, float newTimer)
+    {
+        UpdateTimerUI(newTimer);
+    }
+
+    public void UpdateTimerUI(float timeLeft)
+    {
+        if (timerTextUI != null)
+        {
+            if (timeLeft > 0)
+            {
+                int displayTime = Mathf.FloorToInt(timeLeft);
+                timerTextUI.text = $"Tiempo: {displayTime}";
+            }
+            else
+            {
+                timerTextUI.text = $"Tiempo: -"; // Cambia a guión al llegar a 0 o menos
+            }
+        }
     }
 
     #endregion
@@ -383,7 +496,7 @@ public class PlayerController : NetworkBehaviour
 
     private void CoverButtonAnimation(int coverLevel)
     {
-        if (!isLocalPlayer) return;
+        if (!isLocalPlayer && !isOwned) return;
 
         coverLevel = Mathf.Clamp(coverLevel, 0, 2); // 0 = 100%%, 1 = 50%, 2 = 1%
         if (coverLevel == lastCoverLevel) return;
@@ -407,7 +520,7 @@ public class PlayerController : NetworkBehaviour
 
     private void SuperShootButtonAnimation(int currentAmmo)
     {
-        if (!isLocalPlayer) return;
+        if (!isLocalPlayer && !isOwned) return;
 
         int superShootLevel = Mathf.Clamp(currentAmmo, 0, 3);
 
@@ -568,7 +681,7 @@ public class PlayerController : NetworkBehaviour
     #region CLIENT
     private void OnShootButton()
     {
-        if (!isLocalPlayer) return;
+        if (!isLocalPlayer && !isOwned) return;
         if (isAiming) return;
 
         isAiming = true;
@@ -584,7 +697,7 @@ public class PlayerController : NetworkBehaviour
 
     private void OnSuperShootButton()
     {
-        if (!isLocalPlayer) return;
+        if (!isLocalPlayer && !isOwned) return;
         if (isAiming) return;
 
         isAiming = true;
@@ -600,7 +713,7 @@ public class PlayerController : NetworkBehaviour
 
     private void OnReloadButton()
     {
-        if (!isLocalPlayer) return;
+        if (!isLocalPlayer && !isOwned) return;
         CmdRegisterAction(ActionType.Reload, null);
 
         HighlightButton(reloadButton);//Resaltar botón
@@ -608,7 +721,7 @@ public class PlayerController : NetworkBehaviour
 
     private void OnCoverButton()
     {
-        if (!isLocalPlayer) return;
+        if (!isLocalPlayer && !isOwned) return;
         CmdRegisterAction(ActionType.Cover, null);
 
         HighlightButton(coverButton);//Resaltar botón
@@ -670,7 +783,7 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcResetButtonHightLight()
     {
-        if (!isLocalPlayer) return;
+        if (!isLocalPlayer && !isOwned) return;
 
         if (selectedButton != null)
         {
@@ -688,7 +801,7 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcSetTargetIndicator(PlayerController shooter, PlayerController target)
     {
-        if (!isLocalPlayer || !isAlive || this != shooter) return; //Solo ejecuta en el cliente que disparó
+        if (!isOwned || !isAlive || this != shooter) return; //Solo ejecuta en el cliente que disparó
 
         //Desactivamos cualquier indicador previo
         PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
@@ -719,7 +832,7 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcCancelAiming()
     {
-        if (!isLocalPlayer) return;
+        if (!isLocalPlayer && !isOwned) return;
 
         if (crosshairInstance != null)
         {
@@ -733,7 +846,7 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcOnDeath()
     {
-        if (isLocalPlayer)
+        if (isLocalPlayer || isOwned)
         {
             deathCanvas.SetActive(true);
         }
@@ -747,7 +860,7 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcOnDeathOrDraw()
     {
-        if (isLocalPlayer)
+        if (isLocalPlayer || isOwned)
         {
             drawCanvas.SetActive(true);
         }
@@ -761,7 +874,7 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcOnVictory()
     {
-        if (isLocalPlayer)
+        if (isLocalPlayer || isOwned)
         {
             victoryCanvas.SetActive(true);
         }
@@ -772,11 +885,12 @@ public class PlayerController : NetworkBehaviour
     [Command]
     public void CmdRegisterAction(ActionType actionType, PlayerController target)
     {
-        if (GameManager.Instance == null) return;
+        //if (GameManager.Instance == null) return;
 
+        if (GameManager.Instance == null) Debug.Log("No tienesGameManager pero registrasteaccion en server");
         selectedAction = actionType;//Enviar accion seleccionada al servidor
 
-        GameManager.Instance.RegisterAction(this, actionType, target);
+        GameManager./*Instance.*/RegisterAction(this, actionType, target);
 
         RpcSetTargetIndicator(this, target); //Indicador del cliente que disparó
 
@@ -789,7 +903,7 @@ public class PlayerController : NetworkBehaviour
         {
             playerName = newName;
             hasConfirmedName = true;
-            GameManager.Instance.CheckAllPlayersReady(); //Llamar al servidor para iniciar partida
+            GameManager./*Instance.*/CheckAllPlayersReady(); //Llamar al servidor para iniciar partida
         }
     }
 
@@ -916,18 +1030,18 @@ public class PlayerController : NetworkBehaviour
     [Server]
     public void TakeDamage(int damageAmount)
     {
-        if (!isAlive || isCovering || GameManager.Instance == null) return;
+        if (!isAlive || isCovering ) return;
 
-        if (!GameManager.Instance.AllowAccumulatedDamage() && GameManager.Instance.HasTakenDamage(this)) //Verificar si el daño se debe acumular o no
+        if (!GameManager./*Instance.*/AllowAccumulatedDamage() && GameManager./*Instance.*/HasTakenDamage(this)) //Verificar si el daño se debe acumular o no
         {
             Debug.Log($"{playerName} ya recibió daño en esta ronda, ignorando el ataque.");
             return;
         }
 
         // Marcar que el jugador ha recibido daño en esta ronda si el daño no se acumula
-        if (!GameManager.Instance.AllowAccumulatedDamage())
+        if (!GameManager./*Instance.*/AllowAccumulatedDamage())
         {
-            GameManager.Instance.RegisterDamagedPlayer(this);
+            GameManager./*Instance.*/RegisterDamagedPlayer(this);
         }
 
         RpcPlayAnimation("ReceiveDamage");
@@ -941,9 +1055,9 @@ public class PlayerController : NetworkBehaviour
 
             Debug.Log($"{playerName} ha sido eliminado.");
 
-            if (isServer && GameManager.Instance != null)// Esto solo se ejecuta en el servidor para evitar errores
+            if (isServer /*&& GameManager.Instance != null*/)// Esto solo se ejecuta en el servidor para evitar errores
             {
-                GameManager.Instance.PlayerDied(this);
+                GameManager./*Instance.*/PlayerDied(this);
             }
 
         }
@@ -971,10 +1085,10 @@ public class PlayerController : NetworkBehaviour
     {
         base.OnStopServer();
 
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.PlayerDisconnected(this);
-        }
+        /*if (GameManager.Instance != null)
+        {*/
+            GameManager./*Instance.*/PlayerDisconnected(this);
+        /*}*/
 
         GameStatistic stat = FindFirstObjectByType<GameStatistic>();
 

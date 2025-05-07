@@ -92,6 +92,8 @@ public class LobbyUIManager : MonoBehaviour
     {
         if (localPlayer != null)
         {
+            UpdateReadyButtonVisual(!localPlayer.isReady);
+
             localPlayer.CmdToggleReady();
         }
     }
@@ -139,7 +141,25 @@ public class LobbyUIManager : MonoBehaviour
             UpdateRoomInfoText(); // También actualizamos la info del panel (aunque sea vacía)
         }
     }
+    private void UpdateReadyButtonVisual(bool isReady)
+    {
+        ColorBlock colors = readyButton.colors;
 
+        if (isReady)
+        {
+            colors.normalColor = Color.green;
+            colors.highlightedColor = Color.green;
+            readyButton.GetComponentInChildren<TMP_Text>().text = "Ready!";
+        }
+        else
+        {
+            colors.normalColor = Color.white;
+            colors.highlightedColor = Color.white;
+            readyButton.GetComponentInChildren<TMP_Text>().text = "Not Ready";
+        }
+
+        readyButton.colors = colors;
+    }
 
     public void UpdatePlayerList(List<CustomRoomPlayer> players, string adminId)
     {

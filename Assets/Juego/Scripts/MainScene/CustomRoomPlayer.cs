@@ -3,6 +3,7 @@ using UnityEngine;
 using System;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
+using System.Linq;
 
 public class CustomRoomPlayer : NetworkBehaviour
 {
@@ -12,6 +13,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     [SyncVar] public bool isReady = false;
     [SyncVar] public bool isAdmin = false;
     [SyncVar] public string playerId;
+    [SyncVar] public bool isPlayingNow;
 
     [SyncVar(hook = nameof(OnMatchIdChanged))]
     public string currentMatchId;
@@ -28,6 +30,13 @@ public class CustomRoomPlayer : NetworkBehaviour
 
     public static event Action OnRoomDataUpdated; // Evento que llamaremos
 
+
+    #region ConectWithClient
+
+    public PlayerController linkedPlayerController;
+
+    #endregion
+
     #region SincronizeUI
 
     public override void OnStartLocalPlayer()
@@ -35,6 +44,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         base.OnStartLocalPlayer();
         LocalInstance = this;
         DontDestroyOnLoad(gameObject);
+        Debug.Log($"[CustomRoomPlayer] Soy el LocalPlayer en lobby. Mi ID es {playerId}");
     }
 
     public override void OnStopClient()
@@ -173,28 +183,49 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
 
     [TargetRpc]
-    public void TargetStartGame(NetworkConnectionToClient conn, string mode)
+    public void TargetStartGame(NetworkConnectionToClient conn, string sceneName)
     {
-        string gameSceneName = "GameScene";
+        // SIEMPRE cargar la plantilla en cliente
+        string clientSceneName = "GameScene";
 
-        if (SceneManager.GetActiveScene().name != gameSceneName)
+        if (SceneManager.GetActiveScene().name != clientSceneName)
         {
-            Debug.Log($"[CLIENT] Cargando escena: {gameSceneName}");
+            Debug.Log($"[CLIENT] Cargando escena (plantilla): {clientSceneName}");
+            currentMatchId = sceneName; // GUARDAMOS la partida real (ejemplo "GameScene_7cddf7")
+
             SceneManager.sceneLoaded += OnGameSceneLoaded;
-            SceneLoaderManager.Instance.LoadScene(gameSceneName);
+            SceneLoaderManager.Instance.LoadScene(clientSceneName);
         }
     }
 
     private void OnGameSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == "GameScene")
+        SceneManager.sceneLoaded -= OnGameSceneLoaded;
+
+        Debug.Log("[CLIENT] GameScene cargada -> Registrando en CustomSceneInterestManager");
+
+        if (isLocalPlayer)
         {
-            SceneManager.sceneLoaded -= OnGameSceneLoaded;
-            CmdNotifySceneReady();
+            CustomSceneInterestManager.Instance.RegisterPlayer(NetworkClient.connection, currentMatchId); // Asignar escena real
+
+            // Solo cliente local, instanciar GameManager local
+            if (GameManager.Instance == null)
+            {
+                GameObject gmInstance = Instantiate(NetworkManager.singleton.GetComponent<CustomNetworkManager>().gameManagerPrefab);
+                //DontDestroyOnLoad(gmInstance);
+
+                ///IMPORTANTISIMO AAAAAAAAAAAAAAAAH, VERIFICAR SI EL GAMEMANGER ES NECESARIO PARA INSTANCIAR, O SI PODEMOS ELIMINARLO EN LOS CLIENTES Y USAR SOLO EN EL SERVER CTM GAAAA
+                GameManager gm = gmInstance.GetComponent<GameManager>();
+                gm.matchId = currentMatchId; // <-- Asignar matchId para sincronizar la partida
+
+                Debug.Log($"[CLIENT] GameManager local instanciado para cliente con matchId {currentMatchId}");
+            }
         }
+
+        CmdNotifySceneReady();
     }
 
-    [Command]
+    /*[Command]
     private void CmdNotifySceneReady()
     {
         Debug.Log($"[SERVER] Cliente {playerName} avisó que cargó GameScene");
@@ -203,8 +234,58 @@ public class CustomRoomPlayer : NetworkBehaviour
         if (identity != null)
         {
             identity.sceneId = 0;
-            NetworkServer.RebuildObservers(identity, true); // Reforzar visibilidad ahora que está en GameScene
+            NetworkServer.RebuildObservers(identity, true);
         }
+
+        isPlayingNow = true;
+        /*
+        if (MatchHandler.Instance.AreAllPlayersReadyToStart(currentMatchId))
+        {
+            MatchHandler.Instance.TrySpawnGameManagerForMatch(currentMatchId);
+        }
+    }*/
+
+    [Command]
+    private void CmdNotifySceneReady()
+    {
+        isPlayingNow = true;
+
+        var identity = GetComponent<NetworkIdentity>();
+        if (identity != null)
+        {
+            identity.sceneId = 0;
+            NetworkServer.RebuildObservers(identity, true);
+        }
+
+        Debug.Log($"[SERVER] Cliente {playerName} avisó que cargó GameScene");
+
+        // Avisar al GameManager de su escena que hay un nuevo jugador listo
+        MatchInfo match = MatchHandler.Instance.GetMatch(currentMatchId);
+        if (match != null)
+        {
+            Scene gameScene = SceneManager.GetSceneByName(match.sceneName);
+            if (gameScene.IsValid())
+            {
+                foreach (var go in gameScene.GetRootGameObjects())
+                {
+                    GameManager gm = go.GetComponent<GameManager>();
+                    if (gm != null)
+                    {
+                        gm.OnPlayerSceneReady(this);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+
+    //IMPORTANTE USAR ESTO CUANDO VAYAMOS A SALIR DE UNA ESCENA POR QUE SINO LUEGO DARÄ ERRORES Y MARCARA AL JUGADOR COMO QUE SIGUE JUGANDO DE MOMENTO ESTA INACTIVO PERO HAY QUE CONECTARLO 
+    //EVENTUALMENTE AAAAAAAAAAAAAAAHHHHHHHHHHHH MI PISHULAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    [Server]
+    public void OnLeftGame()
+    {
+        isPlayingNow = false;
     }
 
     [Command]

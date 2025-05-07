@@ -13,6 +13,8 @@ public class MatchHandler : NetworkBehaviour
     private int partidasActivas = 0;
     public int PartidasActivas => partidasActivas;
 
+    [SerializeField] public GameManager gameManagerPrefab;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -62,6 +64,16 @@ public class MatchHandler : NetworkBehaviour
         RpcRefreshMatchList();
 
         return true;
+    }
+    public MatchInfo GetMatchInfoByScene(Scene scene)
+    {
+        foreach (var match in matches.Values)
+        {
+            if (match.sceneName == scene.name)
+                return match;
+        }
+
+        return null;
     }
 
     public void LeaveMatch(CustomRoomPlayer player)
@@ -138,18 +150,27 @@ public class MatchHandler : NetworkBehaviour
             return null;
     }
 
+    public bool AreAllPlayersReadyToStart(string matchId)
+    {
+        if (!matches.TryGetValue(matchId, out MatchInfo match)) return false;
+
+        foreach (var player in match.players)
+        {
+            if (!player.isPlayingNow)
+                return false;
+        }
+        return true;
+    }
     public bool AreAllPlayersReady(string matchId)
     {
-        if (matches.TryGetValue(matchId, out MatchInfo match))
+        if (!matches.TryGetValue(matchId, out MatchInfo match)) return false;
+
+        foreach (var player in match.players)
         {
-            foreach (var player in match.players)
-            {
-                if (!player.isReady)
-                    return false;
-            }
-            return true;
+            if (!player.isReady)
+                return false;
         }
-        return false;
+        return true;
     }
 
     public void CheckStartGame(string matchId)
@@ -164,7 +185,7 @@ public class MatchHandler : NetworkBehaviour
             Debug.Log($"[SERVER] Todos los jugadores listos en {matchId}, empezando partida.");
             match.isStarted = true;
 
-            StartCoroutine(CreateRuntimeGameScene(match)); // esto reemplaza el llamado anterior
+            StartCoroutine(CreateRuntimeGameScene(match));
         }
     }
 
@@ -176,17 +197,16 @@ public class MatchHandler : NetworkBehaviour
 
         yield return null; // Esperar un frame para asegurarnos que la escena esté lista
 
-        // Cargar el prefab base desde Resources
+        // Cargar decorado base desde Resources
         GameObject template = Resources.Load<GameObject>("GameSceneTemplate");
-
         if (template == null)
         {
             Debug.LogError("[MatchHandler] No se encontró el prefab GameSceneTemplate en Resources.");
             yield break;
         }
 
-        GameObject instance = Instantiate(template);
-        SceneManager.MoveGameObjectToScene(instance, newScene);
+        GameObject templateInstance = Instantiate(template);
+        SceneManager.MoveGameObjectToScene(templateInstance, newScene);
 
         // Mover todos los jugadores a la escena recién creada
         foreach (var player in match.players)
@@ -200,19 +220,48 @@ public class MatchHandler : NetworkBehaviour
                 NetworkServer.RebuildObservers(identity, true);
             }
 
+            player.isPlayingNow = true;
+
             Debug.Log($"[MatchHandler] Player {player.name} está ahora en escena: {player.gameObject.scene.name}");
         }
 
         match.sceneName = newScene.name;
         Debug.Log($"[MatchHandler] Escena creada para partida {match.matchId}: {newScene.name}");
 
+        // Notificar a los clientes para que carguen GameScene
         NotifyPlayersToLoadGameScene(match.matchId);
-        /*
-        // Enviar señal al cliente para que cargue su escena fija "GameScene"
+        TrySpawnGameManagerForMatch(match.matchId);
+    }
+
+    [Server]
+    public void TrySpawnGameManagerForMatch(string matchId)
+    {
+        if (!matches.TryGetValue(matchId, out MatchInfo match)) return;
+
+        Scene matchScene = SceneManager.GetSceneByName(match.sceneName);
+        if (!matchScene.IsValid()) return;
+
+        GameManager gmInstance = Instantiate(gameManagerPrefab);
+        gmInstance.matchId = match.matchId;
+        gmInstance.playerControllerPrefab = NetworkManager.singleton.playerPrefab;
+
+        NetworkServer.Spawn(gmInstance.gameObject);
+        SceneManager.MoveGameObjectToScene(gmInstance.gameObject, matchScene);
+
+        Debug.Log($"[MatchHandler] GameManager spawn para {match.matchId}");
+    }
+
+
+    public bool AreAllPlayersInGameScene(string matchId)
+    {
+        if (!matches.TryGetValue(matchId, out MatchInfo match)) return false;
+
         foreach (var player in match.players)
         {
-            player.TargetStartGame(player.connectionToClient, "GameScene");
-        }*/
+            if (player.gameObject.scene.name != "GameScene")
+                return false;
+        }
+        return true;
     }
 
     [Server]
@@ -222,7 +271,8 @@ public class MatchHandler : NetworkBehaviour
 
         foreach (var player in match.players)
         {
-            player.TargetStartGame(player.connectionToClient, "GameScene");
+            // ENVÍA EL NOMBRE REAL DE LA ESCENA
+            player.TargetStartGame(player.connectionToClient, match.sceneName);
         }
     }
 }

@@ -8,19 +8,22 @@ public class MainLobbyUI : MonoBehaviour
     public Button rankedButton;
     public Button casualButton;
     public Button exitButton;
+    public Button comingSoonButton;
 
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
         { "Casual", "LobbySceneCasual" },
         { "Ranked", "LobbySceneRanked" },
-        // Podés agregar más modos fácilmente:
+        // Se agregarán más modos fácilmente:
         // { "Torneo", "LobbySceneTorneo" },
         // { "Evento", "LobbySceneEvento" }
     };
 
     private void Start()
     {
-        rankedButton.onClick.AddListener(() => JoinMode("Ranked"));
+        //De momento rankedButton no hace nada
+        //rankedButton.onClick.AddListener(() => JoinMode("Ranked")); 
+        comingSoonButton.onClick.AddListener(() => Debug.Log("Este modo aún no está disponible."));
         casualButton.onClick.AddListener(() => JoinMode("Casual"));
         exitButton.onClick.AddListener(() => Application.Quit());
     }

@@ -7,6 +7,7 @@ using System.Linq;
 using System;
 using Mirror.BouncyCastle.Security;
 using Unity.VisualScripting;
+using UnityEngine.SceneManagement;
 
 public enum GameModifierType
 {
@@ -45,10 +46,10 @@ public class GameManager : NetworkBehaviour
     [SerializeField] private bool allowAccumulatedDamage = false; //Estilo de juego con daño acumulable o solo 1 de daño por turno
 
     [Header("Rondas")]
-    [SyncVar(hook = nameof(OnTimerChanged))] private float currentDecisionTime;
+    private float currentDecisionTime;
     [SerializeField] private float decisionTime = 10f; // Tiempo para elegir acción
     [SerializeField] private float executionTime = 4f; // Tiempo para mostrar resultados
-    [SerializeField] private TMP_Text timerText;
+    //[SerializeField] private TMP_Text timerText;
 
     private bool isDecisionPhase = true;
     private bool isGameOver = false;
@@ -61,11 +62,11 @@ public class GameManager : NetworkBehaviour
     private HashSet<PlayerController> damagedPlayers = new HashSet<PlayerController>(); // Para almacenar jugadores que ya recibieron daño en la ronda
 
     private Dictionary<PlayerController, PlayerAction> actionsQueue = new Dictionary<PlayerController, PlayerAction>();
+    
 
-
-    [SyncVar] private int currentRound = 0; // Contador de rondas
-    [SerializeField] private TMP_Text roundText; // Texto en UI para mostrar la ronda
-
+    private int currentRound = 0; // Contador de rondas
+    //[SerializeField] private TMP_Text roundText; // Texto en UI para mostrar la ronda
+    
     [Header("Draw")]
     private bool isDraw = false;
 
@@ -98,6 +99,10 @@ public class GameManager : NetworkBehaviour
     [SyncVar] private uint talismanHolderNetId;
     private List<PlayerController> tikiHistory = new List<PlayerController>();
 
+    [Header("MathHandler")]
+    [SyncVar] public string matchId; //Identificador de partida
+    public GameObject playerControllerPrefab; //Prefab asignado por MatchHandler
+
     private void IdentifyVeryHealthy()
     {
         if (players.Count == 0 || SelectedModifier != GameModifierType.CaceriaDelLider) return;
@@ -113,7 +118,12 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    private void Awake()
+    void OnDisable()
+    {
+        Debug.LogWarning("GameManager ha sido desactivado!", this);
+    }
+
+    /*private void Awake()
     {
         if (Instance != null && Instance != this)
         {
@@ -122,21 +132,214 @@ public class GameManager : NetworkBehaviour
         else
         {
             Instance = this;
+            Debug.Log("GameManager activo en Awake: " + gameObject.activeSelf, this);
         }
-    }
+    }*/
 
     private void Start()
     {
+        Debug.Log("GameManager activo en Start: " + gameObject.activeSelf, this);
+
         if (isServer)
         {
             talismanHolder = players.FirstOrDefault(p => p.isAlive);
             if (talismanHolder != null)
             {
                 talismanHolderNetId = talismanHolder.netId;
-                RpcSpawnTalisman(talismanHolderNetId);
+                //RpcSpawnTalisman(talismanHolderNetId);
+                UpdateTikiVisual(talismanHolder);
             }
         }
     }
+
+    #region Invoke Players
+
+    public override void OnStartServer()
+    {
+        if (!isServer) return; // Solo servidor ejecuta esto
+
+        base.OnStartServer();
+
+        Debug.Log("[GameManager] Iniciado en servidor.");
+        //StartCoroutine(DelayedStartCheck());
+    }
+
+    [Server]
+    public void OnPlayerSceneReady(CustomRoomPlayer roomPlayer)
+    {
+        if (players.Any(p => p.connectionToClient == roomPlayer.connectionToClient))
+        {
+            Debug.Log($"[GameManager] El jugador {roomPlayer.playerName} ya tiene un PlayerController instanciado.");
+            return;
+        }
+
+        // Obtener spawn positions disponibles
+        List<Vector3> spawnPositions = gameObject.scene.GetRootGameObjects()
+            .SelectMany(go => go.GetComponentsInChildren<NetworkStartPosition>())
+            .Select(pos => pos.transform.position)
+            .ToList();
+
+        // Obtener ya los PlayerControllers vivos
+        List<PlayerController> existingPlayers = players.Where(p => p.isAlive).ToList();
+
+        // Eliminar posiciones ya ocupadas
+        foreach (var player in existingPlayers)
+        {
+            Vector3 playerPos = player.transform.position;
+
+            // Elimina posiciones que ya están ocupadas (muy cerca)
+            spawnPositions.RemoveAll(pos => Vector3.Distance(pos, playerPos) < 0.5f);
+        }
+
+        // Elegir una aleatoria de las que quedaron
+        Vector3 spawnPos = spawnPositions.Count > 0
+            ? spawnPositions[UnityEngine.Random.Range(0, spawnPositions.Count)]
+            : Vector3.zero;
+
+        GameObject playerInstance = Instantiate(playerControllerPrefab, spawnPos, Quaternion.identity);
+        NetworkServer.Spawn(playerInstance, roomPlayer.connectionToClient);
+        SceneManager.MoveGameObjectToScene(playerInstance, gameObject.scene);
+
+        PlayerController controller = playerInstance.GetComponent<PlayerController>();
+        controller.gameManagerNetId = netId; // <- Vincula de inmediato al playerPrefab con el GameManager, por alguna razón sin esto revienta y el cliente no detecta GManager del server
+        controller.playerName = roomPlayer.playerName;
+
+        controller.playerId = roomPlayer.playerId;
+
+        controller.ownerRoomPlayer = roomPlayer;
+        roomPlayer.linkedPlayerController = controller;
+
+        RegisterPlayer(controller);
+
+        Debug.Log($"[GameManager] PlayerController creado para {roomPlayer.playerName}");
+    }
+
+    [Server]
+    public void RegisterPlayer(PlayerController player)
+    {
+        if (!players.Contains(player))
+        {
+            players.Add(player);
+            Debug.Log($"[GameManager] Jugador registrado: {player.playerName}");
+
+            // Verificar si todos ya ingresaron nombre
+            CheckAllPlayersReady();
+        }
+    }
+
+    /*public void RegisterPlayer(PlayerController player)//Registra a cada jugador usando OnStartServer() en PlayerController
+    {
+        if (!players.Contains(player))
+            players.Add(player);
+    }*/
+
+    /*[Server]
+    public void UnregisterPlayer(PlayerController player)
+    {
+        if (players.Contains(player))
+        {
+            players.Remove(player);
+            Debug.Log($"[GameManager] Jugador removido: {player.playerName}");
+
+            
+            CheckGameOver();
+        }
+    }*/
+
+    
+
+    private IEnumerator DelayedStartCheck()
+    {
+        yield return new WaitForSeconds(0.5f); // Mejor medio segundo para asegurar
+
+        // Obtener MatchInfo usando el matchId
+        MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
+        if (match == null)
+        {
+            Debug.LogError($"[GameManager] No se encontró MatchInfo para matchId {matchId}");
+            yield break;
+        }
+
+        yield return null; // Esperar un frame para que la escena se actualice en los objetos (importante)
+
+        List<CustomRoomPlayer> validPlayers = new List<CustomRoomPlayer>();
+
+        foreach (var roomPlayer in match.players)
+        {
+            if (roomPlayer.isPlayingNow)
+                validPlayers.Add(roomPlayer);
+        }
+
+        Debug.Log($"[GameManager] Jugadores encontrados para partida: {validPlayers.Count}");
+
+        if (validPlayers.Count > 0)
+        {
+            StartGame(validPlayers);
+        }
+        else
+        {
+            Debug.LogWarning("[GameManager] No se encontraron jugadores válidos para iniciar la partida.");
+        }
+    }
+
+    /*[Server]
+    private void StartGame(List<CustomRoomPlayer> players)
+    {
+        Debug.Log("[GameManager] Iniciando partida...");
+
+        // Obtener puntos de spawn SOLO de la escena en la que está este GameManager
+        NetworkStartPosition[] spawnPositions = gameObject.scene.GetRootGameObjects()
+            .SelectMany(go => go.GetComponentsInChildren<NetworkStartPosition>())
+            .ToArray();
+
+        if (spawnPositions.Length == 0)
+        {
+            Debug.LogError("[GameManager] ERROR → No se encontraron NetworkStartPositions en la escena.");
+        }
+
+        for (int i = 0; i < players.Count; i++)
+        {
+            CustomRoomPlayer roomPlayer = players[i];
+
+            // Calcular posición de spawn
+            Vector3 spawnPos = spawnPositions.Length > 0
+                ? spawnPositions[i % spawnPositions.Length].transform.position
+                : Vector3.zero;
+
+            if (playerControllerPrefab == null)
+            {
+                Debug.LogError("[GameManager] PlayerController prefab no asignado!");
+                continue;
+            }
+
+            // Instanciar el PlayerController
+            GameObject playerInstance = Instantiate(playerControllerPrefab, spawnPos, Quaternion.identity);
+
+            // Spawn en red vinculado al cliente correcto
+            NetworkServer.Spawn(playerInstance, roomPlayer.connectionToClient);
+
+            // Mover a la escena correcta
+            SceneManager.MoveGameObjectToScene(playerInstance, gameObject.scene);
+
+            // Configurar el PlayerController
+            PlayerController controller = playerInstance.GetComponent<PlayerController>();
+            controller.playerName = roomPlayer.playerName;
+
+            Debug.Log($"[GameManager] PlayerController instanciado para {roomPlayer.playerName}");
+        }
+    }*/
+
+    [Server]
+    private void StartGame(List<CustomRoomPlayer> players)
+    {
+        Debug.Log("[GameManager] Iniciando partida...");
+
+        // En lugar de eso → solo arrancar rondas:
+        Debug.Log("[GameManager] Todos los jugadores están listos. Iniciando rondas...");
+        roundCycleCoroutine = StartCoroutine(RoundCycle());
+    }
+
+    #endregion
 
     private void ChooseRandomModifier()
     {
@@ -228,9 +431,9 @@ public class GameManager : NetworkBehaviour
         if (talismanHolder != null)
         {
             talismanHolderNetId = talismanHolder.netId;
-            RpcSpawnTalisman(talismanHolder.netId);
+            //RpcSpawnTalisman(talismanHolder.netId);
 
-            // 🎯 Simular una ronda previa de Tiki para establecer prioridad de disparo desde el inicio
+            // Simular una ronda previa de Tiki para establecer prioridad de disparo desde el inicio
             tikiHistory.Clear();
 
             int startIndex = players.IndexOf(talismanHolder);
@@ -245,12 +448,6 @@ public class GameManager : NetworkBehaviour
             tikiHistory.Add(talismanHolder); // El actual poseedor va al final (último en tenerlo)
         }
 
-    }
-
-    public void RegisterPlayer(PlayerController player)//Registra a cada jugador usando OnStartServer() en PlayerController
-    {
-        if (!players.Contains(player))
-            players.Add(player);
     }
 
     #region AccumulatedDamageY/N
@@ -288,13 +485,6 @@ public class GameManager : NetworkBehaviour
             yield return executionPhaseCoroutine;
             ResetAllCovers(); //Elimina coberturas
         }
-    }
-
-    [ClientRpc]
-    public void RpcUpdateRoundUI(int roundNumber)
-    {
-        if (roundText != null)
-            roundText.text = $"Ronda: {roundNumber}";
     }
 
     #region MisionRapida
@@ -356,14 +546,15 @@ public class GameManager : NetworkBehaviour
     #endregion
     private IEnumerator DecisionPhase()
     {
-        timerAnimator.Play("TimerEnter");
+        AdvanceTalisman();
+        UpdateTikiVisual(talismanHolder);
 
         isDecisionPhase = true;
         currentRound++;
-        RpcUpdateRoundUI(currentRound);
 
         foreach (var player in players)
         {
+            player.syncedRound = currentRound;
             player.canDealDamageThisRound = true;
             player.hasDamagedAnotherPlayerThisRound = false;
         }
@@ -414,9 +605,9 @@ public class GameManager : NetworkBehaviour
 
         yield return new WaitForSeconds(0.1f); //Esperar que se actualize la lista de los jugadores
 
-        // Mostrar en pantalla la ronda actual
+        /*// Mostrar en pantalla la ronda actual
         if (roundText != null)
-            roundText.text = $"Ronda: {currentRound}";
+            roundText.text = $"Ronda: {currentRound}";*/
 
         foreach (var player in players)
         {
@@ -427,7 +618,7 @@ public class GameManager : NetworkBehaviour
         actionsQueue.Clear();
 
         currentDecisionTime = decisionTime; //Restaurar el tiempo original
-        timerText.gameObject.SetActive(true);
+        //timerText.gameObject.SetActive(true);
 
         Debug.Log("Comienza la fase de decisión. Jugadores decidiendo acciones");
 
@@ -435,6 +626,11 @@ public class GameManager : NetworkBehaviour
         {
             yield return new WaitForSeconds(1f);
             currentDecisionTime = Mathf.Max(0, currentDecisionTime - 1);
+
+            foreach (var player in players)
+            {
+                player.syncedTimer = currentDecisionTime;
+            }
         }
 
         isDecisionPhase = false;
@@ -457,8 +653,6 @@ public class GameManager : NetworkBehaviour
                 player.RpcSendLogToClients($"{player.playerName} no eligió ninguna acción, registrando 'None'.");
             }
         }
-
-        timerAnimator.Play("TimerExit");
 
         yield return new WaitForSeconds(0.5f);//Tiempo para que se ejecute la animación
     }
@@ -613,7 +807,7 @@ public class GameManager : NetworkBehaviour
                 player.TargetPlayAnimation(animName);
             }
         }
-        AdvanceTalisman();
+        
 
         damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
 
@@ -635,7 +829,7 @@ public class GameManager : NetworkBehaviour
 
     public bool IsDecisionPhase() => isDecisionPhase;//para saber cuando es Fase de decision y meter variables por ejemplo en el UpdateUI();
 
-    [ClientRpc]
+    /*[ClientRpc]
     private void RpcSpawnTalisman(uint holderNetId)
     {
         if (!NetworkClient.spawned.TryGetValue(holderNetId, out NetworkIdentity identity))
@@ -650,6 +844,15 @@ public class GameManager : NetworkBehaviour
         }
 
         talismanIconInstance.transform.position = targetPlayer.transform.position + talismanOffset;
+    }*/
+
+    [Server]
+    private void UpdateTikiVisual(PlayerController newHolder)
+    {
+        foreach (var player in players)
+        {
+            player.RpcSetTikiHolder(player == newHolder);
+        }
     }
 
     [Server]
@@ -668,7 +871,7 @@ public class GameManager : NetworkBehaviour
                 talismanHolder = players[nextIndex];
                 talismanHolderNetId = talismanHolder.netId;
 
-                RpcMoveTalisman(previousHolder.netId, talismanHolder.netId);
+                //RpcMoveTalisman(previousHolder.netId, talismanHolder.netId);
 
                 // ⬇️ ACTUALIZAR HISTORIAL
                 if (!tikiHistory.Contains(previousHolder))
@@ -694,7 +897,7 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-
+/*
     [ClientRpc]
     private void RpcMoveTalisman(uint fromNetId, uint toNetId)
     {
@@ -708,7 +911,7 @@ public class GameManager : NetworkBehaviour
 
         StopAllCoroutines();
         StartCoroutine(MoveTalismanVisual(start, end));
-    }
+    }*/
 
     private IEnumerator MoveTalismanVisual(Vector3 start, Vector3 end)
     {
@@ -954,29 +1157,6 @@ public class GameManager : NetworkBehaviour
 
     #endregion
 
-    #region UI HOOKS (Time)
-
-    private void OnTimerChanged(float oldTime, float newTime) //Control de timer de Decision
-    {
-        if (timerText != null)
-        {
-            int displayTime = Mathf.FloorToInt(newTime - 1.5f);
-
-            if(newTime > 0f && displayTime >= 0)
-            {
-                timerText.text = $"Tiempo: {displayTime}";
-                //timerText.gameObject.SetActive(true);
-            }
-            else
-            {
-                //timerText.gameObject.SetActive(false); // Ocultar cuando termina
-            }
-
-        }
-    }
-
-    #endregion
-
     #region OnPlayerDisconnect
 
     public void PlayerDisconnected(PlayerController player)
@@ -995,7 +1175,40 @@ public class GameManager : NetworkBehaviour
             gameStatistic.UpdatePlayerStats(player); // Guardamos su estado final
         }
 
+        CheckIfSceneShouldClose();
         CheckGameOver();
+    }
+
+    [Server]
+    private void CheckIfSceneShouldClose()
+    {
+        Scene currentScene = gameObject.scene;
+
+        // Buscar CustomRoomPlayers en esta escena
+        bool hasPlayers = false;
+
+        foreach (var player in NetworkServer.connections.Values)
+        {
+            if (player.identity != null)
+            {
+                if (player.identity.gameObject.scene == currentScene)
+                {
+                    hasPlayers = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasPlayers)
+        {
+            Debug.Log($"[GameManager] No quedan jugadores en {currentScene.name}. Cerrando escena.");
+
+            // Eliminar GameManager antes de cerrar
+            NetworkServer.Destroy(gameObject);
+
+            // Unload Scene
+            SceneManager.UnloadSceneAsync(currentScene);
+        }
     }
 
     #endregion

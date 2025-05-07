@@ -14,7 +14,7 @@ public class RolesManager : NetworkBehaviour
 
     private Dictionary<PlayerController, int> playerKills = new Dictionary<PlayerController, int>();
 
-        private void Awake()
+       /* private void Awake()
     {
         if (Instance != null && Instance != this)
         {
@@ -24,7 +24,7 @@ public class RolesManager : NetworkBehaviour
         {
             Instance = this;
         }
-    }
+    }*/
 
     [Server]
     public void RegisterKill(PlayerController killer, PlayerController victim)
