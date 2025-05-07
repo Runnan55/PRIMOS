@@ -5,10 +5,19 @@ using System.Collections.Generic;
 
 public class MainLobbyUI : MonoBehaviour
 {
+    [Header("Canvas")]
+    public GameObject startMenuCanvas;
+    public GameObject gameSelectionCanvas;
+
+    [Header("StartMenuButtons")]
+    public Button playButton;
+    public Button exitButton;
+
+    [Header("GameSelectionButtons")]
     public Button rankedButton;
     public Button casualButton;
-    public Button exitButton;
     public Button comingSoonButton;
+    public Button backToStartMenuButton;
 
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
@@ -21,11 +30,27 @@ public class MainLobbyUI : MonoBehaviour
 
     private void Start()
     {
+        playButton.onClick.AddListener(() => StartGameSelectionMenu());
+        backToStartMenuButton.onClick.AddListener(() => BackToStartMenu());
+
         //De momento rankedButton no hace nada
         //rankedButton.onClick.AddListener(() => JoinMode("Ranked")); 
         comingSoonButton.onClick.AddListener(() => Debug.Log("Este modo aún no está disponible."));
         casualButton.onClick.AddListener(() => JoinMode("Casual"));
-        exitButton.onClick.AddListener(() => Application.Quit());
+        //exitButton.onClick.AddListener(() => Application.Quit());
+        //Desactivé el exit button por mientras pq bugea en la web
+    }
+
+    private void StartGameSelectionMenu()
+    {
+        gameSelectionCanvas.SetActive(true);
+        startMenuCanvas.SetActive(false);
+    }
+
+    private void BackToStartMenu()
+    {
+        startMenuCanvas.SetActive(true);
+        gameSelectionCanvas.SetActive(false);
     }
 
     private void JoinMode(string mode)
