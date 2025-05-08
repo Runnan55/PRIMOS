@@ -2,6 +2,7 @@ using Mirror;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using TMPro;
 
 public class MainLobbyUI : MonoBehaviour
 {
@@ -12,6 +13,7 @@ public class MainLobbyUI : MonoBehaviour
     [Header("StartMenuButtons")]
     public Button playButton;
     public Button exitButton;
+    public TMP_InputField nameInputField;
 
     [Header("GameSelectionButtons")]
     public Button rankedButton;
@@ -30,6 +32,7 @@ public class MainLobbyUI : MonoBehaviour
 
     private void Start()
     {
+        nameInputField.onEndEdit.AddListener(OnNameEntered);
         playButton.onClick.AddListener(() => StartGameSelectionMenu());
         backToStartMenuButton.onClick.AddListener(() => BackToStartMenu());
 
@@ -39,6 +42,15 @@ public class MainLobbyUI : MonoBehaviour
         casualButton.onClick.AddListener(() => JoinMode("Casual"));
         //exitButton.onClick.AddListener(() => Application.Quit());
         //Desactivé el exit button por mientras pq bugea en la web
+    }
+
+    private void OnNameEntered(string playerName)
+    {
+        if (!string.IsNullOrWhiteSpace(playerName))
+        {
+            NetworkClient.connection.Send(new NameMessage { playerName = playerName });
+            Debug.Log($"Enviado al servidor: {playerName}");
+        }
     }
 
     private void StartGameSelectionMenu()
