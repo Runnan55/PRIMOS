@@ -47,6 +47,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         Debug.Log($"[CustomRoomPlayer] Soy el LocalPlayer en lobby. Mi ID es {playerId}");
     }
 
+    //Usar sismpre on StopClient para lógica frontEnd (UI,Elementos,Botones,AudioManager, referencias locales)
     public override void OnStopClient()
     {
         base.OnStopClient();
@@ -57,6 +58,19 @@ public class CustomRoomPlayer : NetworkBehaviour
             LocalInstance = null;
             Destroy(gameObject);
         }
+    }
+
+    //Usar siempre para lógica backEnd (Actualizar listas de server, cerrar GameScenes, abandonar partidas,etc)
+    public override void OnStopServer()
+    {
+        base.OnStopServer();
+        
+        if (!string.IsNullOrEmpty(currentMatchId))
+        {
+            MatchHandler.Instance.LeaveMatch(this);
+        }
+
+        Debug.Log($"[SERVER] CustomRoomPlayer desconectado: {playerName}");
     }
 
     private void OnMatchIdChanged(string oldId, string newId)
@@ -272,6 +286,28 @@ public class CustomRoomPlayer : NetworkBehaviour
                 RpcRefreshLobbyForAll();
             }
         }
+    }
+
+    [Command]
+    public void CmdLeaveLobbyMode()
+    {
+        if (!string.IsNullOrEmpty(currentMatchId))
+        {
+            MatchHandler.Instance.LeaveMatch(this);
+        }
+
+        currentMode = null;
+
+        TargetReturnToMainMenu(connectionToClient);
+    }
+
+    [TargetRpc]
+    public void TargetReturnToMainMenu(NetworkConnection target)
+    {
+        SceneLoaderManager.Instance.LoadScene("MainScene"); // o "StartScene" si lo llamas así
+
+        // Opcional: resetear UI o estado si lo necesitas
+        Debug.Log("[CLIENT] Volviendo a menú principal...");
     }
 
     [ClientRpc]

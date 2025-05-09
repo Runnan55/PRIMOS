@@ -5173,7 +5173,6 @@ MonoBehaviour:
   - 0.01
   consecutiveCovers: 0
   selectedAction: 0
-  canvasLoadingStartGame: {fileID: 0}
   playerCanvas: {fileID: 6763009721230364306}
   deathCanvas: {fileID: 393881727458850209}
   victoryCanvas: {fileID: 8439898598870495268}

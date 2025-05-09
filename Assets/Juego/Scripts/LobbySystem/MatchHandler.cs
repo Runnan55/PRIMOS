@@ -44,7 +44,7 @@ public class MatchHandler : NetworkBehaviour
         creator.isAdmin = true;
 
         creator.RpcRefreshLobbyForAll();
-        RpcRefreshMatchList();
+        RefreshMatchListForMode(mode);
 
         return true;
     }
@@ -61,7 +61,7 @@ public class MatchHandler : NetworkBehaviour
         player.isAdmin = false;
 
         player.RpcRefreshLobbyForAll();
-        RpcRefreshMatchList();
+        RefreshMatchListForMode(match.mode);
 
         return true;
     }
@@ -87,6 +87,7 @@ public class MatchHandler : NetworkBehaviour
         {
             matches.Remove(player.currentMatchId);
             partidasActivas--; // <--- restamos
+            RefreshMatchListForMode(match.mode);
             Debug.Log($"[SERVER] Partida eliminada. Total partidas activas: {partidasActivas}");
         }
         else
@@ -116,17 +117,25 @@ public class MatchHandler : NetworkBehaviour
         player.TargetForceReturnToLobby(player.connectionToClient);
     }
 
-    [ClientRpc]
-    public void RpcRefreshMatchList()
+    //Funcion para actualizar los Matchs para los jugadores de una sola sala casual, ranked, etc
+    [Server]
+    public void RefreshMatchListForMode(string mode)
     {
-        if (!isClientOnly) return; //Evitar que se llame en el server
-
-        LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
-        if (ui != null)
+        foreach (var conn in NetworkServer.connections.Values)
         {
-            ui.RequestMatchList(); // Pedimos actualizar lista
+            if (conn.identity == null) continue;
+
+            var roomPlayer = conn.identity.GetComponent<CustomRoomPlayer>();
+            if (roomPlayer == null) continue;
+
+            // Solo enviar si están en el lobby del modo correspondiente y no en partida
+            if (roomPlayer.currentMode == mode && !roomPlayer.isPlayingNow)
+            {
+                roomPlayer.TargetRequestMatchList(conn);
+            }
         }
     }
+
 
     public List<MatchInfo> GetMatches(string mode)
     {
@@ -138,7 +147,6 @@ public class MatchHandler : NetworkBehaviour
                 filteredMatches.Add(match);
             }
         }
-
         return filteredMatches;
     }
 

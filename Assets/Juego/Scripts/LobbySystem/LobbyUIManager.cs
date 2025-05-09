@@ -9,6 +9,7 @@ public class LobbyUIManager : MonoBehaviour
     [Header("UIPanels")]
     public GameObject lobbyPanel;
     public GameObject roomPanel;
+    public Button backToMainMenuButton;
 
     [Header("MatchList")]
     public Transform matchListContainer;
@@ -50,6 +51,8 @@ public class LobbyUIManager : MonoBehaviour
         if (localPlayer == null && NetworkClient.connection?.identity != null)
         {
             localPlayer = NetworkClient.connection.identity.GetComponent<CustomRoomPlayer>();
+
+            backToMainMenuButton.onClick.AddListener(ReturnToMainMenu);
         }
     }
 
@@ -62,6 +65,14 @@ public class LobbyUIManager : MonoBehaviour
 
             ShowRoomPanel();
             RequestMatchList();
+        }
+    }
+
+    public void ReturnToMainMenu()
+    {
+        if (CustomRoomPlayer.LocalInstance != null)
+        {
+            CustomRoomPlayer.LocalInstance.CmdLeaveLobbyMode();
         }
     }
 
