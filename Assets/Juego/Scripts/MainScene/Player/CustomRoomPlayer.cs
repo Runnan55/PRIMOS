@@ -207,43 +207,10 @@ public class CustomRoomPlayer : NetworkBehaviour
         if (isLocalPlayer)
         {
             CustomSceneInterestManager.Instance.RegisterPlayer(NetworkClient.connection, currentMatchId); // Asignar escena real
-
-            // Solo cliente local, instanciar GameManager local
-            if (GameManager.Instance == null)
-            {
-                GameObject gmInstance = Instantiate(NetworkManager.singleton.GetComponent<CustomNetworkManager>().gameManagerPrefab);
-                //DontDestroyOnLoad(gmInstance);
-
-                ///IMPORTANTISIMO AAAAAAAAAAAAAAAAH, VERIFICAR SI EL GAMEMANGER ES NECESARIO PARA INSTANCIAR, O SI PODEMOS ELIMINARLO EN LOS CLIENTES Y USAR SOLO EN EL SERVER CTM GAAAA
-                GameManager gm = gmInstance.GetComponent<GameManager>();
-                gm.matchId = currentMatchId; // <-- Asignar matchId para sincronizar la partida
-
-                Debug.Log($"[CLIENT] GameManager local instanciado para cliente con matchId {currentMatchId}");
-            }
         }
 
         CmdNotifySceneReady();
     }
-
-    /*[Command]
-    private void CmdNotifySceneReady()
-    {
-        Debug.Log($"[SERVER] Cliente {playerName} avisó que cargó GameScene");
-
-        var identity = GetComponent<NetworkIdentity>();
-        if (identity != null)
-        {
-            identity.sceneId = 0;
-            NetworkServer.RebuildObservers(identity, true);
-        }
-
-        isPlayingNow = true;
-        /*
-        if (MatchHandler.Instance.AreAllPlayersReadyToStart(currentMatchId))
-        {
-            MatchHandler.Instance.TrySpawnGameManagerForMatch(currentMatchId);
-        }
-    }*/
 
     [Command]
     private void CmdNotifySceneReady()
@@ -279,9 +246,8 @@ public class CustomRoomPlayer : NetworkBehaviour
         }
     }
 
-
-    //IMPORTANTE USAR ESTO CUANDO VAYAMOS A SALIR DE UNA ESCENA POR QUE SINO LUEGO DARÄ ERRORES Y MARCARA AL JUGADOR COMO QUE SIGUE JUGANDO DE MOMENTO ESTA INACTIVO PERO HAY QUE CONECTARLO 
-    //EVENTUALMENTE AAAAAAAAAAAAAAAHHHHHHHHHHHH MI PISHULAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    //IMPORTANTE USAR ESTO CUANDO VAYAMOS A SALIR DE UNA ESCENA POR QUE SINO LUEGO DARÄ ERRORES Y MARCARA AL JUGADOR COMO QUE SIGUE JUGANDO, DE MOMENTO ESTA INACTIVO 
+    //PERO HABRÄ QUE CONECTARLO EVENTUALMENTE AAAAAAAAAAAAAAAHHHHHHHHHHHH MI PISHULAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     [Server]
     public void OnLeftGame()
     {

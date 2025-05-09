@@ -65,10 +65,14 @@ public class GameManager : NetworkBehaviour
     
 
     private int currentRound = 0; // Contador de rondas
-    //[SerializeField] private TMP_Text roundText; // Texto en UI para mostrar la ronda
-    
-    [Header("Draw")]
+                                  //[SerializeField] private TMP_Text roundText; // Texto en UI para mostrar la ronda
+
+    [Header("LoadingScreen")]
+    private LoadingScreenManager loadingScreen;
+
+    [Header("StartEndDraw")]
     private bool isDraw = false;
+    private bool isGameStarted = false;
 
     [Header("Animations")]
     [SerializeField] private Animator timerAnimator;
@@ -123,19 +127,6 @@ public class GameManager : NetworkBehaviour
         Debug.LogWarning("GameManager ha sido desactivado!", this);
     }
 
-    /*private void Awake()
-    {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(this);
-        }
-        else
-        {
-            Instance = this;
-            Debug.Log("GameManager activo en Awake: " + gameObject.activeSelf, this);
-        }
-    }*/
-
     private void Start()
     {
         Debug.Log("GameManager activo en Start: " + gameObject.activeSelf, this);
@@ -161,7 +152,6 @@ public class GameManager : NetworkBehaviour
         base.OnStartServer();
 
         Debug.Log("[GameManager] Iniciado en servidor.");
-        //StartCoroutine(DelayedStartCheck());
     }
 
     [Server]
@@ -222,121 +212,9 @@ public class GameManager : NetworkBehaviour
             players.Add(player);
             Debug.Log($"[GameManager] Jugador registrado: {player.playerName}");
 
-            // Verificar si todos ya ingresaron nombre
+            // Verificar si podemos empezar la partida
             CheckAllPlayersReady();
         }
-    }
-
-    /*public void RegisterPlayer(PlayerController player)//Registra a cada jugador usando OnStartServer() en PlayerController
-    {
-        if (!players.Contains(player))
-            players.Add(player);
-    }*/
-
-    /*[Server]
-    public void UnregisterPlayer(PlayerController player)
-    {
-        if (players.Contains(player))
-        {
-            players.Remove(player);
-            Debug.Log($"[GameManager] Jugador removido: {player.playerName}");
-
-            
-            CheckGameOver();
-        }
-    }*/
-
-    
-
-    private IEnumerator DelayedStartCheck()
-    {
-        yield return new WaitForSeconds(0.5f); // Mejor medio segundo para asegurar
-
-        // Obtener MatchInfo usando el matchId
-        MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
-        if (match == null)
-        {
-            Debug.LogError($"[GameManager] No se encontró MatchInfo para matchId {matchId}");
-            yield break;
-        }
-
-        yield return null; // Esperar un frame para que la escena se actualice en los objetos (importante)
-
-        List<CustomRoomPlayer> validPlayers = new List<CustomRoomPlayer>();
-
-        foreach (var roomPlayer in match.players)
-        {
-            if (roomPlayer.isPlayingNow)
-                validPlayers.Add(roomPlayer);
-        }
-
-        Debug.Log($"[GameManager] Jugadores encontrados para partida: {validPlayers.Count}");
-
-        if (validPlayers.Count > 0)
-        {
-            StartGame(validPlayers);
-        }
-        else
-        {
-            Debug.LogWarning("[GameManager] No se encontraron jugadores válidos para iniciar la partida.");
-        }
-    }
-
-    /*[Server]
-    private void StartGame(List<CustomRoomPlayer> players)
-    {
-        Debug.Log("[GameManager] Iniciando partida...");
-
-        // Obtener puntos de spawn SOLO de la escena en la que está este GameManager
-        NetworkStartPosition[] spawnPositions = gameObject.scene.GetRootGameObjects()
-            .SelectMany(go => go.GetComponentsInChildren<NetworkStartPosition>())
-            .ToArray();
-
-        if (spawnPositions.Length == 0)
-        {
-            Debug.LogError("[GameManager] ERROR → No se encontraron NetworkStartPositions en la escena.");
-        }
-
-        for (int i = 0; i < players.Count; i++)
-        {
-            CustomRoomPlayer roomPlayer = players[i];
-
-            // Calcular posición de spawn
-            Vector3 spawnPos = spawnPositions.Length > 0
-                ? spawnPositions[i % spawnPositions.Length].transform.position
-                : Vector3.zero;
-
-            if (playerControllerPrefab == null)
-            {
-                Debug.LogError("[GameManager] PlayerController prefab no asignado!");
-                continue;
-            }
-
-            // Instanciar el PlayerController
-            GameObject playerInstance = Instantiate(playerControllerPrefab, spawnPos, Quaternion.identity);
-
-            // Spawn en red vinculado al cliente correcto
-            NetworkServer.Spawn(playerInstance, roomPlayer.connectionToClient);
-
-            // Mover a la escena correcta
-            SceneManager.MoveGameObjectToScene(playerInstance, gameObject.scene);
-
-            // Configurar el PlayerController
-            PlayerController controller = playerInstance.GetComponent<PlayerController>();
-            controller.playerName = roomPlayer.playerName;
-
-            Debug.Log($"[GameManager] PlayerController instanciado para {roomPlayer.playerName}");
-        }
-    }*/
-
-    [Server]
-    private void StartGame(List<CustomRoomPlayer> players)
-    {
-        Debug.Log("[GameManager] Iniciando partida...");
-
-        // En lugar de eso → solo arrancar rondas:
-        Debug.Log("[GameManager] Todos los jugadores están listos. Iniciando rondas...");
-        roundCycleCoroutine = StartCoroutine(RoundCycle());
     }
 
     #endregion
@@ -398,35 +276,37 @@ public class GameManager : NetworkBehaviour
 
     public void CheckAllPlayersReady()
     {
-        if (!isServer) return;
+        if (!isServer || isGameStarted) return;
+
+        Debug.Log("[GameManager] Verificando jugadores conectados...");
+
+        MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
+        if (match == null) return;
+
+        if (match.players.Count != players.Count)
+        {
+            Debug.Log($"[GameManager] Esperando... esperados: {match.players.Count}, instanciados: {players.Count}");
+            return;
+        }
+
+        isGameStarted = true;
+        StartCoroutine (BegingameAfterDelay()); //Usamos esto para agregar una pantalla de LOADING, para la ilusión de espera, LOL
+    }
+
+    [Server]
+    private IEnumerator BegingameAfterDelay()
+    {
+        yield return new WaitForSeconds(3f); //Tiempo de carga falsa
 
         if (gameStatistic != null)
         {
             gameStatistic.Initialize(players);
         }
 
-        foreach (var player in players)
+        foreach (var p in players)
         {
-            if (!player.hasConfirmedName)
-            {
-                Debug.Log("No todos los jugadores han ingresado su nombre");
-                return;
-            }
+            p.RpcHideLoadingScreen();
         }
-
-        if (randomizeModifier)
-        {
-            ChooseRandomModifier();
-        }
-
-        Debug.Log($"[GameManager] Modificador seleccionado: {SelectedModifier}");
-        ApplyGameModifier(SelectedModifier);
-
-        Debug.Log("Todos los jugadores han ingresado su nombre. ¡La partida puede comenzar!");
-        roundCycleCoroutine = StartCoroutine(RoundCycle());
-
-        talismanHolder = players.FirstOrDefault(p => p.isAlive); // El primero con vida
-        Debug.Log($"[Talisman] Se asignó el talismán a {talismanHolder.playerName}");
 
         if (talismanHolder != null)
         {
@@ -446,6 +326,29 @@ public class GameManager : NetworkBehaviour
             }
 
             tikiHistory.Add(talismanHolder); // El actual poseedor va al final (último en tenerlo)
+        }
+
+        if (randomizeModifier)
+        {
+            ChooseRandomModifier();
+        }
+
+        Debug.Log($"[GameManager] Modificador seleccionado: {SelectedModifier}");
+        ApplyGameModifier(SelectedModifier);
+
+        Debug.Log("Todos los jugadores han ingresado su nombre. ¡La partida puede comenzar!");
+        roundCycleCoroutine = StartCoroutine(RoundCycle());
+
+        talismanHolder = players.FirstOrDefault(p => p.isAlive); // El primero con vida
+        Debug.Log($"[Talisman] Se asignó el talismán a {talismanHolder.playerName}");
+
+        if (loadingScreen != null)
+        {
+            loadingScreen.HideLoading();
+        }
+        else
+        {
+            Debug.LogWarning("No se encontró el LoadingScreenManager.");
         }
 
     }
@@ -604,10 +507,6 @@ public class GameManager : NetworkBehaviour
         }
 
         yield return new WaitForSeconds(0.1f); //Esperar que se actualize la lista de los jugadores
-
-        /*// Mostrar en pantalla la ronda actual
-        if (roundText != null)
-            roundText.text = $"Ronda: {currentRound}";*/
 
         foreach (var player in players)
         {
@@ -829,23 +728,6 @@ public class GameManager : NetworkBehaviour
 
     public bool IsDecisionPhase() => isDecisionPhase;//para saber cuando es Fase de decision y meter variables por ejemplo en el UpdateUI();
 
-    /*[ClientRpc]
-    private void RpcSpawnTalisman(uint holderNetId)
-    {
-        if (!NetworkClient.spawned.TryGetValue(holderNetId, out NetworkIdentity identity))
-            return;
-
-        PlayerController targetPlayer = identity.GetComponent<PlayerController>();
-        if (targetPlayer == null || talismanIconPrefab == null) return;
-
-        if (talismanIconInstance == null)
-        {
-            talismanIconInstance = Instantiate(talismanIconPrefab);
-        }
-
-        talismanIconInstance.transform.position = targetPlayer.transform.position + talismanOffset;
-    }*/
-
     [Server]
     private void UpdateTikiVisual(PlayerController newHolder)
     {
@@ -896,22 +778,6 @@ public class GameManager : NetworkBehaviour
             }
         }
     }
-
-/*
-    [ClientRpc]
-    private void RpcMoveTalisman(uint fromNetId, uint toNetId)
-    {
-        NetworkIdentity fromIdentity = NetworkClient.spawned[fromNetId];
-        NetworkIdentity toIdentity = NetworkClient.spawned[toNetId];
-
-        if (fromIdentity == null || toIdentity == null || talismanIconInstance == null) return;
-
-        Vector3 start = fromIdentity.transform.position + talismanOffset;
-        Vector3 end = toIdentity.transform.position + talismanOffset;
-
-        StopAllCoroutines();
-        StartCoroutine(MoveTalismanVisual(start, end));
-    }*/
 
     private IEnumerator MoveTalismanVisual(Vector3 start, Vector3 end)
     {
@@ -1035,7 +901,6 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-
     private void StopGamePhases()
     {
         if (roundCycleCoroutine != null)
@@ -1115,7 +980,6 @@ public class GameManager : NetworkBehaviour
             deadPlayer.RpcOnDeath();
         }
     }
-
 
     [Server]
     private void ResetAllCovers()//Elimina coberturas al finalizar una ronda

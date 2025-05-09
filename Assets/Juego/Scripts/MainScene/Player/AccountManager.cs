@@ -39,16 +39,32 @@ public class AccountManager : NetworkBehaviour
         Debug.Log($"[AccountManager] Player registrado: {playerName} (ID {playerId})");
     }
 
+    public void UnregisterPlayer(NetworkConnectionToClient conn)
+    {
+        if (playerAccounts.ContainsKey(conn))
+            playerAccounts.Remove(conn);
+    }
+
     public PlayerAccountData GetPlayerData(NetworkConnectionToClient conn)
     {
         playerAccounts.TryGetValue(conn, out var data);
         return data;
     }
 
-    public void UnregisterPlayer(NetworkConnectionToClient conn)
+    public bool HasDataFor(NetworkConnectionToClient conn)
     {
-        if (playerAccounts.ContainsKey(conn))
-            playerAccounts.Remove(conn);
+        return playerAccounts.ContainsKey(conn);
     }
+
+    public void UpdatePlayerName(NetworkConnectionToClient conn, string newName)
+    {
+        if (playerAccounts.TryGetValue(conn, out var data))
+        {
+            data.playerName = newName;
+            Debug.Log($"[AccountManager] Nombre actualizado a: {newName}");
+        }
+            
+    }
+    
 }
 

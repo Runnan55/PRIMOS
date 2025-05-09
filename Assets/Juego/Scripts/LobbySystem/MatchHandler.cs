@@ -251,7 +251,6 @@ public class MatchHandler : NetworkBehaviour
         Debug.Log($"[MatchHandler] GameManager spawn para {match.matchId}");
     }
 
-
     public bool AreAllPlayersInGameScene(string matchId)
     {
         if (!matches.TryGetValue(matchId, out MatchInfo match)) return false;

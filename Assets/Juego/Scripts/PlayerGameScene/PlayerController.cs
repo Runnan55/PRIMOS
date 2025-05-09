@@ -51,7 +51,6 @@ public class PlayerController : NetworkBehaviour
     public ActionType selectedAction = ActionType.None;
 
     [Header("UI Elements")]
-    public GameObject canvasInicioPartida; //Elegir nombre jugador
     public GameObject playerCanvas;
     public GameObject deathCanvas;
     public GameObject victoryCanvas;
@@ -68,7 +67,6 @@ public class PlayerController : NetworkBehaviour
     public TMP_Text coverProbabilityText;
     public TMP_Text countdownText;
     public TMP_Text playerNameText;
-    public TMP_InputField nameInputField;
 
     [Header("UI Buttons")]
     public Button shootButton;
@@ -142,8 +140,6 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-
-
     private void Start()
     {
         if (GameManager.Instance != null)
@@ -168,12 +164,7 @@ public class PlayerController : NetworkBehaviour
             reloadButton.interactable = (false);
             coverButton.interactable = (false);
 
-            canvasInicioPartida.SetActive(true); // Solo el jugador local ve su propio Canvas
             localPlayerIndicator.SetActive(true);
-
-            nameInputField.gameObject.SetActive(true);
-            nameInputField.characterLimit = 20; //Límite de caracteres en InputField
-            nameInputField.onEndEdit.AddListener(CmdSetPlayerName);
 
             deathCanvas.SetActive(false);
             victoryCanvas.SetActive(false);
@@ -188,11 +179,8 @@ public class PlayerController : NetworkBehaviour
         }
         else
         {
-            canvasInicioPartida.SetActive(false); // Ocultar para los demás jugadores
             playerCanvas.SetActive(false);
             localPlayerIndicator.SetActive(false);
-
-            nameInputField.gameObject.SetActive(false);
         }
 
         fullHealth = health; //guardamos el valor inicial de health
@@ -209,12 +197,6 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public string playerId;
 
     public CustomRoomPlayer ownerRoomPlayer;
-/*
-    public override void OnStartLocalPlayer()
-    {
-        base.OnStartLocalPlayer();
-        Debug.Log($"[PlayerController] Soy el LocalPlayer de {playerName} (ID: {playerId})");
-    }*/
 
     #endregion
 
@@ -232,8 +214,6 @@ public class PlayerController : NetworkBehaviour
     {
         base.OnStartServer();
 
-        //FindFirstObjectByType<GameManager>()?.RegisterPlayer(this);
-
         DetectSpawnPosition(transform.position); //Setear orientacion y posición usando la posición actual
     }
 
@@ -244,7 +224,7 @@ public class PlayerController : NetworkBehaviour
         {
             Debug.Log("Estoy funcionando cariño");
         }
-        // Esto funciona mierda HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH POR FIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIINB
+        // Esto funciona mierda AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH POR FIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIN LA RPTMR QUE ME REMILRECONTRAPARIOOO
 
         if (!isLocalPlayer && !isOwned) return;
 
@@ -353,10 +333,10 @@ public class PlayerController : NetworkBehaviour
 
     void OnNameConfirmedChanged(bool oldValue, bool newValue) //Indicar al server que este player eligio nombre
     {
-        if ((isLocalPlayer || isOwned) && newValue)
+        /*if ((isLocalPlayer || isOwned) && newValue)
         {
             canvasInicioPartida.SetActive(false);
-        }
+        }*/
     }
 
     void OnNameChanged(string oldName, string newName)
@@ -896,17 +876,6 @@ public class PlayerController : NetworkBehaviour
 
     }
 
-    [Command]
-    void CmdSetPlayerName(string newName)
-    {
-        if (!string.IsNullOrWhiteSpace(newName)) //Evitar nombres vacios de jugadores
-        {
-            playerName = newName;
-            hasConfirmedName = true;
-            GameManager./*Instance.*/CheckAllPlayersReady(); //Llamar al servidor para iniciar partida
-        }
-    }
-
     #endregion
 
     #region SERVER
@@ -1099,4 +1068,24 @@ public class PlayerController : NetworkBehaviour
     }
 
     #endregion
+
+    [ClientRpc]
+    public void RpcHideLoadingScreen()
+    {
+        if (isOwned)
+        {
+            Debug.Log("Clienteeeeeeeeeeeeeeeeeeeee");
+        }
+
+        var screen = FindFirstObjectByType<LoadingScreenManager>();
+        if (screen != null)
+        {
+            screen.HideLoading();
+            Debug.Log("[CLIENT] Canvas de carga ocultado por GameManager");
+        }
+        else
+        {
+            Debug.LogWarning("[CLIENT] No se encontró LoadingScreenManager para ocultar");
+        }
+    }
 }

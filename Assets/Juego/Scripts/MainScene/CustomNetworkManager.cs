@@ -1,4 +1,5 @@
 using System.Collections;
+using Microsoft.Win32.SafeHandles;
 using Mirror;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -50,15 +51,31 @@ public class CustomNetworkManager : NetworkManager
 
     public void OnClientSendName(NetworkConnectionToClient conn, string playerName)
     {
-        string playerId = System.Guid.NewGuid().ToString();
-        AccountManager.Instance.RegisterPlayer(conn, playerName, playerId);
+        //Sí el jugador ya tiene un CustomRoomPlayer asignado
+        if (conn.identity != null)
+        {
+            var existingRoomPlayer = conn.identity.GetComponent<CustomRoomPlayer>();
 
-        GameObject playerObj = Instantiate(roomPlayerPrefab);
-        var roomPlayer = playerObj.GetComponent<CustomRoomPlayer>();
-        roomPlayer.playerId = playerId;
-        roomPlayer.playerName = playerName; //<--- YA LE PASAMOS EL NOMBRE
+            if (existingRoomPlayer !=null)
+            {
+                existingRoomPlayer.playerName = playerName;
 
-        NetworkServer.AddPlayerForConnection(conn, playerObj);
+                if (!AccountManager.Instance.HasDataFor(conn))
+                {
+                    string playerId = System.Guid.NewGuid().ToString();
+                    AccountManager.Instance.RegisterPlayer(conn, playerName, playerId);
+                    existingRoomPlayer.playerId = playerId;
+                }
+                else
+                {
+                    // Solo Actualizar el nombre en AccountManager si ya está registrado
+                    AccountManager.Instance.UpdatePlayerName(conn, playerName);
+                }
+
+                Debug.Log($"[SERVER] Se actualizó el nombre del jugador existente a: {playerName}");
+                return;
+            }
+        }
     }
 
     private void OnReceiveNameMessage(NetworkConnectionToClient conn, NameMessage msg)
