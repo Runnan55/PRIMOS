@@ -5,10 +5,11 @@ using Mirror;
 
 public class LobbyListItemUI : MonoBehaviour
 {
-    public TMP_Text matchIdText;
-    public Button joinButton;
-
     private string matchId;
+    public TMP_Text matchIdText;
+    
+    public Button joinButton;
+    public TMP_Text playersCountText;
     private LobbyUIManager lobbyManager;
 
     public void Setup(string id, LobbyUIManager manager)

@@ -127,32 +127,6 @@ public class LobbyUIManager : MonoBehaviour
         }
     }
 
-    public void RefreshLobbyUI()
-    {
-        if (localPlayer == null) return;
-
-        MatchInfo match = null;
-
-        if (!string.IsNullOrEmpty(localPlayer.currentMatchId))
-        {
-            match = MatchHandler.Instance.GetMatch(localPlayer.currentMatchId);
-        }
-
-        if (match != null)
-        {
-            UpdatePlayerList(match.players, match.admin.playerId);
-            UpdateRoomInfoText(); //VERIFICAR ESO POR LA PTMR POR QUE NO SE ESTÄ LLAMANDO ME CAGO EN MIRROR Y LOS JUEGOS MULTIPLAYERS AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHH
-            //Verificar bien luego que MIRDA HACE ESTE BLOQUE POR QUE NO LO ESTOY ENTENDIENDO; ME HE PERDIDO HACE MUCHO TIEMPO
-        }
-        else
-        {
-            // Si no estamos en una partida, limpiamos la lista de jugadores
-            foreach (Transform child in playerListContainer)
-                Destroy(child.gameObject);
-
-            UpdateRoomInfoText(); // También actualizamos la info del panel (aunque sea vacía)
-        }
-    }
     private void UpdateReadyButtonVisual(bool isReady)
     {
         ColorBlock colors = readyButton.colors;
@@ -173,29 +147,6 @@ public class LobbyUIManager : MonoBehaviour
         readyButton.colors = colors;
     }
 
-    public void UpdatePlayerList(List<CustomRoomPlayer> players, string adminId)
-    {
-        /*foreach (Transform child in playerListContainer)
-        {
-            Destroy(child.gameObject);
-        }
-
-        foreach (var player in players)
-        {
-            GameObject newItem = Instantiate(playerListItemPrefab, playerListContainer);
-            var playerUI = newItem.GetComponent<LobbyPlayerItemUI>();
-            bool showKick = (adminId == localAdminId) && (player.playerId != localPlayer.playerId);
-            playerUI.Setup(
-                player.playerName,
-                player.isReady,
-                showKick,
-                this,
-                player.playerId,
-                adminId == player.playerId
-                );
-        }*/
-    }
-
     public void UpdatePlayerListFromData(List<PlayerDataForLobby> players, string adminId)
     {
         foreach (Transform child in playerListContainer)
@@ -206,11 +157,10 @@ public class LobbyUIManager : MonoBehaviour
             GameObject newItem = Instantiate(playerListItemPrefab, playerListContainer);
             var playerUI = newItem.GetComponent<LobbyPlayerItemUI>();
 
-            bool showKick = (adminId == localAdminId) && (player.playerId != CustomRoomPlayer.LocalInstance.playerId);
+            bool showKick = CustomRoomPlayer.LocalInstance.isAdmin && player.playerId != CustomRoomPlayer.LocalInstance.playerId;
             playerUI.Setup(player.playerName, player.isReady, showKick, this, player.playerId, adminId == player.playerId);
         }
     }
-
 
     public void UpdateRoomInfoText()
     {
@@ -247,6 +197,4 @@ public class LobbyUIManager : MonoBehaviour
         lobbyPanel.SetActive(false);
         roomPanel.SetActive(true);
     }
-
-
 }

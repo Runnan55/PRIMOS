@@ -150,7 +150,6 @@ public class CustomRoomPlayer : NetworkBehaviour
         CmdRequestMatchList();
     }
 
-
     #region crearPartidas
 
     [Command]
@@ -181,7 +180,13 @@ public class CustomRoomPlayer : NetworkBehaviour
     public void CmdToggleReady()
     {
         isReady = !isReady;
-        MatchHandler.Instance.CheckStartGame(currentMatchId);
+        //MatchHandler.Instance.CheckStartGame(currentMatchId);
+        MatchInfo match = MatchHandler.Instance.GetMatch(currentMatchId);
+        if (match != null)
+        {
+            MatchHandler.Instance.CheckStartGame(currentMatchId);
+            MatchHandler.Instance.SendLobbyUIUpdateToAll(match);
+        }
         RpcRefreshLobbyForAll();
     }
 
@@ -194,6 +199,8 @@ public class CustomRoomPlayer : NetworkBehaviour
             ui.ShowLobbyPanel();       // Mostrar vista de partidas
             ui.RequestMatchList();     // Forzar actualizar la lista
         }
+
+        Debug.Log("Te expulsaron CheBoludo, andás queriendo hacerte el graciocete eh pelotudo?");
     }
 
     [TargetRpc]
@@ -267,7 +274,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     {
         isPlayingNow = false;
     }
-
+    
     [Command]
     public void CmdKickPlayer(string targetPlayerId)
     {
@@ -281,9 +288,16 @@ public class CustomRoomPlayer : NetworkBehaviour
             if (playerToKick != null)
             {
                 match.players.Remove(playerToKick);
-                playerToKick.connectionToClient.Disconnect();
 
-                RpcRefreshLobbyForAll();
+                // Limpiar estado del jugador
+                playerToKick.currentMatchId = null;
+                playerToKick.isAdmin = false;
+
+                // Enviar al lobby principal
+                playerToKick.TargetForceReturnToLobby(playerToKick.connectionToClient);
+
+                // Refrescar visuales para los que quedan
+                MatchHandler.Instance.SendLobbyUIUpdateToAll(match);
             }
         }
     }
@@ -316,18 +330,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
         if (ui != null)
         {
-            ui.RefreshLobbyUI();
-        }
-    }
-
-    [TargetRpc]
-    public void TargetUpdateAdmin(string newAdminId)
-    {
-        LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
-        if (ui != null)
-        {
-            ui.localAdminId = newAdminId;  // <- Guardás quien es el Admin en UI
-            ui.RefreshLobbyUI();           // <- Refrescás botones / lista
+            ui.UpdateRoomInfoText();
         }
     }
     #endregion

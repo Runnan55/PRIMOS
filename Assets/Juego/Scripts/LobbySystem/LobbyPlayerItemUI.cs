@@ -7,7 +7,8 @@ public class LobbyPlayerItemUI : MonoBehaviour
     public TMP_Text playerNameText;
     //public TMP_Text readyStatusText;
     public Button kickButton;
-    public Image adminIcon;
+    public GameObject adminIcon;
+    public GameObject readyIcon;
 
     private string playerId;
     private LobbyUIManager lobbyManager;
@@ -18,10 +19,17 @@ public class LobbyPlayerItemUI : MonoBehaviour
         lobbyManager = manager;
 
         playerNameText.text = name;
-        //readyStatusText.text = isReady ? "Ready" : "Not Ready";
+
+        // Nuevo: activar imagen de Ready
+        if (readyIcon != null)
+        {
+            readyIcon.SetActive(isReady);
+        }
 
         kickButton.gameObject.SetActive(showKickButton);
         adminIcon.gameObject.SetActive(isAdmin);
+
+        kickButton.onClick.RemoveAllListeners();
         kickButton.onClick.AddListener(KickThisPlayer);
     }
 
