@@ -44,6 +44,7 @@ public class MatchHandler : NetworkBehaviour
         creator.isAdmin = true;
 
         creator.RpcRefreshLobbyForAll();
+        SendLobbyUIUpdateToAll(newMatch);
         RefreshMatchListForMode(mode);
 
         return true;
@@ -61,6 +62,7 @@ public class MatchHandler : NetworkBehaviour
         player.isAdmin = false;
 
         player.RpcRefreshLobbyForAll();
+        SendLobbyUIUpdateToAll(match);
         RefreshMatchListForMode(match.mode);
 
         return true;
@@ -110,6 +112,8 @@ public class MatchHandler : NetworkBehaviour
             {
                 p.RpcRefreshLobbyForAll();
             }
+
+            SendLobbyUIUpdateToAll(match);
         }
 
         player.currentMatchId = null;
@@ -282,4 +286,28 @@ public class MatchHandler : NetworkBehaviour
             player.TargetStartGame(player.connectionToClient, match.sceneName);
         }
     }
+
+    #region SnippetForRefreshLobbyRoomPlayerUI
+
+    private void SendLobbyUIUpdateToAll(MatchInfo match)
+    {
+        List<PlayerDataForLobby> playerDataList = new();
+
+        foreach (var p in match.players)
+        {
+            playerDataList.Add(new PlayerDataForLobby
+            {
+                playerName = p.playerName,
+                playerId = p.playerId,
+                isReady = p.isReady
+            });
+        }
+
+        foreach (var p in match.players)
+        {
+            p.TargetUpdateLobbyUI(p.connectionToClient, playerDataList, match.admin.playerId);
+        }
+    }
+
+    #endregion
 }

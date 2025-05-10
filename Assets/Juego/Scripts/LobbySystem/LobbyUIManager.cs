@@ -141,7 +141,8 @@ public class LobbyUIManager : MonoBehaviour
         if (match != null)
         {
             UpdatePlayerList(match.players, match.admin.playerId);
-            UpdateRoomInfoText();
+            UpdateRoomInfoText(); //VERIFICAR ESO POR LA PTMR POR QUE NO SE ESTÄ LLAMANDO ME CAGO EN MIRROR Y LOS JUEGOS MULTIPLAYERS AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHH
+            //Verificar bien luego que MIRDA HACE ESTE BLOQUE POR QUE NO LO ESTOY ENTENDIENDO; ME HE PERDIDO HACE MUCHO TIEMPO
         }
         else
         {
@@ -174,7 +175,7 @@ public class LobbyUIManager : MonoBehaviour
 
     public void UpdatePlayerList(List<CustomRoomPlayer> players, string adminId)
     {
-        foreach (Transform child in playerListContainer)
+        /*foreach (Transform child in playerListContainer)
         {
             Destroy(child.gameObject);
         }
@@ -184,9 +185,32 @@ public class LobbyUIManager : MonoBehaviour
             GameObject newItem = Instantiate(playerListItemPrefab, playerListContainer);
             var playerUI = newItem.GetComponent<LobbyPlayerItemUI>();
             bool showKick = (adminId == localAdminId) && (player.playerId != localPlayer.playerId);
-            playerUI.Setup(player.playerName, player.isReady, showKick, this, player.playerId);
+            playerUI.Setup(
+                player.playerName,
+                player.isReady,
+                showKick,
+                this,
+                player.playerId,
+                adminId == player.playerId
+                );
+        }*/
+    }
+
+    public void UpdatePlayerListFromData(List<PlayerDataForLobby> players, string adminId)
+    {
+        foreach (Transform child in playerListContainer)
+            Destroy(child.gameObject);
+
+        foreach (var player in players)
+        {
+            GameObject newItem = Instantiate(playerListItemPrefab, playerListContainer);
+            var playerUI = newItem.GetComponent<LobbyPlayerItemUI>();
+
+            bool showKick = (adminId == localAdminId) && (player.playerId != CustomRoomPlayer.LocalInstance.playerId);
+            playerUI.Setup(player.playerName, player.isReady, showKick, this, player.playerId, adminId == player.playerId);
         }
     }
+
 
     public void UpdateRoomInfoText()
     {

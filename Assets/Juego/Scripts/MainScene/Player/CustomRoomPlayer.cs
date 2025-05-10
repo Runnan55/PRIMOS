@@ -332,7 +332,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
     #endregion
 
-    #region buscarPartidas
+    #region BuscarPartidas y RoomLobbyPlayer
 
     [Command]
     public void CmdRequestMatchList()
@@ -365,5 +365,22 @@ public class CustomRoomPlayer : NetworkBehaviour
         }
     }
 
+    [TargetRpc]
+    public void TargetUpdateLobbyUI(NetworkConnection target, List<PlayerDataForLobby> players, string adminId)
+    {
+        LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
+        if (ui != null)
+        {
+            ui.UpdatePlayerListFromData(players, adminId);
+        }
+    }
+
     #endregion
+}
+
+public class PlayerDataForLobby
+{
+    public string playerName;
+    public string playerId;
+    public bool isReady;
 }
