@@ -547,6 +547,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   matchIdText: {fileID: 5033165208710589206}
   joinButton: {fileID: 4549178980156430421}
+  playersCountText: {fileID: 552288502767023239}
 --- !u!114 &9194538194754657886
 MonoBehaviour:
   m_ObjectHideFlags: 0

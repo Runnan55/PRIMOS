@@ -10,6 +10,7 @@ public class MatchInfo
 
     public CustomRoomPlayer admin;
     public List<CustomRoomPlayer> players = new List<CustomRoomPlayer>();
+    public int playerCount;
 
     public MatchInfo() { }
 

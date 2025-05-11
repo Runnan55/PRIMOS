@@ -55,6 +55,15 @@ public class MatchHandler : NetworkBehaviour
         if (!matches.ContainsKey(matchId)) return false;
 
         MatchInfo match = matches[matchId];
+
+        int maxPlayers = 6;
+        if (match.players.Count >= maxPlayers)
+        {
+            Debug.LogWarning($"[SERVER] Sala {matchId} está llena. Rechazando a {player.playerName}");
+            player.TargetReturnToLobbyScene(player.connectionToClient, match.mode);
+            return false;
+        }
+
         match.players.Add(player);
 
         player.currentMatchId = matchId;
@@ -67,6 +76,7 @@ public class MatchHandler : NetworkBehaviour
 
         return true;
     }
+
     public MatchInfo GetMatchInfoByScene(Scene scene)
     {
         foreach (var match in matches.Values)

@@ -12,11 +12,16 @@ public class LobbyListItemUI : MonoBehaviour
     public TMP_Text playersCountText;
     private LobbyUIManager lobbyManager;
 
-    public void Setup(string id, LobbyUIManager manager)
+    public void Setup(string id, int currentPlayers, int maxPlayers, LobbyUIManager manager)
     {
         matchId = id;
         lobbyManager = manager;
         matchIdText.text = $"Sala: {id}";
+        playersCountText.text = $"{currentPlayers}/{maxPlayers}";
+
+        joinButton.interactable = currentPlayers < maxPlayers; // Desactiva si está llena
+
+        joinButton.onClick.RemoveAllListeners(); // por si reusa el prefab
         joinButton.onClick.AddListener(JoinThisMatch);
     }
 

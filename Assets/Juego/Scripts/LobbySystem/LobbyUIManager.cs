@@ -95,7 +95,9 @@ public class LobbyUIManager : MonoBehaviour
             GameObject newItem = Instantiate(matchListItemPrefab, matchListContainer);
             LobbyListItemUI itemUI = newItem.GetComponent<LobbyListItemUI>();
 
-            itemUI.Setup(match.matchId, this); // Le pasás el ID de la sala y la referencia al LobbyUIManager
+            int currentPlayers = match.playerCount; // Si es la versión light
+            int maxPlayers = 6;
+            itemUI.Setup(match.matchId, currentPlayers, maxPlayers, this); // Le pasás el ID de la sala y la referencia al LobbyUIManager
         }
     }
 

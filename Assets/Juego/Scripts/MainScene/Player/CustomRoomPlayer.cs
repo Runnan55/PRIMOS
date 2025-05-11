@@ -352,10 +352,25 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         foreach (var match in matches)
         {
-            matchesToSend.Add(new MatchInfo(match.matchId, match.mode, match.isStarted));
+            matchesToSend.Add(new MatchInfo
+            {
+                matchId = match.matchId,
+                mode = match.mode,
+                isStarted = match.isStarted,
+                playerCount = match.players.Count
+            });
         }
 
         TargetReceiveMatchList(connectionToClient, matchesToSend);
+    }
+
+
+
+    [TargetRpc]
+    public void TargetReturnToLobbyScene(NetworkConnection target, string mode)
+    {
+        Debug.LogWarning("[CLIENT] No se pudo entrar: sala llena. Volviendo al lobby...");
+        CmdRequestJoinLobbyScene(mode);
     }
 
     [TargetRpc]
