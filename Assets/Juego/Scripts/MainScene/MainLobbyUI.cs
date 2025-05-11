@@ -32,6 +32,8 @@ public class MainLobbyUI : MonoBehaviour
 
     private void Start()
     {
+        nameInputField.characterLimit = 13;
+
         nameInputField.onEndEdit.AddListener(OnNameEntered);
         playButton.onClick.AddListener(() => StartGameSelectionMenu());
         backToStartMenuButton.onClick.AddListener(() => BackToStartMenu());
@@ -53,7 +55,7 @@ public class MainLobbyUI : MonoBehaviour
         }
     }
 
-    private void StartGameSelectionMenu()
+    public void StartGameSelectionMenu()
     {
         gameSelectionCanvas.SetActive(true);
         startMenuCanvas.SetActive(false);

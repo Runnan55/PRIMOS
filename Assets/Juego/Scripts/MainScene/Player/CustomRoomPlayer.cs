@@ -266,15 +266,7 @@ public class CustomRoomPlayer : NetworkBehaviour
             }
         }
     }
-
-    //IMPORTANTE USAR ESTO CUANDO VAYAMOS A SALIR DE UNA ESCENA POR QUE SINO LUEGO DARÄ ERRORES Y MARCARA AL JUGADOR COMO QUE SIGUE JUGANDO, DE MOMENTO ESTA INACTIVO 
-    //PERO HABRÄ QUE CONECTARLO EVENTUALMENTE AAAAAAAAAAAAAAAHHHHHHHHHHHH MI PISHULAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-    [Server]
-    public void OnLeftGame()
-    {
-        isPlayingNow = false;
-    }
-    
+        
     [Command]
     public void CmdKickPlayer(string targetPlayerId)
     {
@@ -322,6 +314,29 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         // Opcional: resetear UI o estado si lo necesitas
         Debug.Log("[CLIENT] Volviendo a menú principal...");
+
+        // Esperar a que cargue la escena para acceder a sus objetos
+        SceneManager.sceneLoaded += OnMainSceneLoaded;
+    }
+
+    private void OnMainSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name != "MainScene") return;
+
+        SceneManager.sceneLoaded -= OnMainSceneLoaded;
+
+        Debug.Log("[CLIENT] MainScene cargada, intentando mostrar GameSelectionMenu...");
+
+        var mainLobbyUI = UnityEngine.Object.FindFirstObjectByType<MainLobbyUI>();
+        if (mainLobbyUI != null)
+        {
+            mainLobbyUI.StartGameSelectionMenu();
+            Debug.Log("[CLIENT] GameSelectionMenu activado correctamente");
+        }
+        else
+        {
+            Debug.LogWarning("[CLIENT] No se encontró MainLobbyUI en MainScene");
+        }
     }
 
     [ClientRpc]

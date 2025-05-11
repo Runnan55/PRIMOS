@@ -74,9 +74,6 @@ public class GameManager : NetworkBehaviour
     private bool isDraw = false;
     private bool isGameStarted = false;
 
-    [Header("Animations")]
-    [SerializeField] private Animator timerAnimator;
-
     [Header("MisionesDeInicio")]
     [SerializeField] public GameModifierType SelectedModifier;
     [SerializeField] public List<PlayerController> veryHealthy = new List<PlayerController>(); //Guardar jugadores con más vida
@@ -830,6 +827,12 @@ public class GameManager : NetworkBehaviour
                 {
                     killer.kills = Mathf.Max(0, killer.kills - 1); // Restar 1 kill, pero no bajarlo a negativo
                     Debug.Log($"[Tiki] Se resta 1 kill a {killer.playerName} porque el Tiki salvó a {talismanHolder.playerName}.");
+
+                    //Forzar Canvas de muerte al que no tiene tiki
+                    if (killer != talismanHolder)
+                    {
+                        killer.RpcOnDeath();
+                    }
                 }
 
                 talismanHolder.isAlive = true;
@@ -1048,29 +1051,20 @@ public class GameManager : NetworkBehaviour
     {
         Scene currentScene = gameObject.scene;
 
-        // Buscar CustomRoomPlayers en esta escena
-        bool hasPlayers = false;
+        bool hasRoomPlayers = NetworkServer.connections.Values.Any(conn =>
+            conn.identity != null &&
+            conn.identity.GetComponent<CustomRoomPlayer>() != null &&
+            conn.identity.gameObject.scene == currentScene
+        );
 
-        foreach (var player in NetworkServer.connections.Values)
+        if (!hasRoomPlayers)
         {
-            if (player.identity != null)
-            {
-                if (player.identity.gameObject.scene == currentScene)
-                {
-                    hasPlayers = true;
-                    break;
-                }
-            }
-        }
+            Debug.Log($"[GameManager] No quedan CustomRoomPlayers en {currentScene.name}. Cerrando escena.");
 
-        if (!hasPlayers)
-        {
-            Debug.Log($"[GameManager] No quedan jugadores en {currentScene.name}. Cerrando escena.");
-
-            // Eliminar GameManager antes de cerrar
+            // Destruir objetos clave como el GameManager
             NetworkServer.Destroy(gameObject);
 
-            // Unload Scene
+            // Descargar la escena aditiva
             SceneManager.UnloadSceneAsync(currentScene);
         }
     }

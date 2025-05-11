@@ -7,10 +7,6 @@ using UnityEngine.UI;
 
 public class GameStatistic : NetworkBehaviour
 {
-    [SerializeField] private GameObject leaderboardCanvas;
-    [SerializeField] private Transform leaderboardContent;
-    [SerializeField] private GameObject leaderboardEntryPrefab;
-
     // Cambiar de List<PlayerController> a SyncList<PlayerInfo>
     [SyncVar] private SyncList<PlayerInfo> players = new SyncList<PlayerInfo>();
 
@@ -64,11 +60,29 @@ public class GameStatistic : NetworkBehaviour
     [Server]
     public void Initialize(List<PlayerController> playerList)
     {
-        players.Clear();
+        // No hacemos Clear()
 
         foreach (var player in playerList)
         {
-            if (player != null)
+            if (player == null) continue;
+
+            // Si ya existe en la lista, lo actualizamos
+            int index = players.FindIndex(p => p.playerName == player.playerName);
+            if (index >= 0)
+            {
+                var existing = players[index];
+                players[index] = new PlayerInfo(
+                    player.playerName,
+                    player.kills,
+                    player.bulletsReloaded,
+                    player.bulletsFired,
+                    player.damageDealt,
+                    player.timesCovered,
+                    existing.isDisconnected,
+                    existing.deathOrder
+                );
+            }
+            else
             {
                 players.Add(new PlayerInfo(
                     player.playerName,
@@ -76,11 +90,14 @@ public class GameStatistic : NetworkBehaviour
                     player.bulletsReloaded,
                     player.bulletsFired,
                     player.damageDealt,
-                    player.timesCovered));
+                    player.timesCovered,
+                    false,
+                    0
+                ));
             }
         }
 
-        Debug.Log($"[GameStatistic] Inicializado con {players.Count} jugadores.");
+        Debug.Log($"[GameStatistic] Inicializado con {players.Count} jugadores (incluye desconectados).");
     }
 
     [Server]
@@ -134,66 +151,17 @@ public class GameStatistic : NetworkBehaviour
     public void ShowLeaderboard()
     {
         Debug.Log("[GameStatistic] Mostrando Leaderboard desde el servidor...");
-        RpcShowLeaderboard();
-    }
 
-    [ClientRpc]
-    private void RpcShowLeaderboard()
-    {
-        Debug.Log("[GameStatistic] Cliente: Activando Leaderboard Canvas...");
+        List<PlayerInfo> copy = players.ToList();
+        var playerControllers = UnityEngine.Object.FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
 
-        leaderboardCanvas.SetActive(true); // Activar el Canvas
-        ClearLeaderboard();
-
-        // Ordenar jugadores antes de mostrar
-        var orderedPlayers = players.OrderBy(p => p.deathOrder == 0 ? int.MinValue : p.deathOrder).ToList();
-
-        foreach (var player in players)
+        foreach (var player in playerControllers)
         {
-            GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContent);
-            entry.transform.SetParent(leaderboardContent, false);
-            entry.transform.localScale = Vector3.one;
-
-            var texts = entry.GetComponentsInChildren<TMP_Text>();
-            if (texts.Length < 7)
+            if (player != null && player.connectionToClient != null)
             {
-                Debug.LogError("[GameStatistic] No se encontraron suficientes TMP_Text en el prefab. Debe tener al menos 7.");
-                continue;
+                Debug.Log($"[Server] Enviando leaderboard a {player.playerName} con NetId {player.netId}");
+                player.RpcShowLeaderboard(copy);
             }
-
-            texts[0].text = player.playerName;
-            texts[1].text = player.kills.ToString();
-            texts[2].text = player.bulletsReloaded.ToString();
-            texts[3].text = player.bulletsFired.ToString();
-            texts[4].text = player.damageDealt.ToString();
-            texts[5].text = player.timesCovered.ToString();
-            texts[6].text = player.points.ToString();
-
-            string displayName = player.playerName;
-            if (player.isDisconnected)
-            {
-                displayName += " (Offline)";
-            }
-
-            texts[0].text = displayName;
-        }
-    }
-
-    [Command]
-    public void CmdRequestLeaderboard()
-    {
-        if (isServer)
-        {
-            Debug.Log("[GameStatistic] Cliente solicitó mostrar Leaderboard.");
-            ShowLeaderboard();
-        }
-    }
-
-    private void ClearLeaderboard()
-    {
-        foreach (Transform child in leaderboardContent)
-        {
-            Destroy(child.gameObject);
         }
     }
 }

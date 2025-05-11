@@ -204,6 +204,12 @@ public class MatchHandler : NetworkBehaviour
             match.isStarted = true;
 
             StartCoroutine(CreateRuntimeGameScene(match));
+
+            foreach (var player in match.players)
+            {
+                player.isReady = false; //resetear ready
+            }
+
         }
     }
 

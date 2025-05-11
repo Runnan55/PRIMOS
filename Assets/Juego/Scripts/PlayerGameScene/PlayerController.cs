@@ -1,9 +1,11 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Mirror;
 using NUnit.Framework.Constraints;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public enum ActionType
@@ -77,6 +79,9 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private Color defaultButtonColor = Color.white; //Color por defecto
     [SerializeField] private Color highlightedColor = Color.white; //Color resaltado
 
+    [Header("UIButtonExitSettingAudioEtc")]
+    public Button exitGameButton;
+
     [Header("UI Timer/Round")]
     [SyncVar(hook = nameof(OnRoundChanged))] public int syncedRound;
     [SyncVar(hook = nameof(OnTimerChanged))] public float syncedTimer;
@@ -125,6 +130,97 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public uint gameManagerNetId;
     private GameManager cachedGameManager;
 
+    #region Leaderboard
+
+    [SerializeField] private GameObject leaderboardCanvas;
+    [SerializeField] private Transform leaderboardContent;
+    [SerializeField] private GameObject leaderboardEntryPrefab;
+
+    [ClientRpc]
+    public void RpcShowLeaderboard(List<GameStatistic.PlayerInfo> playerInfos)
+    {
+        Debug.Log("[PlayerController] Recibido RpcShowLeaderboard, activando canvas local...");
+
+        leaderboardCanvas.SetActive(true); // Activar canvas que ya está en tu prefab
+        ClearLeaderboard();
+
+        var ordered = playerInfos.OrderBy(p => p.deathOrder == 0 ? int.MinValue : p.deathOrder).ToList();
+
+        foreach (var player in ordered)
+        {
+            GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContent);
+            entry.transform.SetParent(leaderboardContent, false);
+            entry.transform.localScale = Vector3.one;
+
+            var texts = entry.GetComponentsInChildren<TMP_Text>();
+            if (texts.Length < 7)
+            {
+                Debug.LogError("[Leaderboard] No se encontraron suficientes TMP_Text en el prefab.");
+                continue;
+            }
+
+            string displayName = player.playerName;
+            if (player.isDisconnected)
+            {
+                displayName += " (Offline)";
+            }
+
+            texts[0].text = displayName;
+            texts[1].text = player.kills.ToString();
+            texts[2].text = player.bulletsReloaded.ToString();
+            texts[3].text = player.bulletsFired.ToString();
+            texts[4].text = player.damageDealt.ToString();
+            texts[5].text = player.timesCovered.ToString();
+            texts[6].text = player.points.ToString();
+        }
+    }
+
+    private void ClearLeaderboard()
+    {
+        foreach (Transform child in leaderboardContent)
+        {
+            Destroy(child.gameObject);
+        }
+    }
+
+    public void OnExitLeaderboardPressed()
+    {
+        Debug.Log("[PlayerController] Botón de salida del leaderboard presionado.");
+        CmdReturnToLobbyScene();
+    }
+
+    [Command]
+    private void CmdReturnToLobbyScene()
+    {
+        Debug.Log($"[SERVER] {playerName} quiere volver a LobbySceneCasual");
+
+        // Mover su CustomRoomPlayer
+        if (ownerRoomPlayer != null)
+        {
+            var lobbyScene = SceneManager.GetSceneByName("LobbySceneCasual");
+            if (lobbyScene.IsValid())
+            {
+                SceneManager.MoveGameObjectToScene(ownerRoomPlayer.gameObject, lobbyScene);
+                Debug.Log($"[SERVER] {playerName} movido a escena LobbySceneCasual");
+            }
+        }
+
+        // Cambiar escena del cliente local
+        TargetReturnToLobbyScene(connectionToClient);
+
+        // Destruir el PlayerController del servidor
+        NetworkServer.Destroy(gameObject);
+    }
+
+
+    [TargetRpc]
+    private void TargetReturnToLobbyScene(NetworkConnection target)
+    {
+        Debug.Log("[CLIENT] Cambiando escena visual a LobbySceneCasual...");
+        SceneManager.LoadScene("LobbySceneCasual");
+    }
+
+    #endregion
     public GameManager GameManager
     {
         get
@@ -176,6 +272,8 @@ public class PlayerController : NetworkBehaviour
             if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());
             if (coverButton) coverButton.onClick.AddListener(() => OnCoverButton());
             if (superShootButton) superShootButton.onClick.AddListener(() => OnSuperShootButton());
+
+            if (exitGameButton) exitGameButton.onClick.AddListener(() => OnExitLeaderboardPressed());
         }
         else
         {
@@ -672,7 +770,7 @@ public class PlayerController : NetworkBehaviour
             crosshairInstance = Instantiate(crosshairPrefab);
         }
 
-        HighlightButton(shootButton);//Resaltar botón
+       HighlightButton(shootButton);//Resaltar botón
     }
 
     private void OnSuperShootButton()
@@ -694,16 +792,16 @@ public class PlayerController : NetworkBehaviour
     private void OnReloadButton()
     {
         if (!isLocalPlayer && !isOwned) return;
-        CmdRegisterAction(ActionType.Reload, null);
 
+        CmdRegisterAction(ActionType.Reload, null);
         HighlightButton(reloadButton);//Resaltar botón
     }
 
     private void OnCoverButton()
     {
         if (!isLocalPlayer && !isOwned) return;
-        CmdRegisterAction(ActionType.Cover, null);
 
+        CmdRegisterAction(ActionType.Cover, null);
         HighlightButton(coverButton);//Resaltar botón
     }
 
@@ -865,12 +963,10 @@ public class PlayerController : NetworkBehaviour
     [Command]
     public void CmdRegisterAction(ActionType actionType, PlayerController target)
     {
-        //if (GameManager.Instance == null) return;
-
         if (GameManager.Instance == null) Debug.Log("No tienesGameManager pero registrasteaccion en server");
         selectedAction = actionType;//Enviar accion seleccionada al servidor
 
-        GameManager./*Instance.*/RegisterAction(this, actionType, target);
+        GameManager.RegisterAction(this, actionType, target);
 
         RpcSetTargetIndicator(this, target); //Indicador del cliente que disparó
 
