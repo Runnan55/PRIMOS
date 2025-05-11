@@ -141,6 +141,8 @@ public class PlayerController : NetworkBehaviour
     {
         Debug.Log("[PlayerController] Recibido RpcShowLeaderboard, activando canvas local...");
 
+        if (!isOwned) return;
+
         leaderboardCanvas.SetActive(true); // Activar canvas que ya está en tu prefab
         ClearLeaderboard();
 
@@ -185,6 +187,7 @@ public class PlayerController : NetworkBehaviour
 
     public void OnExitLeaderboardPressed()
     {
+        Debug.Log($"[ExitButton] isOwned: {isOwned}");
         Debug.Log("[PlayerController] Botón de salida del leaderboard presionado.");
         CmdReturnToLobbyScene();
     }
@@ -209,9 +212,14 @@ public class PlayerController : NetworkBehaviour
         TargetReturnToLobbyScene(connectionToClient);
 
         // Destruir el PlayerController del servidor
-        NetworkServer.Destroy(gameObject);
+        StartCoroutine (DestroyMe());
     }
 
+    private IEnumerator DestroyMe()
+    {
+        yield return new WaitForSeconds(1f);
+        NetworkServer.Destroy(gameObject);
+    }
 
     [TargetRpc]
     private void TargetReturnToLobbyScene(NetworkConnection target)
@@ -386,9 +394,10 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc]
     public void RpcSetTikiHolder(bool isHolder)
     {
+        bool shouldShow = isHolder && isAlive;
         if (tikiSprite != null)
         {
-            tikiSprite.SetActive(isHolder);
+            tikiSprite.SetActive(shouldShow);
         }
     }
 
@@ -1057,16 +1066,11 @@ public class PlayerController : NetworkBehaviour
 
         damageDealt += damage; // Sumar daño hecho
         sucessfulShots++; // Sumar 1 a disparo exitoso
-        target.TakeDamage(damage);
+        target.TakeDamage(damage, this);
         hasDamagedAnotherPlayerThisRound = true;
         
         lastShotTarget = target; // Almacenar víctima de disparo
         Debug.Log($"{playerName} disparó a {target.playerName}. Balas restantes: {ammo}");
-
-        if (!target.isAlive)
-        {
-            RolesManager.Instance?.RegisterKill(this, target);
-        }
     }
 
     [Server]
@@ -1093,20 +1097,20 @@ public class PlayerController : NetworkBehaviour
     }
 
     [Server]
-    public void TakeDamage(int damageAmount)
+    public void TakeDamage(int damageAmount, PlayerController attacker)
     {
         if (!isAlive || isCovering ) return;
 
-        if (!GameManager./*Instance.*/AllowAccumulatedDamage() && GameManager./*Instance.*/HasTakenDamage(this)) //Verificar si el daño se debe acumular o no
+        if (!GameManager.AllowAccumulatedDamage() && GameManager.HasTakenDamage(this)) //Verificar si el daño se debe acumular o no
         {
             Debug.Log($"{playerName} ya recibió daño en esta ronda, ignorando el ataque.");
             return;
         }
 
         // Marcar que el jugador ha recibido daño en esta ronda si el daño no se acumula
-        if (!GameManager./*Instance.*/AllowAccumulatedDamage())
+        if (!GameManager.AllowAccumulatedDamage())
         {
-            GameManager./*Instance.*/RegisterDamagedPlayer(this);
+            GameManager.RegisterDamagedPlayer(this);
         }
 
         RpcPlayAnimation("ReceiveDamage");
@@ -1120,13 +1124,46 @@ public class PlayerController : NetworkBehaviour
 
             Debug.Log($"{playerName} ha sido eliminado.");
 
-            if (isServer /*&& GameManager.Instance != null*/)// Esto solo se ejecuta en el servidor para evitar errores
+            // Detectar quién fue el asesino usando el mismo criterio que GameManager ya usa
+            PlayerController killer = attacker;
+
+            if (killer != null && killer != this)
             {
-                GameManager./*Instance.*/PlayerDied(this);
+                killer.kills++;
+                RolesManager rolesManager = FindRolesManagerInScene();
+
+                if (rolesManager != null)
+                {
+                    rolesManager.RegisterKill(killer, this);
+                }
+
+                Debug.Log($"[Kills] {killer.playerName} mató a {playerName}, es un HOMICIDA, un SIKOPATA, un ASESINO, llamen a la POLIZIA por el AMOR DE DIOS.");
+
+                var stat = FindFirstObjectByType<GameStatistic>();
+                if (stat != null && isServer)
+                {
+                    stat.UpdatePlayerStats(killer);
+                }
             }
 
+            GameManager.PlayerDied(this);
         }
     }
+    private RolesManager FindRolesManagerInScene()
+    {
+        Scene myScene = gameObject.scene;
+
+        foreach (var rootObj in myScene.GetRootGameObjects())
+        {
+            RolesManager manager = rootObj.GetComponentInChildren<RolesManager>();
+            if (manager != null)
+                return manager;
+        }
+
+        Debug.LogWarning("[PlayerController] No se encontró RolesManager en esta escena.");
+        return null;
+    }
+
 
     [Server]
     public void ServerHeal(int amount)

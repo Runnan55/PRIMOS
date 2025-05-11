@@ -207,7 +207,7 @@ public class MatchHandler : NetworkBehaviour
 
             foreach (var player in match.players)
             {
-                player.isReady = false; //resetear ready
+                player.DelayedResetReady(); //resetear ready
             }
 
         }

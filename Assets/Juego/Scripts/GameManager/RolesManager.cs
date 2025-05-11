@@ -50,6 +50,13 @@ public class RolesManager : NetworkBehaviour
         }
 
         TryAssignParcaRole();
+
+        //Actualizar stats después de matar
+        GameStatistic stats = GameObject.FindFirstObjectByType<GameStatistic>();
+        if (stats != null)
+        {
+            stats.UpdatePlayerStats(killer);
+        }
     }
 
     [Server]

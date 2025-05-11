@@ -4,6 +4,7 @@ using System;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections;
 
 public class CustomRoomPlayer : NetworkBehaviour
 {
@@ -11,7 +12,7 @@ public class CustomRoomPlayer : NetworkBehaviour
 
     [SyncVar] public string playerName;
     [SyncVar] public bool isReady = false;
-    [SyncVar] public bool isAdmin = false;
+    [SyncVar(hook = nameof(OnAdminStatusChanged))]public bool isAdmin = false;
     [SyncVar] public string playerId;
     [SyncVar] public bool isPlayingNow;
 
@@ -73,6 +74,28 @@ public class CustomRoomPlayer : NetworkBehaviour
         Debug.Log($"[SERVER] CustomRoomPlayer desconectado: {playerName}");
     }
 
+    private void OnAdminStatusChanged(bool oldValue, bool newValue)
+    {
+        OnRoomDataUpdated?.Invoke();
+
+        if (isLocalPlayer)
+        {
+            CmdRequestLobbyRefresh();
+        }
+    }
+
+    [Command]
+    private void CmdRequestLobbyRefresh()
+    {
+        if (string.IsNullOrEmpty(currentMatchId)) return;
+
+        MatchInfo match = MatchHandler.Instance.GetMatch(currentMatchId);
+        if (match != null)
+        {
+            MatchHandler.Instance.SendLobbyUIUpdateToAll(match);
+        }
+    }
+
     private void OnMatchIdChanged(string oldId, string newId)
     {
         OnRoomDataUpdated?.Invoke();
@@ -94,6 +117,17 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
 
     #endregion
+
+    public void DelayedResetReady()
+    {
+        StartCoroutine(ResetReadyAfterDelay());
+    }
+
+    private IEnumerator ResetReadyAfterDelay()
+    {
+        yield return new WaitForSeconds(1f);
+        isReady = false;
+    }
 
     private void OnDestroy()
     {

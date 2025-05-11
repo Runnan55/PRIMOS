@@ -167,13 +167,53 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3162694596767585085, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 3316320667755818103, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
       propertyPath: m_Name
       value: GameSceneTemplate
       objectReference: {fileID: 0}
+    - target: {fileID: 3534370912375023464, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
+      propertyPath: m_UiScaleMode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3534370912375023464, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
+      propertyPath: m_ReferenceResolution.x
+      value: 1920
+      objectReference: {fileID: 0}
+    - target: {fileID: 3534370912375023464, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
+      propertyPath: m_ReferenceResolution.y
+      value: 1080
+      objectReference: {fileID: 0}
     - target: {fileID: 4055163125777487143, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
       propertyPath: sceneId
       value: 717820435
+      objectReference: {fileID: 0}
+    - target: {fileID: 4861243978637491861, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
+      propertyPath: m_fontSize
+      value: 92
+      objectReference: {fileID: 0}
+    - target: {fileID: 4861243978637491861, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 92
+      objectReference: {fileID: 0}
+    - target: {fileID: 5118246746318344443, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
+      propertyPath: m_RenderMode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6588812393294725223, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 565
+      objectReference: {fileID: 0}
+    - target: {fileID: 6588812393294725223, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 75
+      objectReference: {fileID: 0}
+    - target: {fileID: 6588812393294725223, guid: 3fd9c92fb12ea9e44a34fec6cf90faed, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -520
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

@@ -72,7 +72,7 @@ public class TextManagerUI : MonoBehaviour
                 break;
             case "GatilloFacil":
                 GM_titleText.text = "Gatillo Facil";
-                GM_descriptionText.text = "Los jugadores obtienen una bala más al iniciar la partida";
+                GM_descriptionText.text = "Los jugadores obtienen una bala mas al iniciar la partida";
                 break;
             case "BalasOxidadas":
                 GM_titleText.text = "Balas Oxidadas";

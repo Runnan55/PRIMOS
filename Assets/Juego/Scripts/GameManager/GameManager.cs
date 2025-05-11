@@ -57,7 +57,7 @@ public class GameManager : NetworkBehaviour
     private Coroutine decisionPhaseCoroutine;
     private Coroutine executionPhaseCoroutine;
 
-    [SerializeField] private List<PlayerController> players = new List<PlayerController>(); //Lista de jugadores que entran
+    [SerializeField] public List<PlayerController> players = new List<PlayerController>(); //Lista de jugadores que entran
     [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>(); //Lista de jugadores muertos
     private HashSet<PlayerController> damagedPlayers = new HashSet<PlayerController>(); // Para almacenar jugadores que ya recibieron daño en la ronda
 
@@ -622,14 +622,17 @@ public class GameManager : NetworkBehaviour
         {
             List<PlayerController> shooters = targetToShooters[target];
 
+            // Ejecutar disparos reales de los jugadores que eligieron disparar.
+            // Si hay más de un jugador apuntando al mismo objetivo, solo el más cercano al Tiki ejecuta el disparo.
+            // Este es el punto donde realmente se aplica el daño (y eventualmente la muerte).
             if (shooters.Count == 1)
             {
-                //shooters[0].ServerAttemptShoot(target);
+                shooters[0].ServerAttemptShoot(target);
             }
             else
             {
                 PlayerController chosenShooter = GetClosestToTalisman(shooters);
-                //chosenShooter.ServerAttemptShoot(target);
+                chosenShooter.ServerAttemptShoot(target);
 
                 Debug.Log($"[Talisman] {chosenShooter.playerName} gana la prioridad para atacar a {target.playerName}"); //Los demás fallan el tiro pero no se muestra
 
