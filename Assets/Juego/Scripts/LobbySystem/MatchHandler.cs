@@ -72,7 +72,7 @@ public class MatchHandler : NetworkBehaviour
 
         player.RpcRefreshLobbyForAll();
         SendLobbyUIUpdateToAll(match);
-        RefreshMatchListForMode(match.mode);
+        RefreshMatchListForMode(match.mode); //Esta parte actualiza la info de la sala a los demas jugadores cuando entra a la partida, sino no se actualiza en los demás de 1/6 a 2/6 por ejemplo
 
         return true;
     }
@@ -94,6 +94,7 @@ public class MatchHandler : NetworkBehaviour
 
         MatchInfo match = matches[player.currentMatchId];
         match.players.Remove(player);
+        player.isAdmin = false;
 
         if (match.players.Count == 0)
         {
@@ -120,9 +121,11 @@ public class MatchHandler : NetworkBehaviour
             SendLobbyUIUpdateToAll(match);
         }
 
-        player.currentMatchId = null;
-        player.isAdmin = false;
+        player.RpcRefreshLobbyForAll(); //Actualiza la Info personal Del room al salir
+        RefreshMatchListForMode(match.mode); //Esta parte actualiza la info de la sala a los demas jugadores cuando se sale de la partida, sino no se actualiza en los demás de 2/6 a 1/6 por ejemplo
+
         player.TargetForceReturnToLobby(player.connectionToClient);
+        player.currentMatchId = null;
     }
 
     //Funcion para actualizar los Matchs para los jugadores de una sola sala casual, ranked, etc

@@ -232,6 +232,9 @@ public class CustomRoomPlayer : NetworkBehaviour
         {
             ui.ShowLobbyPanel();       // Mostrar vista de partidas
             ui.RequestMatchList();     // Forzar actualizar la lista
+
+            // Limpiar también la lista de jugadores del panel de sala
+            ui.UpdatePlayerListFromData(new List<PlayerDataForLobby>(), ""); // Vaciar lista visual, con esto tmb eliminamos toda configuración previa como ADMIN
         }
 
         Debug.Log("Te expulsaron CheBoludo, andás queriendo hacerte el graciocete eh pelotudo?");

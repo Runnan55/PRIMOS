@@ -618,6 +618,9 @@ public class GameManager : NetworkBehaviour
             }
         }
 
+        //Luego aplica "Disparar" y "Recargar"
+        yield return new WaitForSeconds(0.5f); //Pausa antes del tiroteo
+
         foreach (var target in targetToShooters.Keys)
         {
             List<PlayerController> shooters = targetToShooters[target];
@@ -642,10 +645,9 @@ public class GameManager : NetworkBehaviour
                 }
             }
         }
-
-        yield return new WaitForSeconds(0.5f); //Pausa antes del tiroteo
-                
-        foreach (var entry in actionsQueue) //Luego aplica "Disparar" y "Recargar"
+        
+        //Aplicar recarga o otros...
+        foreach (var entry in actionsQueue) 
         {
             switch (entry.Value.type)
             {
@@ -654,7 +656,7 @@ public class GameManager : NetworkBehaviour
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                     break;
-                case ActionType.Shoot:
+                /*case ActionType.Shoot:
                     entry.Key.ServerAttemptShoot(entry.Value.target);
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
@@ -663,7 +665,7 @@ public class GameManager : NetworkBehaviour
                     entry.Key.ServerAttemptShoot(entry.Value.target);
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
-                    break;
+                    break;*/
                 case ActionType.None:
                     entry.Key.RpcPlayAnimation("None");
                     break;

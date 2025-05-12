@@ -326,12 +326,6 @@ public class PlayerController : NetworkBehaviour
     [Client]
     private void Update()
     {
-        if (isOwned)
-        {
-            Debug.Log("Estoy funcionando cariño");
-        }
-        // Esto funciona mierda AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH POR FIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIN LA RPTMR QUE ME REMILRECONTRAPARIOOO
-
         if (!isLocalPlayer && !isOwned) return;
 
         //Mover mirilla con mouse

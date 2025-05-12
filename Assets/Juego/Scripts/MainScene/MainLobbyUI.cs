@@ -32,7 +32,7 @@ public class MainLobbyUI : MonoBehaviour
 
     private void Start()
     {
-        nameInputField.characterLimit = 13;
+        nameInputField.characterLimit = 11;
 
         nameInputField.onEndEdit.AddListener(OnNameEntered);
         playButton.onClick.AddListener(() => StartGameSelectionMenu());
