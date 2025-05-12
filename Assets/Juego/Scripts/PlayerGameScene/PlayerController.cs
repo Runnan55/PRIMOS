@@ -7,6 +7,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 public enum ActionType
 {
@@ -39,6 +40,7 @@ public class PlayerController : NetworkBehaviour
     [SyncVar(hook = nameof(OnNameChanged))] public string playerName;
     [SyncVar(hook = nameof(OnKillsChanged))] public int kills = 0;
 
+    [SyncVar] public bool clientDecisionPhase;
     [SyncVar] public bool isCovering = false;
     [SerializeField] private int minBulletS = 1;
     [SerializeField] private int minBulletSS = 3;
@@ -276,12 +278,18 @@ public class PlayerController : NetworkBehaviour
             targetIndicator.SetActive(false);
             playerCanvas.SetActive(true);
 
-            if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
+            /*if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
             if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());
             if (coverButton) coverButton.onClick.AddListener(() => OnCoverButton());
-            if (superShootButton) superShootButton.onClick.AddListener(() => OnSuperShootButton());
+            if (superShootButton) superShootButton.onClick.AddListener(() => OnSuperShootButton());*/
 
-            if (exitGameButton) exitGameButton.onClick.AddListener(() => OnExitLeaderboardPressed());
+            AddPointerDownEvent(shootButton, ActionType.Shoot);
+
+            AddPointerDownEvent(reloadButton, ActionType.Reload);
+
+            AddPointerDownEvent(coverButton, ActionType.Cover);
+
+            AddPointerDownEvent(superShootButton, ActionType.SuperShoot);
         }
         else
         {
@@ -297,6 +305,93 @@ public class PlayerController : NetworkBehaviour
             targetIndicator.SetActive(false);
     }
 
+    #region ParcheParaQueBotonesSeActivenAlPulsarNoAlLevantarClic
+
+    private void AddPointerDownEvent(Button button, ActionType action)
+    {
+        if (button == null) return;
+
+        EventTrigger trigger = button.gameObject.GetComponent<EventTrigger>();
+        if (trigger == null) trigger = button.gameObject.AddComponent<EventTrigger>();
+
+        var entry = new EventTrigger.Entry();
+        entry.eventID = EventTriggerType.PointerDown;
+        entry.callback.AddListener((data) => { OnActionPressed(action); });
+
+        trigger.triggers.Add(entry);
+    }
+
+    private ActionType lastPressedButton = ActionType.None;
+
+    public void OnActionPressed(ActionType action)
+    {
+        if (!isOwned || !clientDecisionPhase) return;
+
+        if (lastPressedButton == action)
+        {
+            CancelCurrentAction();
+            lastPressedButton = ActionType.None;
+            return;
+        }
+
+        lastPressedButton = action;
+
+        switch (action)
+        {
+            case ActionType.Shoot:
+                StartCoroutine(DelayedShoot()); break;
+            case ActionType.SuperShoot:
+                StartCoroutine(DelayedSuperShoot()); break;
+            case ActionType.Reload:
+                OnReloadButton(); break;
+            case ActionType.Cover:
+                OnCoverButton(); break;
+        }
+    }
+
+    private void CancelCurrentAction()
+    {
+        selectedAction = ActionType.None;
+        lastPressedButton = ActionType.None;
+        isAiming = false;
+
+        if (crosshairInstance)
+        {
+            Destroy(crosshairInstance);
+            crosshairInstance = null;
+        }
+
+        CmdRegisterAction(ActionType.None, null); //Registramos NONE
+        ResetButtonHighlightLocally(); // Método local, no RPC
+    }
+
+    private void ResetButtonHighlightLocally()
+    {
+        if (selectedButton != null)
+        {
+            ColorBlock colors = selectedButton.colors;
+            colors.normalColor = defaultButtonColor;
+            colors.selectedColor = defaultButtonColor;
+            selectedButton.colors = colors;
+            selectedButton = null;
+        }
+    }
+
+
+    private IEnumerator DelayedShoot()
+    {
+        yield return null; // espera 1 frame
+        OnShootButton();
+    }
+
+    private IEnumerator DelayedSuperShoot()
+    {
+        yield return null; // espera 1 frame
+        OnSuperShootButton();
+    }
+
+
+    #endregion
 
     #region ConectWithClient
 
@@ -326,7 +421,20 @@ public class PlayerController : NetworkBehaviour
     [Client]
     private void Update()
     {
-        if (!isLocalPlayer && !isOwned) return;
+        if (!isOwned) return;
+
+        if (!clientDecisionPhase)
+        {
+            if (isAiming && crosshairInstance)
+            {
+                Destroy(crosshairInstance);
+                crosshairInstance = null;
+            }
+
+            isAiming = false;
+            selectedAction = ActionType.None;
+            return;
+        }
 
         //Mover mirilla con mouse
         if (isAiming && crosshairInstance)
@@ -366,19 +474,18 @@ public class PlayerController : NetworkBehaviour
                     Destroy(crosshairInstance);
                     isAiming = false;
                     selectedAction = ActionType.None;
+                    //ResetButtonHighlightLocally();
                 }
                 else
                 {
                     Debug.Log("Clic en objeto no válido, Apuntado cancelado");
-                    Destroy(crosshairInstance);
-                    isAiming = false;
+                    CancelCurrentAction();
                 }
             }
             else
             {
                 Debug.Log("Clic en ningún objeto, cancelado por chistoso ;)");
-                Destroy(crosshairInstance);
-                isAiming = false;
+                CancelCurrentAction();
             }
         }
     }
@@ -476,6 +583,11 @@ public class PlayerController : NetworkBehaviour
         {
             roundTextUI.text = $"Ronda: {newRound}";
         }
+
+        // ← Reset de lógica de selección de acción
+        selectedAction = ActionType.None;
+        lastPressedButton = ActionType.None;
+        ResetButtonHighlightLocally();
     }
 
     private void OnTimerChanged(float oldTimer, float newTimer)
@@ -762,7 +874,7 @@ public class PlayerController : NetworkBehaviour
     #region CLIENT
     private void OnShootButton()
     {
-        if (!isLocalPlayer && !isOwned) return;
+        if (!isOwned) return;
         if (isAiming) return;
 
         isAiming = true;
@@ -771,9 +883,12 @@ public class PlayerController : NetworkBehaviour
         if (crosshairPrefab && crosshairInstance == null)
         {
             crosshairInstance = Instantiate(crosshairPrefab);
+            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            mousePosition.z = 0;
+            crosshairInstance.transform.position = mousePosition; // <- ¡esto evita que se vea en el centro!
         }
 
-       HighlightButton(shootButton);//Resaltar botón
+        HighlightButton(shootButton);//Resaltar botón
     }
 
     private void OnSuperShootButton()
@@ -787,6 +902,9 @@ public class PlayerController : NetworkBehaviour
         if (crosshairPrefab && crosshairInstance == null)
         {
             crosshairInstance = Instantiate(crosshairPrefab);
+            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            mousePosition.z = 0;
+            crosshairInstance.transform.position = mousePosition; // <- ¡esto evita que se vea en el centro!
         }
 
         HighlightButton(superShootButton);
@@ -922,6 +1040,7 @@ public class PlayerController : NetworkBehaviour
         }
 
         isAiming = false;
+        selectedAction = ActionType.None;
     }
 
     [ClientRpc]

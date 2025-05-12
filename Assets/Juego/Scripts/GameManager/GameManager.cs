@@ -450,6 +450,12 @@ public class GameManager : NetworkBehaviour
         UpdateTikiVisual(talismanHolder);
 
         isDecisionPhase = true;
+
+        foreach (var p in players)
+        {
+            p.clientDecisionPhase = true;
+        }
+
         currentRound++;
 
         foreach (var player in players)
@@ -530,6 +536,10 @@ public class GameManager : NetworkBehaviour
         }
 
         isDecisionPhase = false;
+        foreach (var p in players)
+        {
+            p.clientDecisionPhase = false;
+        }
         Debug.Log("Finalizó el tiempo de decisión.");
 
         foreach (var player in players)
