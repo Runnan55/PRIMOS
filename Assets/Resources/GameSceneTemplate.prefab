@@ -190,7 +190,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Cargando...
+  m_text: Global Event
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 4d4666b39ec555740a4cf95b7324a9d5, type: 2}
   m_sharedMaterial: {fileID: 923871403520407743, guid: 4d4666b39ec555740a4cf95b7324a9d5, type: 2}
@@ -904,7 +904,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 94e062552061e134bb34fc6ce6628d3d, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 419deb7cbb5a8504590eadc5d1b88d83, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
