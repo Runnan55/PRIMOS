@@ -4,6 +4,7 @@ using UnityEngine;
 using Mirror;
 using System.Collections;
 using UnityEngine.SceneManagement;
+using System.Linq;
 
 public class MatchHandler : NetworkBehaviour
 {
@@ -322,6 +323,62 @@ public class MatchHandler : NetworkBehaviour
         {
             p.TargetUpdateLobbyUI(p.connectionToClient, playerDataList, match.admin.playerId);
         }
+    }
+
+    #endregion
+
+    #region Busqueda Automática
+
+    private Dictionary<string, List<CustomRoomPlayer>> matchQueue = new();
+    private const int MATCH_SIZE = 2; //Cantidad de jugadores para iniciar partida
+
+    [Server]
+    public void EnqueueForMatchmaking(CustomRoomPlayer player)
+    {
+        if (!matchQueue.ContainsKey(player.currentMode))
+            matchQueue[player.currentMode] = new List<CustomRoomPlayer>();
+
+        var queue = matchQueue[player.currentMode];
+
+        if (!queue.Contains(player))
+        {
+            queue.Add(player);
+            Debug.Log($"[Matchmaking] Jugador {player.playerName} agregado a la cola del modo {player.currentMode}. Total: {queue.Count}");
+
+            if (queue.Count >= MATCH_SIZE)
+            {
+                List<CustomRoomPlayer> playersForMatch = queue.Take(MATCH_SIZE).ToList();
+                queue.RemoveRange(0, MATCH_SIZE);
+                CreateAutoMatch(playersForMatch, player.currentMode);
+            }
+        }
+    }
+
+    [Server]
+    private void CreateAutoMatch(List<CustomRoomPlayer> players, string mode)
+    {
+        string matchId = System.Guid.NewGuid().ToString().Substring(0, 6);
+        MatchInfo match = new MatchInfo(matchId, mode, false)
+        {
+            admin = players[0],
+            players = new List<CustomRoomPlayer>(players),
+            sceneName = "Room_" + matchId
+        };
+
+        foreach (var p in players)
+        {
+            p.currentMatchId = matchId;
+            p.currentMode = mode;
+            p.isAdmin = (p == players[0]);
+        }
+
+        matches.Add(matchId, match);
+        partidasActivas++;
+
+        Debug.Log($"[Matchmaking] Partida automática creada con ID {matchId} en modo {mode}");
+
+        NotifyPlayersToLoadGameScene(matchId);
+        StartCoroutine(CreateRuntimeGameScene(match));
     }
 
     #endregion

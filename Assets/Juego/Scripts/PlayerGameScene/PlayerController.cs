@@ -581,7 +581,7 @@ public class PlayerController : NetworkBehaviour
     {
         if (roundTextUI != null)
         {
-            roundTextUI.text = $"Ronda: {newRound}";
+            roundTextUI.text = $"Round: {newRound}";
         }
 
         // ← Reset de lógica de selección de acción
@@ -602,11 +602,11 @@ public class PlayerController : NetworkBehaviour
             if (timeLeft > 0)
             {
                 int displayTime = Mathf.FloorToInt(timeLeft);
-                timerTextUI.text = $"Tiempo: {displayTime}";
+                timerTextUI.text = $"Time: {displayTime}";
             }
             else
             {
-                timerTextUI.text = $"Tiempo: -"; // Cambia a guión al llegar a 0 o menos
+                timerTextUI.text = $"Time: -"; // Cambia a guión al llegar a 0 o menos
             }
         }
     }

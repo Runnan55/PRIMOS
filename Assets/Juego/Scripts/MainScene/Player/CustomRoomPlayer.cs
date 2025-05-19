@@ -446,6 +446,24 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
 
     #endregion
+
+
+    #region Busqueda Automática
+
+    [Command]
+    public void CmdSearchForMatch()
+    {
+        if (string.IsNullOrEmpty(currentMode))
+        {
+            Debug.LogWarning("No se puede buscar partida sin haber elegido modo.");
+            return;
+        }
+
+        MatchHandler.Instance.EnqueueForMatchmaking(this);
+    }
+
+
+    #endregion
 }
 
 public class PlayerDataForLobby

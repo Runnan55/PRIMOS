@@ -25,6 +25,9 @@ public class LobbyUIManager : MonoBehaviour
     public Transform playerListContainer;
     public GameObject playerListItemPrefab; // <-- Tu LobbyPlayerItemUI prefab
 
+    [Header("SearchGame")]
+    public Button searchButton;
+
     private CustomRoomPlayer localPlayer;
 
     [HideInInspector] public string localAdminId;
@@ -38,6 +41,10 @@ public class LobbyUIManager : MonoBehaviour
         refreshButton.onClick.AddListener(RequestMatchList);
         readyButton.onClick.AddListener(ToogleReady);
         leaveRoomButton.onClick.AddListener(LeaveRoom);
+        searchButton.onClick.AddListener(() =>
+        {
+            CustomRoomPlayer.LocalInstance?.CmdSearchForMatch();
+        });
 
         if (CustomRoomPlayer.LocalInstance != null && !string.IsNullOrEmpty(CustomRoomPlayer.LocalInstance.currentMode))
         {

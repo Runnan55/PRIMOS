@@ -38,6 +38,21 @@ public class MainLobbyUI : MonoBehaviour
         playButton.onClick.AddListener(() => StartGameSelectionMenu());
         backToStartMenuButton.onClick.AddListener(() => BackToStartMenu());
 
+        playButton.interactable = false;
+
+        // Cargar nombre si ya hay uno guardado
+        if (GameDataManager.Instance.HasData)
+        {
+            string savedName = GameDataManager.Instance.CurrentData.playerName;
+            if (!string.IsNullOrEmpty(savedName))
+            {
+                nameInputField.text = savedName;
+                playButton.interactable = true;
+            }
+        }
+
+        nameInputField.onValueChanged.AddListener(OnNameChangedLive);
+
         //De momento rankedButton no hace nada
         //rankedButton.onClick.AddListener(() => JoinMode("Ranked")); 
         comingSoonButton.onClick.AddListener(() => Debug.Log("Este modo aún no está disponible."));
@@ -48,10 +63,45 @@ public class MainLobbyUI : MonoBehaviour
 
     private void OnNameEntered(string playerName)
     {
-        if (!string.IsNullOrWhiteSpace(playerName))
+        string enteredName = nameInputField.text.Trim();
+
+        if (string.IsNullOrEmpty(enteredName))
         {
-            NetworkClient.connection.Send(new NameMessage { playerName = playerName });
-            Debug.Log($"Enviado al servidor: {playerName}");
+            Debug.LogWarning("El nombre no puede estar vacío");
+            nameInputField.text = "";
+            nameInputField.placeholder.GetComponent<TMP_Text>().text = "Enter name first!";
+            playButton.interactable = false;
+            return;
+        }
+
+        // Activar el botón solo si hay nombre
+        playButton.interactable = true;
+
+        // Enviar al servidor
+        if (NetworkClient.isConnected && NetworkClient.connection != null)
+        {
+            NetworkClient.connection.Send(new NameMessage { playerName = enteredName });
+        }
+        else
+        {
+            Debug.LogWarning("[MainLobbyUI] No se puede enviar el nombre: no hay conexión.");
+        }
+
+        // Cargar datos del jugador
+       // GameDataManager.Instance.LoadOrCreateData(AuthManager.LocalUserId, enteredName);
+
+        Debug.Log("Nombre confirmado: " + enteredName);
+    }
+
+    private void OnNameChangedLive(string newText)
+    {
+        // Activar o desactivar el botón Play dinámicamente
+        playButton.interactable = !string.IsNullOrWhiteSpace(newText);
+
+        // También podés resetear el placeholder si estaba modificado
+        if (string.IsNullOrWhiteSpace(newText))
+        {
+            nameInputField.placeholder.GetComponent<TMP_Text>().text = "Enter name";
         }
     }
 

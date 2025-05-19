@@ -20,20 +20,20 @@ public class TextManagerUI : MonoBehaviour
         switch (key)
         {
             case "BlockShot":
-                QM_titleText.text = "MISION RAPIDA";
-                QM_descriptionText.text = "Bloquea un disparo exitosamente";
+                QM_titleText.text = "QUICK MISSION";
+                QM_descriptionText.text = "Block a shot successfully";
                 break;
             case "DealDamage":
-                QM_titleText.text = "MISION RAPIDA";
-                QM_descriptionText.text = "Lastima a un jugador";
+                QM_titleText.text = "QUICK MISSION";
+                QM_descriptionText.text = "Shoot a player";
                 break;
             case "DoNothing":
-                QM_titleText.text = "MISION RAPIDA";
-                QM_descriptionText.text = "No hagas nada ;)";
+                QM_titleText.text = "QUICK MISSION";
+                QM_descriptionText.text = "Do nothing ;)";
                 break;
             case "ReloadAndTakeDamage":
-                QM_titleText.text = "MISION RAPIDA";
-                QM_descriptionText.text = "Recarga y recibe un ataque";
+                QM_titleText.text = "QUICK MISSION";
+                QM_descriptionText.text = "Reload and gets shot";
                 break;
 
         }
@@ -44,20 +44,20 @@ public class TextManagerUI : MonoBehaviour
         switch (key)
         {
             case "BlockShot":
-                Reward_titleText.text = "MISION CUMPLIDA";
-                Reward_descriptionText.text = "Recibes 1 vida";
+                Reward_titleText.text = "MISSION COMPLETE";
+                Reward_descriptionText.text = "You get 1 life";
                 break;
             case "DealDamage":
-                Reward_titleText.text = "MISION CUMPLIDA";
-                Reward_descriptionText.text = "Recibes 2 balas";
+                Reward_titleText.text = "MISSION COMPLETE";
+                Reward_descriptionText.text = "You get 2 bullets";
                 break;
             case "DoNothing":
-                Reward_titleText.text = "MISION CUMPLIDA";
-                Reward_descriptionText.text = "Realizas el doble de golpes en tu siguiente turno";
+                Reward_titleText.text = "MISSION COMPLETE";
+                Reward_descriptionText.text = "You deal double damage on your next turn";
                 break;
             case "ReloadAndTakeDamage":
-                Reward_titleText.text = "MISION CUMPLIDA";
-                Reward_descriptionText.text = "Recargaste tus escudos";
+                Reward_titleText.text = "MISSION COMPLETE";
+                Reward_descriptionText.text = "You recharged your shields";
                 break;
 
         }
@@ -67,20 +67,20 @@ public class TextManagerUI : MonoBehaviour
         switch (id)
         {
             case "CaceriaDelLider":
-                GM_titleText.text = "Caceria del Lider";
-                GM_descriptionText.text = "El o los jugadores con mas vidas pierden la capacidad de cubrirse";
+                GM_titleText.text = "Hunt for the leader";
+                GM_descriptionText.text = "The player(s) with the most lives lose the ability to cover"; //El o los jugadores con mas vidas pierden la capacidad de cubrirse
                 break;
             case "GatilloFacil":
-                GM_titleText.text = "Gatillo Facil";
-                GM_descriptionText.text = "Los jugadores obtienen una bala mas al iniciar la partida";
+                GM_titleText.text = "Quick Trigger";
+                GM_descriptionText.text = "The players get a bullet extra at the start of the game"; //Los jugadores obtienen una bala mas al iniciar la partida
                 break;
             case "BalasOxidadas":
-                GM_titleText.text = "Balas Oxidadas";
-                GM_descriptionText.text = "Todos los disparos tienen un 25% de fallar esta partida";
+                GM_titleText.text = "Rusty Bullets";
+                GM_descriptionText.text = "All shoots have a 25% chance of missing this game"; //Todos los disparos tienen un 25% de fallar esta partida
                 break;
             case "CargaOscura":
-                GM_titleText.text = "Carga Oscura";
-                GM_descriptionText.text = "Recarga 2 balas en lugar de 1";
+                GM_titleText.text = "Dark Chargue";
+                GM_descriptionText.text = "Reload 2 bullets instead of 1"; //Recarga 2 balas en lugar de 1
                 break;
         }
     }
