@@ -675,6 +675,8 @@ MonoBehaviour:
   casualButton: {fileID: 126820881}
   comingSoonButton: {fileID: 1752417104}
   backToStartMenuButton: {fileID: 1501005312}
+  nicknameUI: {fileID: 186979934}
+  userManager: {fileID: 0}
 --- !u!4 &186979933
 Transform:
   m_ObjectHideFlags: 0

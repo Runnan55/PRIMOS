@@ -21,6 +21,10 @@ public class MainLobbyUI : MonoBehaviour
     public Button comingSoonButton;
     public Button backToStartMenuButton;
 
+    [Header("Opcional")]
+    public NicknameUI nicknameUI;
+    public FirestoreUserManager userManager;
+
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
         { "Casual", "LobbySceneCasual" },
@@ -40,8 +44,13 @@ public class MainLobbyUI : MonoBehaviour
 
         playButton.interactable = false;
 
+        if (userManager != null)
+        {
+            userManager.LoadUser(); // <-- Esto carga automáticamente el nickname
+        }
+
         // Cargar nombre si ya hay uno guardado
-        if (GameDataManager.Instance.HasData)
+        /*if (GameDataManager.Instance.HasData)
         {
             string savedName = GameDataManager.Instance.CurrentData.playerName;
             if (!string.IsNullOrEmpty(savedName))
@@ -49,7 +58,7 @@ public class MainLobbyUI : MonoBehaviour
                 nameInputField.text = savedName;
                 playButton.interactable = true;
             }
-        }
+        }*/
 
         nameInputField.onValueChanged.AddListener(OnNameChangedLive);
 
@@ -102,6 +111,10 @@ public class MainLobbyUI : MonoBehaviour
         if (string.IsNullOrWhiteSpace(newText))
         {
             nameInputField.placeholder.GetComponent<TMP_Text>().text = "Enter name";
+
+            playButton.interactable = true;
+            nicknameUI.nicknameInput.text = newText;
+            nicknameUI.SaveNickname();
         }
     }
 
