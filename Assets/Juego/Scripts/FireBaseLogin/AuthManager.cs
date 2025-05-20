@@ -291,8 +291,14 @@ public class AuthManager : MonoBehaviour
     {
         WebGLStorage.DeleteKey("jwt_token");
         WebGLStorage.DeleteKey("refresh_token");
-        ShowLoginPanel();
+        StartCoroutine(DelayerShowLoginPanel());
         feedbackText.text = "Sesión cerrada.";
+    }
+
+    private IEnumerator DelayerShowLoginPanel()
+    {
+        yield return new WaitForSeconds(1f);
+        ShowLoginPanel();
     }
 
     [System.Serializable]

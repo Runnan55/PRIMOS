@@ -82,5 +82,4 @@ public class CustomNetworkManager : NetworkManager
     {
         OnClientSendName(conn, msg.playerName);
     }
-
 }

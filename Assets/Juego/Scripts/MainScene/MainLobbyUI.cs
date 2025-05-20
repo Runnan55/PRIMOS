@@ -49,17 +49,6 @@ public class MainLobbyUI : MonoBehaviour
             userManager.LoadUser(); // <-- Esto carga automáticamente el nickname
         }
 
-        // Cargar nombre si ya hay uno guardado
-        /*if (GameDataManager.Instance.HasData)
-        {
-            string savedName = GameDataManager.Instance.CurrentData.playerName;
-            if (!string.IsNullOrEmpty(savedName))
-            {
-                nameInputField.text = savedName;
-                playButton.interactable = true;
-            }
-        }*/
-
         nameInputField.onValueChanged.AddListener(OnNameChangedLive);
 
         //De momento rankedButton no hace nada
@@ -96,8 +85,6 @@ public class MainLobbyUI : MonoBehaviour
             Debug.LogWarning("[MainLobbyUI] No se puede enviar el nombre: no hay conexión.");
         }
 
-        // Cargar datos del jugador
-       // GameDataManager.Instance.LoadOrCreateData(AuthManager.LocalUserId, enteredName);
 
         Debug.Log("Nombre confirmado: " + enteredName);
     }
@@ -111,11 +98,13 @@ public class MainLobbyUI : MonoBehaviour
         if (string.IsNullOrWhiteSpace(newText))
         {
             nameInputField.placeholder.GetComponent<TMP_Text>().text = "Enter name";
-
-            playButton.interactable = true;
-            nicknameUI.nicknameInput.text = newText;
-            nicknameUI.SaveNickname();
+            return;
         }
+
+        playButton.interactable = true;
+
+        nicknameUI.nicknameInput.text = newText;
+        nicknameUI.SaveNickname();
     }
 
     public void StartGameSelectionMenu()
@@ -144,5 +133,16 @@ public class MainLobbyUI : MonoBehaviour
 
         // 2. Cambiar escena en el cliente
         SceneLoaderManager.Instance.LoadScene(sceneName);
+    }
+
+    //Esto usa referencia al AuthManager y Firebase, ojo con los cruces
+    public void OnLogoutButton()
+    {
+        if (NetworkClient.isConnected)
+        {
+            NetworkManager.singleton.StopClient();
+        }
+
+        AuthManager.Instance.Logout();
     }
 }
