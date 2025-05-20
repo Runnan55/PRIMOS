@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public class NicknameUI : MonoBehaviour
 {
     public TMP_InputField nicknameInput;
-    public TMP_Text feedbackText;
+    public string feedbackText;
     public FirestoreUserUpdater firestoreUpdater;
 
     public void SaveNickname()
@@ -15,6 +15,6 @@ public class NicknameUI : MonoBehaviour
             { "score", "300"}
         };
 
-        firestoreUpdater.UpdateUserData(data, result => feedbackText.text = result);
+        firestoreUpdater.UpdateUserData(data, result => feedbackText = result);
     }
 }

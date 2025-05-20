@@ -7,7 +7,6 @@ using Mirror;
 
 public class AuthManager : MonoBehaviour
 {
-
     [Header("Firebase Web API Key")]
     [SerializeField] private string firebaseWebAPIKey = "AIzaSyBZ8_Wv37g_tFvIKvTDMcqnQTcEohLQSo";
 

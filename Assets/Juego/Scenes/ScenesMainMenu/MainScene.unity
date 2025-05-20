@@ -703,7 +703,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   nicknameInput: {fileID: 1052629268}
-  feedbackText: {fileID: 153314747}
+  feedbackText: 
   firestoreUpdater: {fileID: 186979935}
 --- !u!114 &186979935
 MonoBehaviour:
