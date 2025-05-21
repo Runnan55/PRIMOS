@@ -25,8 +25,10 @@ public class LobbyUIManager : MonoBehaviour
     public Transform playerListContainer;
     public GameObject playerListItemPrefab; // <-- Tu LobbyPlayerItemUI prefab
 
-    [Header("SearchGame")]
+    [Header("BuscarPartida")]
     public Button searchButton;
+    public Button cancelSearchButton;
+    public TMP_Text searchingText;
 
     private CustomRoomPlayer localPlayer;
 
@@ -41,10 +43,8 @@ public class LobbyUIManager : MonoBehaviour
         refreshButton.onClick.AddListener(RequestMatchList);
         readyButton.onClick.AddListener(ToogleReady);
         leaveRoomButton.onClick.AddListener(LeaveRoom);
-        searchButton.onClick.AddListener(() =>
-        {
-            CustomRoomPlayer.LocalInstance?.CmdSearchForMatch();
-        });
+        searchButton.onClick.AddListener(StartSearching);
+        cancelSearchButton.onClick.AddListener(CancelSearching);
 
         if (CustomRoomPlayer.LocalInstance != null && !string.IsNullOrEmpty(CustomRoomPlayer.LocalInstance.currentMode))
         {
@@ -63,6 +63,33 @@ public class LobbyUIManager : MonoBehaviour
         }
     }
 
+    #region Busqueda Y Cancelar Partidas
+
+    private void StartSearching()
+    {
+        CustomRoomPlayer.LocalInstance?.CmdSearchForMatch(); // Ya existente
+
+        // Cambiar UI
+        searchButton.gameObject.SetActive(false);
+        cancelSearchButton.gameObject.SetActive(true);
+    }
+
+    private void CancelSearching()
+    {
+        CustomRoomPlayer.LocalInstance?.CmdCancelSearch();
+
+        // Restaurar UI
+        searchButton.gameObject.SetActive(true);
+        cancelSearchButton.gameObject.SetActive(false);
+    }
+
+    public void UpdateSearchingText(int current, int max)
+    {
+        searchingText.text = $"Players: {current}/{max}";
+    }
+
+    #endregion
+
     public void CreateRoom()
     { 
         if (localPlayer != null)
@@ -79,6 +106,7 @@ public class LobbyUIManager : MonoBehaviour
     {
         if (CustomRoomPlayer.LocalInstance != null)
         {
+            CustomRoomPlayer.LocalInstance.CmdCancelSearch(); // <-- Esto es clave
             CustomRoomPlayer.LocalInstance.CmdLeaveLobbyMode();
         }
     }

@@ -25,6 +25,15 @@ public class MainLobbyUI : MonoBehaviour
     public NicknameUI nicknameUI;
     public FirestoreUserManager userManager;
 
+    [Header("Panel Opciones y Audio")]
+    public GameObject settingsPanel;
+    public GameObject audioPanel;
+
+    public Button settingsButton;
+    public Button audioButton;
+    public Button backFromSettingsButton;
+    public Button backFromAudioButton;
+
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
         { "Casual", "LobbySceneCasual" },
@@ -41,6 +50,11 @@ public class MainLobbyUI : MonoBehaviour
         nameInputField.onEndEdit.AddListener(OnNameEntered);
         playButton.onClick.AddListener(() => StartGameSelectionMenu());
         backToStartMenuButton.onClick.AddListener(() => BackToStartMenu());
+
+        settingsButton.onClick.AddListener(OpenSettingsPanel);
+        audioButton.onClick.AddListener(OpenAudioPanel);
+        backFromSettingsButton.onClick.AddListener(CloseSettingsPanel);
+        backFromAudioButton.onClick.AddListener(CloseAudioPanel);
 
         playButton.interactable = false;
 
@@ -106,6 +120,32 @@ public class MainLobbyUI : MonoBehaviour
         nicknameUI.nicknameInput.text = newText;
         nicknameUI.SaveNickname();
     }
+
+    #region Opciones Y Audio
+
+    private void OpenSettingsPanel()
+    {
+        settingsPanel.SetActive(true);
+        audioPanel.SetActive(false); // por si estaba abierto
+    }
+
+    private void CloseSettingsPanel()
+    {
+        settingsPanel.SetActive(false);
+    }
+
+    private void OpenAudioPanel()
+    {
+        audioPanel.SetActive(true);
+    }
+
+    private void CloseAudioPanel()
+    {
+        audioPanel.SetActive(false);
+    }
+
+
+    #endregion
 
     public void StartGameSelectionMenu()
     {

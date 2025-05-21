@@ -343,6 +343,7 @@ public class MatchHandler : NetworkBehaviour
         if (!queue.Contains(player))
         {
             queue.Add(player);
+            UpdateSearchingUIForMode(player.currentMode);
             Debug.Log($"[Matchmaking] Jugador {player.playerName} agregado a la cola del modo {player.currentMode}. Total: {queue.Count}");
 
             if (queue.Count >= MATCH_SIZE)
@@ -353,6 +354,40 @@ public class MatchHandler : NetworkBehaviour
             }
         }
     }
+
+    [Server]
+    public void RemoveFromMatchmakingQueue(CustomRoomPlayer player)
+    {
+        if (string.IsNullOrEmpty(player.currentMode)) return;
+
+        if (matchQueue.TryGetValue(player.currentMode, out var queue))
+        {
+            if (queue.Remove(player))
+            {
+                UpdateSearchingUIForMode(player.currentMode);
+                Debug.Log($"[Matchmaking] Jugador {player.playerName} removido de la cola del modo {player.currentMode}.");
+            }
+        }
+    }
+
+    [Server]
+    private void UpdateSearchingUIForMode(string mode)
+    {
+        if (!matchQueue.TryGetValue(mode, out var queue)) return;
+
+        int count = Mathf.Min(queue.Count, MATCH_SIZE); // No mostrar más de MATCH_SIZE
+
+        foreach (var conn in NetworkServer.connections.Values)
+        {
+            if (conn.identity == null) continue;
+
+            var roomPlayer = conn.identity.GetComponent<CustomRoomPlayer>();
+            if (roomPlayer == null || roomPlayer.currentMode != mode) continue;
+
+            roomPlayer.TargetUpdateSearchingCount(count, MATCH_SIZE);
+        }
+    }
+
 
     [Server]
     private void CreateAutoMatch(List<CustomRoomPlayer> players, string mode)

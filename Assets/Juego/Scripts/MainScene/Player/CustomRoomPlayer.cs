@@ -339,6 +339,8 @@ public class CustomRoomPlayer : NetworkBehaviour
             MatchHandler.Instance.LeaveMatch(this);
         }
 
+        MatchHandler.Instance.RemoveFromMatchmakingQueue(this); // Quitar de la lista de busqueda automatica
+
         currentMode = null;
 
         TargetReturnToMainMenu(connectionToClient);
@@ -459,9 +461,28 @@ public class CustomRoomPlayer : NetworkBehaviour
             return;
         }
 
+        Debug.Log($"[SERVER] Jugador {playerName} busca partida...");
+
         MatchHandler.Instance.EnqueueForMatchmaking(this);
     }
 
+    [Command]
+    public void CmdCancelSearch()
+    {
+        Debug.Log($"[SERVER] Jugador {playerName} cancela búsqueda.");
+
+        MatchHandler.Instance.RemoveFromMatchmakingQueue(this);
+    }
+
+    [TargetRpc]
+    public void TargetUpdateSearchingCount(int currentCount, int maxCount)
+    {
+        LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
+        if (ui != null)
+        {
+            ui.UpdateSearchingText(currentCount, maxCount);
+        }
+    }
 
     #endregion
 }
