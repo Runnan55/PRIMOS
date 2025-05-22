@@ -2,6 +2,7 @@ using Mirror;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using System.Collections;
 using TMPro;
 
 public class MainLobbyUI : MonoBehaviour
@@ -60,7 +61,9 @@ public class MainLobbyUI : MonoBehaviour
 
         if (userManager != null)
         {
-            userManager.LoadUser(); // <-- Esto carga automáticamente el nickname
+            userManager.LoadUser(); // Esto carga el nickname de Firebase
+
+            StartCoroutine(OnNameEnteredDelayed()); // Esto actualiza el playerName en el server de Mirror, sino aparece en blanco hasta que actualizemos
         }
 
         nameInputField.onValueChanged.AddListener(OnNameChangedLive);
@@ -71,6 +74,17 @@ public class MainLobbyUI : MonoBehaviour
         casualButton.onClick.AddListener(() => JoinMode("Casual"));
         //exitButton.onClick.AddListener(() => Application.Quit());
         //Desactivé el exit button por mientras pq bugea en la web
+    }
+
+    private IEnumerator OnNameEnteredDelayed()
+    {
+        yield return new WaitForSeconds(0.2f);
+
+        string name = nameInputField.text.Trim();
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            OnNameEntered(name);
+        }
     }
 
     private void OnNameEntered(string playerName)

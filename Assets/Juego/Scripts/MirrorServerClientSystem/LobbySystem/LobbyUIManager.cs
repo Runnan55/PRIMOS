@@ -46,11 +46,11 @@ public class LobbyUIManager : MonoBehaviour
         searchButton.onClick.AddListener(StartSearching);
         cancelSearchButton.onClick.AddListener(CancelSearching);
 
-        if (CustomRoomPlayer.LocalInstance != null && !string.IsNullOrEmpty(CustomRoomPlayer.LocalInstance.currentMode))
-        {
-            Debug.Log("[LobbyUIManager] Lobby cargado, solicitando lista automáticamente...");
-            RequestMatchList();
-        }
+        //OldSystem
+        RequestMatchList();
+
+        //NewSystem
+        StartSearching();
     }
 
     void Update()
@@ -63,7 +63,7 @@ public class LobbyUIManager : MonoBehaviour
         }
     }
 
-    #region Busqueda Y Cancelar Partidas
+    #region NewSystem : Busqueda Y Cancelar Partidas
 
     private void StartSearching()
     {
@@ -90,6 +90,8 @@ public class LobbyUIManager : MonoBehaviour
 
     #endregion
 
+    #region OldSystem : Crear partidas privadas con Admin
+
     public void CreateRoom()
     { 
         if (localPlayer != null)
@@ -106,7 +108,7 @@ public class LobbyUIManager : MonoBehaviour
     {
         if (CustomRoomPlayer.LocalInstance != null)
         {
-            CustomRoomPlayer.LocalInstance.CmdCancelSearch(); // <-- Esto es clave
+            CustomRoomPlayer.LocalInstance.CmdCancelSearch(); // <- Cancelar partida antes de irse
             CustomRoomPlayer.LocalInstance.CmdLeaveLobbyMode();
         }
     }
@@ -234,4 +236,6 @@ public class LobbyUIManager : MonoBehaviour
         lobbyPanel.SetActive(false);
         roomPanel.SetActive(true);
     }
+
+    #endregion
 }

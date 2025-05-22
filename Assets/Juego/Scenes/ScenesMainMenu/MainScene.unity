@@ -222,7 +222,7 @@ GameObject:
   - component: {fileID: 24305664}
   - component: {fileID: 24305663}
   m_Layer: 5
-  m_Name: ProfileBtn
+  m_Name: BtnProfile
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -286,7 +286,7 @@ MonoBehaviour:
     m_PressedTrigger: Pressed
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
-  m_Interactable: 1
+  m_Interactable: 0
   m_TargetGraphic: {fileID: 24305664}
   m_OnClick:
     m_PersistentCalls:
@@ -320,8 +320,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294696959
-  m_fontColor: {r: 1, g: 0.8726415, b: 0.9834906, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -338,13 +338,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -748,7 +748,7 @@ GameObject:
   - component: {fileID: 161659068}
   - component: {fileID: 161659067}
   m_Layer: 5
-  m_Name: GeneralScrollBar
+  m_Name: ScrollBar_General
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1121,7 +1121,7 @@ GameObject:
   - component: {fileID: 282031512}
   - component: {fileID: 282031511}
   m_Layer: 5
-  m_Name: AudioBtn
+  m_Name: BtnAudio
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1219,8 +1219,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294696959
-  m_fontColor: {r: 1, g: 0.8726415, b: 0.9834906, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -1237,13 +1237,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -2158,7 +2158,7 @@ GameObject:
   - component: {fileID: 851278106}
   - component: {fileID: 851278105}
   m_Layer: 5
-  m_Name: MusicScrollBar
+  m_Name: ScrollBar_Music
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2422,7 +2422,7 @@ GameObject:
   - component: {fileID: 898434876}
   - component: {fileID: 898434875}
   m_Layer: 5
-  m_Name: LanguajeBtn
+  m_Name: BtnLanguaje
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2486,7 +2486,7 @@ MonoBehaviour:
     m_PressedTrigger: Pressed
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
-  m_Interactable: 1
+  m_Interactable: 0
   m_TargetGraphic: {fileID: 898434876}
   m_OnClick:
     m_PersistentCalls:
@@ -2520,8 +2520,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294696959
-  m_fontColor: {r: 1, g: 0.8726415, b: 0.9834906, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -2538,13 +2538,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -3315,7 +3315,7 @@ GameObject:
   - component: {fileID: 1228313082}
   - component: {fileID: 1228313081}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: TextSetting
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3328,13 +3328,13 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1228313079}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: -0.026176924, w: 0.99965733}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1896697555}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -3}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 193}
@@ -3387,13 +3387,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -3585,7 +3585,7 @@ GameObject:
   - component: {fileID: 1340972239}
   - component: {fileID: 1340972238}
   m_Layer: 5
-  m_Name: BackBtn
+  m_Name: BtnBack
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3683,8 +3683,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294696959
-  m_fontColor: {r: 1, g: 0.8726415, b: 0.9834906, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -3701,13 +3701,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -4204,7 +4204,7 @@ MonoBehaviour:
     m_PressedTrigger: Pressed
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
-  m_Interactable: 1
+  m_Interactable: 0
   m_TargetGraphic: {fileID: 1495592177}
   m_OnClick:
     m_PersistentCalls:
@@ -4684,7 +4684,7 @@ GameObject:
   - component: {fileID: 1717433799}
   - component: {fileID: 1717433798}
   m_Layer: 5
-  m_Name: GeneralText
+  m_Name: Text_General
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4738,8 +4738,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294696959
-  m_fontColor: {r: 1, g: 0.8726415, b: 0.9834906, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -4756,13 +4756,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -4820,7 +4820,7 @@ GameObject:
   - component: {fileID: 1740544889}
   - component: {fileID: 1740544888}
   m_Layer: 5
-  m_Name: MusicText
+  m_Name: Text_Music
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4874,8 +4874,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294696959
-  m_fontColor: {r: 1, g: 0.8726415, b: 0.9834906, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -4892,13 +4892,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -5240,7 +5240,7 @@ GameObject:
   - component: {fileID: 1777467859}
   - component: {fileID: 1777467858}
   m_Layer: 5
-  m_Name: WalletBtn
+  m_Name: BtnWallet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5304,7 +5304,7 @@ MonoBehaviour:
     m_PressedTrigger: Pressed
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
-  m_Interactable: 1
+  m_Interactable: 0
   m_TargetGraphic: {fileID: 1777467859}
   m_OnClick:
     m_PersistentCalls:
@@ -5338,8 +5338,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294696959
-  m_fontColor: {r: 1, g: 0.8726415, b: 0.9834906, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -5356,13 +5356,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -5583,7 +5583,7 @@ MonoBehaviour:
     m_PressedTrigger: Pressed
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
-  m_Interactable: 1
+  m_Interactable: 0
   m_TargetGraphic: {fileID: 1887208668}
   m_OnClick:
     m_PersistentCalls:
@@ -6147,7 +6147,7 @@ GameObject:
   - component: {fileID: 1983060030}
   - component: {fileID: 1983060029}
   m_Layer: 5
-  m_Name: BackBtn
+  m_Name: Btn_Back
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6245,8 +6245,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294696959
-  m_fontColor: {r: 1, g: 0.8726415, b: 0.9834906, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -6263,13 +6263,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -6431,7 +6431,7 @@ GameObject:
   - component: {fileID: 2057621762}
   - component: {fileID: 2057621761}
   m_Layer: 5
-  m_Name: LogOutBtn
+  m_Name: BtnLogOut
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6541,8 +6541,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294696959
-  m_fontColor: {r: 1, g: 0.8726415, b: 0.9834906, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -6559,13 +6559,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -6930,7 +6930,7 @@ GameObject:
   - component: {fileID: 2107182241}
   - component: {fileID: 2107182240}
   m_Layer: 5
-  m_Name: AudioTitleText
+  m_Name: Text_AudioTitle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6943,13 +6943,13 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2107182238}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: -0.026176924, w: 0.99965733}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1624277983}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: -3}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 193}
@@ -7002,13 +7002,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 35
-  m_fontSizeBase: 35
+  m_fontSize: 45
+  m_fontSizeBase: 45
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535

@@ -154,11 +154,31 @@ public class AuthManager : MonoBehaviour
             NetworkManager.singleton.StartClient(); //Intenta conectarse como cliente
         }
 
-        //Esperar que se conecte
-        while (!NetworkClient.isConnected)
-            yield return null;
+        float timeout = 5f;
+        float timer = 0f;
 
-        Debug.Log($"[AuthManager] envio a jugador a servidor");
+        //Esperar que se conecte
+        while (!NetworkClient.isConnected && timer < timeout)
+        {
+            timer += Time.deltaTime;
+            yield return null;
+        }
+
+        if (!NetworkClient.isConnected)
+        {
+            Debug.Log($"[AuthManager] envio a jugador a servidor");
+            OnConnectionFailed();
+        }
+    }
+
+    private void OnConnectionFailed()
+    {
+        ShowLoginPanel();
+
+        if (feedbackText != null)
+        {
+            feedbackText.text = "No se pudo conectar al servidor. Intenta nuevamente.";
+        }
     }
 
     private IEnumerator RegisterUser(string email, string password)
@@ -287,8 +307,13 @@ public class AuthManager : MonoBehaviour
         }
     }
 
+    private bool isLoggingOut = false;
+
     public void Logout()
     {
+        if (isLoggingOut) return;
+        isLoggingOut = true;
+
         WebGLStorage.DeleteKey("jwt_token");
         WebGLStorage.DeleteKey("refresh_token");
         StartCoroutine(DelayerShowLoginPanel());
@@ -299,6 +324,7 @@ public class AuthManager : MonoBehaviour
     {
         yield return new WaitForSeconds(1f);
         ShowLoginPanel();
+        isLoggingOut = false;
     }
 
     [System.Serializable]

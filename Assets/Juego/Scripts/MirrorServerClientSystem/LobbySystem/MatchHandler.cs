@@ -148,7 +148,6 @@ public class MatchHandler : NetworkBehaviour
         }
     }
 
-
     public List<MatchInfo> GetMatches(string mode)
     {
         List<MatchInfo> filteredMatches = new List<MatchInfo>();
