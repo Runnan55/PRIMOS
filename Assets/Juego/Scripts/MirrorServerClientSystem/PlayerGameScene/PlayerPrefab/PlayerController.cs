@@ -128,9 +128,19 @@ public class PlayerController : NetworkBehaviour
     [Header("TikiVisualIndicator")]
     public GameObject tikiSprite;
 
+    [Header("Game Roulette Modifier")]
+    public GameModifierRoulette roulette;
+    public GameObject gameModifierCanvas;
 
     [SyncVar] public uint gameManagerNetId;
     private GameManager cachedGameManager;
+
+    [TargetRpc]
+    public void TargetHideRouletteCanvas(NetworkConnection target)
+    {
+        if (gameModifierCanvas != null)
+            gameModifierCanvas.SetActive(false);
+    }
 
     #region Leaderboard
 
@@ -1310,6 +1320,24 @@ public class PlayerController : NetworkBehaviour
         if (stat != null && isServer)
         {
             stat.UpdatePlayerStats(this, true);
+        }
+    }
+
+    #endregion
+
+    #region GameMode Roulette
+
+    [TargetRpc]
+    public void TargetStartRouletteWithWinner(NetworkConnection target, float duration, int winnerIndex)
+    {
+        if (gameModifierCanvas != null)
+            gameModifierCanvas.SetActive(true);
+
+        if (roulette != null)
+        {
+            // Nuevo: conversión index -> GameModifierType
+            GameModifierType type = (GameModifierType)winnerIndex;
+            roulette.StartRoulette(type, duration);
         }
     }
 

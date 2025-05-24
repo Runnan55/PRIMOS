@@ -6217,6 +6217,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: CustomNetworkManager
       objectReference: {fileID: 0}
+    - target: {fileID: 3316401913925202819, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: playerPrefab
       value: 

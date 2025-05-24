@@ -327,7 +327,7 @@ public class GameManager : NetworkBehaviour
 
         if (randomizeModifier)
         {
-            ChooseRandomModifier();
+            yield return StartCoroutine(ShowRouletteBeforeStart());
         }
 
         Debug.Log($"[GameManager] Modificador seleccionado: {SelectedModifier}");
@@ -1037,6 +1037,29 @@ public class GameManager : NetworkBehaviour
         }
     }
 
+    #endregion
+
+    #region GameMode Roulette
+
+    private IEnumerator ShowRouletteBeforeStart()
+    {
+        float rouletteDuration = UnityEngine.Random.Range(8f, 12f);
+        ChooseRandomModifier();
+        int winnerIndex = (int)SelectedModifier;
+
+        foreach (var player in players)
+        {
+            player.TargetStartRouletteWithWinner(player.connectionToClient, rouletteDuration, winnerIndex);
+        }
+
+        yield return new WaitForSeconds(rouletteDuration);
+
+        foreach (var player in players)
+        {
+            player.TargetHideRouletteCanvas(player.connectionToClient);
+        }
+    }
+    
     #endregion
 
     #region OnPlayerDisconnect

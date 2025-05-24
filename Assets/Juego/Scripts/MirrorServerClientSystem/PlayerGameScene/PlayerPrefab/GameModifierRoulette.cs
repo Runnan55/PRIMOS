@@ -1,16 +1,34 @@
 using UnityEngine;
-using System.Collections.Generic;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine.UI;
+
+public class StoneType : MonoBehaviour
+{
+    public GameModifierType type;
+}
 
 public class GameModifierRoulette : MonoBehaviour
 {
-    [Header("Opciones de Ruleta")]
-    public List<GameObject> modifierStones;
-    public float minDuration = 5f;
-    public float maxDuration = 10f;
-    public float intervalStart = 0.15f;
-    public float intervalEnd = 0.75f;
+    [Header("Prefabs por Modificador")]
+    public GameObject prefabCaceria;
+    public GameObject prefabGatillo;
+    public GameObject prefabBalas;
+    public GameObject prefabOscura;
+
+    [Header("Puntos de Disparo")]
+    public Transform startPoint;
+    public Transform endPoint;
+
+    [Header("Scroll Configuración")]
+    public float scrollSpeed = 500f;
+    public float spawnInterval = 0.7f;
+
+    [Header("Detención del ganador")]
+    public float stopWindowThreshold = 3f;
+    public float targetX = 0f;         // Centro visual donde debe detenerse
+    public float triggerRange = 25f;   // Rango permitido alrededor del centro
+    public float minSpinTime = 1.5f;   // Tiempo mínimo antes de permitir freno
 
     [Header("Efectos Visuales")]
     public Color normalColor = Color.gray;
@@ -18,52 +36,155 @@ public class GameModifierRoulette : MonoBehaviour
     public Vector3 normalScale = Vector3.one * 0.75f;
     public Vector3 highlightScale = Vector3.one;
 
-    public int selectedIndex { get; private set; } = -1;
+    private Dictionary<GameModifierType, GameObject> prefabDict;
+    private bool isSpinning = false;
+    private bool hasStopped = false;
+    private float rouletteTimer = 0f;
+    private GameModifierType winnerType;
+    private float totalDuration;
+    private bool forceStopRequested = false;
+    private List<GameObject> activeStones = new();
+    private List<Coroutine> movingCoroutines = new();
 
-    public System.Action<int> OnModifierSelected; //Callback cuando finaliza
-
-    public void StartRoulette()
+    public void StartRoulette(GameModifierType winner, float duration)
     {
-        StartCoroutine(RouletteRoutine());
+        rouletteTimer = 0f;
+        winnerType = winner;
+        totalDuration = duration;
+        isSpinning = true;
+        hasStopped = false;
+        forceStopRequested = false;
+        movingCoroutines.Clear();
+        activeStones.Clear();
+
+        if (gameObject.activeSelf)
+            StartCoroutine(ForceStopAfter(duration));
+
+        SetupPrefabDict();
+        StartCoroutine(SpawnLoop());
     }
 
-    private IEnumerator RouletteRoutine()
+    private void SetupPrefabDict()
     {
-        float duration = Random.Range(minDuration, maxDuration);
-        float elapsed = 0f;
-
-        int currentIndex = 0;
-        float t = 0;
-
-        while (elapsed < duration)
+        prefabDict = new Dictionary<GameModifierType, GameObject>
         {
-            Highlight(currentIndex);
-            float progress = elapsed / duration;
-            float interval = Mathf.Lerp(intervalStart, intervalEnd, progress);
-
-            yield return new WaitForSeconds(interval);
-
-            elapsed += interval;
-            currentIndex = (currentIndex + 1) % modifierStones.Count;
-        }
-
-        selectedIndex = currentIndex;
-        Highlight(selectedIndex);
-
-        Debug.Log($"[Ruleta] Modificador seleccionado: {modifierStones[selectedIndex].name}");
-
-        OnModifierSelected?.Invoke(selectedIndex);
+            { GameModifierType.CaceriaDelLider, prefabCaceria },
+            { GameModifierType.GatilloFacil, prefabGatillo },
+            { GameModifierType.BalasOxidadas, prefabBalas },
+            { GameModifierType.CargaOscura, prefabOscura }
+        };
     }
 
-    private void Highlight(int index)
+    private IEnumerator SpawnLoop()
     {
-        for (int i = 0; i < modifierStones.Count; i++)
+        while (isSpinning)
         {
-            var image = modifierStones[i].GetComponent<Image>();
-            modifierStones[i].transform.localScale = (i == index) ? highlightScale : normalScale;
+            GameModifierType randomType = GetNextType();
+            GameObject prefab = prefabDict[randomType];
+            GameObject stone = Instantiate(prefab, startPoint.position, Quaternion.identity, transform);
 
-            if (image != null)
-                image.color = (i == index) ? highlightColor : normalColor;
+            // Asignar tipo
+            var stoneType = stone.AddComponent<StoneType>();
+            stoneType.type = randomType;
+
+            activeStones.Add(stone);
+            Coroutine moveRoutine = StartCoroutine(MoveStone(stone));
+            movingCoroutines.Add(moveRoutine);
+
+            yield return new WaitForSeconds(spawnInterval);
         }
+    }
+
+    private IEnumerator MoveStone(GameObject stone)
+    {
+        RectTransform rt = stone.GetComponent<RectTransform>();
+        Image img = stone.GetComponent<Image>();
+        float distance = Vector3.Distance(startPoint.position, endPoint.position);
+        float centerX = startPoint.position.x + distance / 2f;
+        float highlightRange = distance * 0.2f / 2f;
+
+        StoneType stoneType = stone.GetComponent<StoneType>();
+        if (stoneType == null) yield break;
+
+        while (stone != null && !hasStopped && !forceStopRequested)
+        {
+            rouletteTimer += Time.deltaTime;
+            float timeRemaining = Mathf.Max(0f, totalDuration - rouletteTimer);
+
+            stone.transform.position += Vector3.right * scrollSpeed * Time.deltaTime;
+            float stoneX = stone.transform.position.x;
+
+            bool isInHighlightZone = Mathf.Abs(stoneX - centerX) <= highlightRange;
+            float targetScale = isInHighlightZone ? highlightScale.x : normalScale.x;
+            Color targetColor = isInHighlightZone ? highlightColor : normalColor;
+
+            rt.localScale = Vector3.Lerp(rt.localScale, Vector3.one * targetScale, Time.deltaTime * 8f);
+            if (img != null)
+                img.color = Color.Lerp(img.color, targetColor, Time.deltaTime * 8f);
+
+            if (!hasStopped &&
+                stoneType.type == winnerType &&
+                timeRemaining <= stopWindowThreshold &&
+                rouletteTimer >= minSpinTime &&
+                Mathf.Abs(stoneX - targetX) <= triggerRange)
+            {
+                Vector3 pos = stone.transform.position;
+                pos.x = targetX;
+                stone.transform.position = pos;
+
+                isSpinning = false;
+                hasStopped = true;
+                HighlightStone(stone);
+
+                foreach (Coroutine c in movingCoroutines)
+                {
+                    if (c != null) StopCoroutine(c);
+                }
+                movingCoroutines.Clear();
+
+                yield break;
+            }
+
+            if (stone.transform.position.x >= endPoint.position.x)
+            {
+                if (!hasStopped)
+                {
+                    Destroy(stone);
+                }
+                yield break;
+            }
+
+            yield return null;
+        }
+    }
+
+    private void HighlightStone(GameObject stone)
+    {
+        if (stone.TryGetComponent<Image>(out var img))
+            img.color = highlightColor;
+
+        stone.transform.localScale = highlightScale;
+    }
+
+    private IEnumerator ForceStopAfter(float wait)
+    {
+        yield return new WaitForSeconds(wait);
+
+        if (!hasStopped)
+        {
+            forceStopRequested = true;
+            isSpinning = false;
+            hasStopped = true;
+        }
+    }
+
+    private int currentIndex = 0;
+
+    private GameModifierType GetNextType()
+    {
+        var values = new List<GameModifierType>(prefabDict.Keys);
+        GameModifierType nextType = values[currentIndex];
+        currentIndex = (currentIndex + 1) % values.Count;
+        return nextType;
     }
 }

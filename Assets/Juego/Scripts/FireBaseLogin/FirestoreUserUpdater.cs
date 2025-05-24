@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
 using SimpleJSON;
-using UnityEditor.ShaderGraph.Serialization;
+//using UnityEditor.ShaderGraph.Serialization;
 
 public class FirestoreUserUpdater : MonoBehaviour
 {
