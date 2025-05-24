@@ -17,18 +17,15 @@ public class GameModifierRoulette : MonoBehaviour
     public GameObject prefabOscura;
 
     [Header("Puntos de Disparo")]
-    public Transform startPoint;
-    public Transform endPoint;
+    public RectTransform startPoint;
+    public RectTransform endPoint;
 
     [Header("Scroll Configuración")]
     public float scrollSpeed = 500f;
-    public float spawnInterval = 0.7f;
+    public float spawnDistance = 600f;
 
     [Header("Detención del ganador")]
-    public float stopWindowThreshold = 3f;
-    public float targetX = 0f;         // Centro visual donde debe detenerse
-    public float triggerRange = 25f;   // Rango permitido alrededor del centro
-    public float minSpinTime = 1.5f;   // Tiempo mínimo antes de permitir freno
+    public float minSpinTime = 2f;
 
     [Header("Efectos Visuales")]
     public Color normalColor = Color.gray;
@@ -43,8 +40,11 @@ public class GameModifierRoulette : MonoBehaviour
     private GameModifierType winnerType;
     private float totalDuration;
     private bool forceStopRequested = false;
-    private List<GameObject> activeStones = new();
-    private List<Coroutine> movingCoroutines = new();
+
+    private List<RectTransform> activeStones = new();
+    private List<StoneType> activeStoneTypes = new();
+    private RectTransform lastSpawnedStone = null;
+    private RectTransform winnerStone = null;
 
     public void StartRoulette(GameModifierType winner, float duration)
     {
@@ -54,14 +54,17 @@ public class GameModifierRoulette : MonoBehaviour
         isSpinning = true;
         hasStopped = false;
         forceStopRequested = false;
-        movingCoroutines.Clear();
+
         activeStones.Clear();
+        activeStoneTypes.Clear();
+        lastSpawnedStone = null;
+        winnerStone = null;
 
         if (gameObject.activeSelf)
             StartCoroutine(ForceStopAfter(duration));
 
         SetupPrefabDict();
-        StartCoroutine(SpawnLoop());
+        SpawnStone(); // primera piedra
     }
 
     private void SetupPrefabDict()
@@ -75,86 +78,89 @@ public class GameModifierRoulette : MonoBehaviour
         };
     }
 
-    private IEnumerator SpawnLoop()
+    private void Update()
     {
-        while (isSpinning)
+        if (!isSpinning || hasStopped || forceStopRequested) return;
+
+        rouletteTimer += Time.deltaTime;
+
+        for (int i = 0; i < activeStones.Count; i++)
         {
-            GameModifierType randomType = GetNextType();
-            GameObject prefab = prefabDict[randomType];
-            GameObject stone = Instantiate(prefab, startPoint.position, Quaternion.identity, transform);
+            RectTransform rt = activeStones[i];
+            StoneType stoneType = activeStoneTypes[i];
 
-            // Asignar tipo
-            var stoneType = stone.AddComponent<StoneType>();
-            stoneType.type = randomType;
+            Vector2 anchoredPos = rt.anchoredPosition;
+            float prevX = anchoredPos.x;
 
-            activeStones.Add(stone);
-            Coroutine moveRoutine = StartCoroutine(MoveStone(stone));
-            movingCoroutines.Add(moveRoutine);
+            anchoredPos.x += scrollSpeed * Time.deltaTime;
+            rt.anchoredPosition = anchoredPos;
 
-            yield return new WaitForSeconds(spawnInterval);
-        }
-    }
-
-    private IEnumerator MoveStone(GameObject stone)
-    {
-        RectTransform rt = stone.GetComponent<RectTransform>();
-        Image img = stone.GetComponent<Image>();
-        float distance = Vector3.Distance(startPoint.position, endPoint.position);
-        float centerX = startPoint.position.x + distance / 2f;
-        float highlightRange = distance * 0.2f / 2f;
-
-        StoneType stoneType = stone.GetComponent<StoneType>();
-        if (stoneType == null) yield break;
-
-        while (stone != null && !hasStopped && !forceStopRequested)
-        {
-            rouletteTimer += Time.deltaTime;
-            float timeRemaining = Mathf.Max(0f, totalDuration - rouletteTimer);
-
-            stone.transform.position += Vector3.right * scrollSpeed * Time.deltaTime;
-            float stoneX = stone.transform.position.x;
-
-            bool isInHighlightZone = Mathf.Abs(stoneX - centerX) <= highlightRange;
+            // Highlight visual
+            bool isInHighlightZone = Mathf.Abs(anchoredPos.x) <= 150f;
             float targetScale = isInHighlightZone ? highlightScale.x : normalScale.x;
             Color targetColor = isInHighlightZone ? highlightColor : normalColor;
 
             rt.localScale = Vector3.Lerp(rt.localScale, Vector3.one * targetScale, Time.deltaTime * 8f);
-            if (img != null)
+            if (rt.TryGetComponent<Image>(out var img))
                 img.color = Color.Lerp(img.color, targetColor, Time.deltaTime * 8f);
 
-            if (!hasStopped &&
-                stoneType.type == winnerType &&
-                timeRemaining <= stopWindowThreshold &&
-                rouletteTimer >= minSpinTime &&
-                Mathf.Abs(stoneX - targetX) <= triggerRange)
-            {
-                Vector3 pos = stone.transform.position;
-                pos.x = targetX;
-                stone.transform.position = pos;
+            // DETENER solo en la piedra ganadora marcada
+            bool cruzoCentro = prevX < 0f && anchoredPos.x >= 0f;
 
+            if (!hasStopped &&
+                rt == winnerStone &&
+                rouletteTimer >= minSpinTime &&
+                cruzoCentro)
+            {
+                anchoredPos.x = 0f;
+                rt.anchoredPosition = anchoredPos;
+
+                HighlightStone(rt.gameObject);
                 isSpinning = false;
                 hasStopped = true;
-                HighlightStone(stone);
-
-                foreach (Coroutine c in movingCoroutines)
-                {
-                    if (c != null) StopCoroutine(c);
-                }
-                movingCoroutines.Clear();
-
-                yield break;
             }
 
-            if (stone.transform.position.x >= endPoint.position.x)
+            // Destruir si se sale de pantalla
+            if (anchoredPos.x >= endPoint.anchoredPosition.x)
             {
-                if (!hasStopped)
-                {
-                    Destroy(stone);
-                }
-                yield break;
+                Destroy(rt.gameObject);
+                activeStones.RemoveAt(i);
+                activeStoneTypes.RemoveAt(i);
+                i--;
             }
+        }
 
-            yield return null;
+        // SPAWN: solo cuando la última piedra se haya alejado spawnDistance del startPoint
+        if (!hasStopped && (
+            lastSpawnedStone == null ||
+            Mathf.Abs(lastSpawnedStone.anchoredPosition.x - startPoint.anchoredPosition.x) >= spawnDistance))
+        {
+            SpawnStone();
+        }
+    }
+
+    private void SpawnStone()
+    {
+        GameModifierType randomType = GetNextType();
+        GameObject prefab = prefabDict[randomType];
+        GameObject stone = Instantiate(prefab, startPoint.position, Quaternion.identity, transform);
+
+        var rt = stone.GetComponent<RectTransform>();
+        var stoneType = stone.AddComponent<StoneType>();
+        stoneType.type = randomType;
+
+        if (rt != null)
+        {
+            rt.anchoredPosition = startPoint.anchoredPosition;
+
+            lastSpawnedStone = rt;
+            activeStones.Add(rt);
+            activeStoneTypes.Add(stoneType);
+
+            if (stoneType.type == winnerType && winnerStone == null)
+            {
+                winnerStone = rt;
+            }
         }
     }
 

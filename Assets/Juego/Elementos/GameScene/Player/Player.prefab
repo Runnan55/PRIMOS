@@ -747,9 +747,10 @@ MonoBehaviour:
   prefabOscura: {fileID: 8795756738653205496, guid: aa6d9d8c4f9829d4583d4981b4c80c2d, type: 3}
   startPoint: {fileID: 768905663223655537}
   endPoint: {fileID: 6794887243216116805}
-  scrollSpeed: 500
-  spawnInterval: 0.7
-  stopWindowThreshold: 5
+  scrollSpeed: 1000
+  extraSpacing: 50
+  stopWindowThreshold: 3
+  minSpinTime: 5
   normalColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   highlightColor: {r: 1, g: 1, b: 1, a: 1}
   normalScale: {x: 0.5, y: 0.5, z: 1}
