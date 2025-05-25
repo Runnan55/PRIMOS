@@ -287,6 +287,7 @@ public class PlayerController : NetworkBehaviour
             drawCanvas.SetActive(false);
             targetIndicator.SetActive(false);
             playerCanvas.SetActive(true);
+            gameModifierCanvas.SetActive(true);
 
             /*if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
             if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());
@@ -1236,7 +1237,6 @@ public class PlayerController : NetworkBehaviour
             GameManager.RegisterDamagedPlayer(this);
         }
 
-        RpcPlayAnimation("ReceiveDamage");
         PlayDirectionalAnimation("Stunned");
 
         health -= damageAmount;
@@ -1331,6 +1331,8 @@ public class PlayerController : NetworkBehaviour
     [TargetRpc]
     public void TargetStartRouletteWithWinner(NetworkConnection target, float duration, int winnerIndex)
     {
+        if (!isOwned) return;
+
         if (gameModifierCanvas != null)
             gameModifierCanvas.SetActive(true);
 

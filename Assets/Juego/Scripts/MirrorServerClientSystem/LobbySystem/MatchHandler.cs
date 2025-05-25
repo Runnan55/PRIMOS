@@ -329,7 +329,7 @@ public class MatchHandler : NetworkBehaviour
     #region Busqueda Automática
 
     private Dictionary<string, List<CustomRoomPlayer>> matchQueue = new();
-    private const int MATCH_SIZE = 1; //Cantidad de jugadores para iniciar partida
+    private const int MATCH_SIZE = 2; //Cantidad de jugadores para iniciar partida
 
     [Server]
     public void EnqueueForMatchmaking(CustomRoomPlayer player)
