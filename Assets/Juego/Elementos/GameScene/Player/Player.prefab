@@ -748,8 +748,7 @@ MonoBehaviour:
   startPoint: {fileID: 768905663223655537}
   endPoint: {fileID: 6794887243216116805}
   scrollSpeed: 1000
-  extraSpacing: 50
-  stopWindowThreshold: 3
+  spawnDistance: 600
   minSpinTime: 5
   normalColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   highlightColor: {r: 1, g: 1, b: 1, a: 1}
@@ -2422,15 +2421,15 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 95b7d858bd88fc44eb1d0c02903d1dcc, type: 3}
+  m_Sprite: {fileID: 21300000, guid: cac184b3e96c3d247983ad947aa65393, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 7, y: 2.16}
+  m_Size: {x: 35, y: 35}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 0
+  m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!1 &2760055385393034462
@@ -5503,7 +5502,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: fb0e040584a29fc4db9bd5413033b2b7, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 543daf418b9d68d47b7e46204289a9fb, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -5850,7 +5849,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2249911746571040823
 RectTransform:
   m_ObjectHideFlags: 0
@@ -7292,7 +7291,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6712038891528626624
 RectTransform:
   m_ObjectHideFlags: 0
@@ -7959,7 +7958,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &3450758332802465915
 RectTransform:
   m_ObjectHideFlags: 0

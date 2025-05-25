@@ -1237,6 +1237,7 @@ public class PlayerController : NetworkBehaviour
         }
 
         RpcPlayAnimation("ReceiveDamage");
+        PlayDirectionalAnimation("Stunned");
 
         health -= damageAmount;
 
