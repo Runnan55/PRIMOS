@@ -306,6 +306,7 @@ public class PlayerController : NetworkBehaviour
         {
             playerCanvas.SetActive(false);
             localPlayerIndicator.SetActive(false);
+            gameModifierCanvas.SetActive(false);
         }
 
         fullHealth = health; //guardamos el valor inicial de health
@@ -700,7 +701,8 @@ public class PlayerController : NetworkBehaviour
 
     private void CoverButtonAnimation(int coverLevel)
     {
-        if (!isLocalPlayer && !isOwned) return;
+        //if (!isLocalPlayer && !isOwned) return;
+        if (!isServer) return; // Solo el servidor manda la animación
 
         coverLevel = Mathf.Clamp(coverLevel, 0, 2); // 0 = 100%%, 1 = 50%, 2 = 1%
         if (coverLevel == lastCoverLevel) return;
@@ -724,7 +726,8 @@ public class PlayerController : NetworkBehaviour
 
     private void SuperShootButtonAnimation(int currentAmmo)
     {
-        if (!isLocalPlayer && !isOwned) return;
+        //if (!isLocalPlayer && !isOwned) return;
+        if (!isServer) return;
 
         int superShootLevel = Mathf.Clamp(currentAmmo, 0, 3);
 
@@ -839,9 +842,10 @@ public class PlayerController : NetworkBehaviour
             RpcPlayAnimation(animName);
         }
         // Si estamos en el cliente y no es host, lo reproducimos localmente
-        else if (isClient)
+        else if (isClient || isOwned)
         {
-            GetComponent<Animator>().Play(animName); // Sin RPC, local solamente
+            GetComponent<Animator>().Play(animName); // SOLO ese jugador lo ve
+            Debug.Log("CoverCoverCoverCoverCoverCover");
         }
     }
 
