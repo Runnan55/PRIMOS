@@ -845,7 +845,7 @@ public class PlayerController : NetworkBehaviour
         else if (isClient || isOwned)
         {
             GetComponent<Animator>().Play(animName); // SOLO ese jugador lo ve
-            Debug.Log("CoverCoverCoverCoverCoverCover");
+            Debug.Log("Estoy reproduciendo la animación sin el error, la csm esto es un caos");
         }
     }
 

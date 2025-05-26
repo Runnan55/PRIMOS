@@ -6210,8 +6210,20 @@ PrefabInstance:
       value: 2777
       objectReference: {fileID: 0}
     - target: {fileID: 233103716309713200, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: clientUseWss
+      propertyPath: sslEnabled
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 233103716309713200, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
+      propertyPath: clientUseWss
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 233103716309713200, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
+      propertyPath: clientWebsocketSettings.ClientPortOption
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 233103716309713200, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
+      propertyPath: clientWebsocketSettings.CustomClientPort
+      value: 443
       objectReference: {fileID: 0}
     - target: {fileID: 3124671724160179898, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: m_Name
@@ -6227,7 +6239,7 @@ PrefabInstance:
       objectReference: {fileID: 6611139386470013384, guid: c441ff5b0517a014e8348f7b835358dc, type: 3}
     - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: networkAddress
-      value: localhost
+      value: miniback.primos.games
       objectReference: {fileID: 0}
     - target: {fileID: 7249158169166256175, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: m_LocalPosition.x
