@@ -256,6 +256,11 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
+    private void Awake()
+    {
+        animator = GetComponent<Animator>();
+    }
+
     private void Start()
     {
         if (GameManager.Instance != null)
@@ -310,8 +315,6 @@ public class PlayerController : NetworkBehaviour
         }
 
         fullHealth = health; //guardamos el valor inicial de health
-
-        animator = GetComponent<Animator>();
 
         if (targetIndicator != null)
             targetIndicator.SetActive(false);
@@ -501,7 +504,6 @@ public class PlayerController : NetworkBehaviour
             }
         }
     }
-
     #region Tiki
 
     [ClientRpc]
@@ -834,6 +836,7 @@ public class PlayerController : NetworkBehaviour
     public void PlayDirectionalAnimation(string baseAnim)
     {
         string animName = baseAnim + "_" + currentFacingDirection.ToString();
+
         Debug.Log($"[Animación] Ejecutando {animName}");
 
         // Luego si estamos en el servidor, hacemos un Rpc para todos los clientes
@@ -841,6 +844,10 @@ public class PlayerController : NetworkBehaviour
         {
             RpcPlayAnimation(animName);
             Debug.Log("Estoy reproduciendo la animación sin el error, la csm esto es un caos");
+        }
+        else
+        {
+            animator.Play(animName); // Reproducir localmente, para el actionEvent de las animaciones
         }
     }
 
@@ -1216,7 +1223,6 @@ public class PlayerController : NetworkBehaviour
 
             GameStatistic stat = FindFirstObjectByType<GameStatistic>(); if (stat != null && isServer) stat.UpdatePlayerStats(this); // Actualizar en el GameStatistics
         }
-        
     }
 
     [Server]

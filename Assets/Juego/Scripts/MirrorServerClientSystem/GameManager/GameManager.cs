@@ -549,7 +549,7 @@ public class GameManager : NetworkBehaviour
 
             if (player.currentQuickMission == null)
             {
-                player.TargetPlayAnimation("EmptyState");
+                player.TargetPlayAnimation("QM_Default_State");
             }
 
             if (!actionsQueue.ContainsKey(player)) // Si no se eligió acción alguna se llama a None

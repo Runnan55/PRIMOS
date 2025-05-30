@@ -6620,7 +6620,7 @@ MonoBehaviour:
   isAlive: 1
   lastShotTarget: {fileID: 0}
   ammo: 3
-  health: 1
+  health: 3
   hasConfirmedName: 0
   playerName: 
   kills: 0
