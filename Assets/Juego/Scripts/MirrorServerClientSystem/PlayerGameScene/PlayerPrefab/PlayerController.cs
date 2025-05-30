@@ -626,7 +626,6 @@ public class PlayerController : NetworkBehaviour
     #endregion
 
     #region Animations
-
     [TargetRpc]
     public void TargetPlayButtonAnimation(NetworkConnection target, bool enableButtons)
     {
@@ -644,6 +643,7 @@ public class PlayerController : NetworkBehaviour
     public void RpcPlayAnimation(string animation)
     {
         if (!isAlive) return;
+
         GetComponent<NetworkAnimator>().animator.Play(animation);//Esto sirve por ejemplo para que el player llame animación en otro player, tambien se puede llamar desde el Server
     }
 
@@ -836,15 +836,10 @@ public class PlayerController : NetworkBehaviour
         string animName = baseAnim + "_" + currentFacingDirection.ToString();
         Debug.Log($"[Animación] Ejecutando {animName}");
 
-        // Si estamos en el servidor, hacemos un Rpc para todos los clientes
+        // Luego si estamos en el servidor, hacemos un Rpc para todos los clientes
         if (isServer)
         {
             RpcPlayAnimation(animName);
-        }
-        // Si estamos en el cliente y no es host, lo reproducimos localmente
-        else if (isClient || isOwned)
-        {
-            GetComponent<Animator>().Play(animName); // SOLO ese jugador lo ve
             Debug.Log("Estoy reproduciendo la animación sin el error, la csm esto es un caos");
         }
     }

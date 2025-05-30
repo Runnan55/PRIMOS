@@ -1897,7 +1897,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &643082889
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6019,7 +6019,7 @@ RectTransform:
   m_Father: {fileID: 475195479}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -6210,8 +6210,16 @@ PrefabInstance:
       value: 2777
       objectReference: {fileID: 0}
     - target: {fileID: 233103716309713200, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
+      propertyPath: batchSend
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 233103716309713200, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: sslEnabled
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 233103716309713200, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
+      propertyPath: sslCertJson
+      value: ./cert.json
       objectReference: {fileID: 0}
     - target: {fileID: 233103716309713200, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: clientUseWss
@@ -6239,7 +6247,11 @@ PrefabInstance:
       objectReference: {fileID: 6611139386470013384, guid: c441ff5b0517a014e8348f7b835358dc, type: 3}
     - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: networkAddress
-      value: miniback.primos.games
+      value: miniback.primos.games/ws
+      objectReference: {fileID: 0}
+    - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
+      propertyPath: headlessStartMode
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7249158169166256175, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: m_LocalPosition.x
