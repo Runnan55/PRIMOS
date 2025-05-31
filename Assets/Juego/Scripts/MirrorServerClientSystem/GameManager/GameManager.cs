@@ -640,18 +640,27 @@ public class GameManager : NetworkBehaviour
             // Este es el punto donde realmente se aplica el daño (y eventualmente la muerte).
             if (shooters.Count == 1)
             {
+                shooters[0].canDealDamageThisRound = true;
                 shooters[0].ServerAttemptShoot(target);
             }
             else
             {
                 PlayerController chosenShooter = GetClosestToTalisman(shooters);
-                chosenShooter.ServerAttemptShoot(target);
-
-                Debug.Log($"[Talisman] {chosenShooter.playerName} gana la prioridad para atacar a {target.playerName}"); //Los demás fallan el tiro pero no se muestra
 
                 foreach (var shooter in shooters)
                 {
-                    shooter.canDealDamageThisRound = (shooter == chosenShooter);
+                    if (shooter == chosenShooter)
+                    {
+                        shooter.canDealDamageThisRound = true;
+                        shooter.ServerAttemptShoot(target);
+                        Debug.Log($"[Talisman] {chosenShooter.playerName} gana la prioridad para atacar a {target.playerName}"); //Los demás fallan el tiro pero no se muestra
+                    }
+                    else
+                    {
+                        // Jugadores que disparan, pero no hacen daño
+                        shooter.canDealDamageThisRound = false;
+                        shooter.ServerAttemptShoot(target);
+                    }
                 }
             }
         }
@@ -1043,7 +1052,7 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator ShowRouletteBeforeStart()
     {
-        float rouletteDuration = UnityEngine.Random.Range(8f, 12f);
+        float rouletteDuration = UnityEngine.Random.Range(10f, 12f);
         ChooseRandomModifier();
         int winnerIndex = (int)SelectedModifier;
 

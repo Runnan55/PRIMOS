@@ -25,7 +25,7 @@ public class GameModifierRoulette : MonoBehaviour
     public float spawnDistance = 600f;
 
     [Header("Detención del ganador")]
-    public float minSpinTime = 2f;
+    public float minSpinTime;
 
     [Header("Efectos Visuales")]
     public Color normalColor = Color.gray;
@@ -109,7 +109,7 @@ public class GameModifierRoulette : MonoBehaviour
 
             if (!hasStopped &&
                 rt == winnerStone &&
-                rouletteTimer >= minSpinTime &&
+                rouletteTimer >= (totalDuration - minSpinTime) &&
                 cruzoCentro)
             {
                 anchoredPos.x = 0f;

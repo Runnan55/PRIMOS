@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 4bfc183085032294c8c4d1d8d36a11c5
+guid: 97cd07b72cc05e74fab79cdae570131a
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -44,7 +44,7 @@ TextureImporter:
   lightmap: 0
   compressionQuality: 50
   spriteMode: 2
-  spriteExtrude: 1
+  spriteExtrude: 0
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
@@ -69,7 +69,7 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 2048
+    maxTextureSize: 1024
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 2
@@ -123,13 +123,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: def but broken_0
+      name: BtnCover1_0
       rect:
         serializedVersion: 2
-        x: 425
-        y: 536
-        width: 1041
-        height: 1060
+        x: 442
+        y: 523
+        width: 1046
+        height: 1078
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -138,8 +138,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 6e92b2791ca4d0943af61522167ac034
-      internalID: -878795295
+      spriteID: 5eacf080b6711304d81cca7b6e487570
+      internalID: -1685711003
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 93e98d71a4c5e32418f25381b40b1d9c
+    spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
     indices: 
@@ -158,7 +158,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      def but broken_0: -878795295
+      BtnCover1_0: -1685711003
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

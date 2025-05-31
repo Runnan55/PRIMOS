@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 29bd2bc508ff1b44d8567e986999a722
+guid: 3b73781007d5d3e4093c46fc2c0dd010
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -69,7 +69,7 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 2048
+    maxTextureSize: 1024
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 2
@@ -123,13 +123,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: att but_0
+      name: BtnDisparar_0
       rect:
         serializedVersion: 2
-        x: 425
-        y: 538
-        width: 1040
-        height: 1057
+        x: 444
+        y: 516
+        width: 1047
+        height: 1086
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -138,8 +138,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: b7eba38c3cbcd23418c08c3f54414d0c
-      internalID: -96324436
+      spriteID: 845fe42ac3a722e46a853d449bbe6be6
+      internalID: -1556562941
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 22c3e089602d6fc44bd4282d5c4a9434
+    spriteID: 40f3dec5be1c35f4f8201768ede91290
     internalID: 0
     vertices: []
     indices: 
@@ -158,7 +158,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      att but_0: -96324436
+      BtnDisparar_0: -1556562941
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

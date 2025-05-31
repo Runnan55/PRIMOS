@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: ab5ac66048973d54d912e7273088eadc
+guid: 8a45a27df132c3e4bb39d915a7280206
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -69,7 +69,7 @@ TextureImporter:
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
-    maxTextureSize: 2048
+    maxTextureSize: 1024
     resizeAlgorithm: 0
     textureFormat: -1
     textureCompression: 2
@@ -123,13 +123,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: reload but_0
+      name: BtnReload_0
       rect:
         serializedVersion: 2
-        x: 416
-        y: 538
-        width: 1049
-        height: 1066
+        x: 447
+        y: 522
+        width: 1044
+        height: 1079
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -138,8 +138,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 3c946d79404e3124c8e8916409fb533b
-      internalID: 2120219807
+      spriteID: 7a8fed7c541cf464387982a489a5ba80
+      internalID: -1230980615
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: fab60aba8ebebe64c9f92778bc825adf
+    spriteID: 2b87587d25d50e5408a9fe0bccc4a1da
     internalID: 0
     vertices: []
     indices: 
@@ -158,7 +158,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      reload but_0: 2120219807
+      BtnReload_0: -1230980615
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

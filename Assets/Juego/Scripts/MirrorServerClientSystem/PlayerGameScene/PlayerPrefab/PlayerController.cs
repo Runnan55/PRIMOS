@@ -90,9 +90,6 @@ public class PlayerController : NetworkBehaviour
     public TMP_Text roundTextUI;
     public TMP_Text timerTextUI;
 
-    [Header("Rol Elements")]
-    public GameObject parcaSprite;
-
     [Header("GameModifierType")]
     public bool isDarkReloadEnabled = false;
     [SyncVar(hook = nameof(OnIsVeryHealthyChanged))] public bool isVeryHealthy = false; //Si está en true (por Cacería de Lider) coverButton no funcionará
@@ -201,27 +198,27 @@ public class PlayerController : NetworkBehaviour
     {
         Debug.Log($"[ExitButton] isOwned: {isOwned}");
         Debug.Log("[PlayerController] Botón de salida del leaderboard presionado.");
-        CmdReturnToLobbyScene();
+        CmdReturnToMenuScene();
     }
 
     [Command]
-    private void CmdReturnToLobbyScene()
+    private void CmdReturnToMenuScene()
     {
-        Debug.Log($"[SERVER] {playerName} quiere volver a LobbySceneCasual");
+        Debug.Log($"[SERVER] {playerName} quiere volver a MenuScene");
 
         // Mover su CustomRoomPlayer
         if (ownerRoomPlayer != null)
         {
-            var lobbyScene = SceneManager.GetSceneByName("LobbySceneCasual");
-            if (lobbyScene.IsValid())
+            var mainScene = SceneManager.GetSceneByName("MainScene");
+            if (mainScene.IsValid())
             {
-                SceneManager.MoveGameObjectToScene(ownerRoomPlayer.gameObject, lobbyScene);
-                Debug.Log($"[SERVER] {playerName} movido a escena LobbySceneCasual");
+                SceneManager.MoveGameObjectToScene(ownerRoomPlayer.gameObject, mainScene);
+                Debug.Log($"[SERVER] {playerName} movido a escena MainScene");
             }
         }
 
         // Cambiar escena del cliente local
-        TargetReturnToLobbyScene(connectionToClient);
+        TargetReturnToMainScene(connectionToClient);
 
         // Destruir el PlayerController del servidor
         StartCoroutine (DestroyMe());
@@ -234,10 +231,10 @@ public class PlayerController : NetworkBehaviour
     }
 
     [TargetRpc]
-    private void TargetReturnToLobbyScene(NetworkConnection target)
+    private void TargetReturnToMainScene(NetworkConnection target)
     {
-        Debug.Log("[CLIENT] Cambiando escena visual a LobbySceneCasual...");
-        SceneManager.LoadScene("LobbySceneCasual");
+        Debug.Log("[CLIENT] Cambiando escena visual a MainScene...");
+        SceneManager.LoadScene("MainScene");
     }
 
     #endregion
@@ -260,6 +257,79 @@ public class PlayerController : NetworkBehaviour
     {
         animator = GetComponent<Animator>();
     }
+
+    #region Vida UI Local y NoLocal
+
+    [Header("Sprites Vida Local")]
+    public GameObject vidaAzul_3;
+    public GameObject vidaAzul_2;
+    public GameObject vidaAzul_1;
+    public GameObject vidaAzulBarra;
+    public GameObject corazonAzul;
+
+    [Header("Sprites Vida No Local")]
+    public GameObject vidaRoja_3;
+    public GameObject vidaRoja_2;
+    public GameObject vidaRoja_1;
+    public GameObject vidaRojaBarra;
+    public GameObject corazonRojo;
+
+    private void UpdateLifeUI(int currentLives)
+    {
+        // Primero desactivamos todos
+        vidaAzul_3.SetActive(false);
+        vidaAzul_2.SetActive(false);
+        vidaAzul_1.SetActive(false);
+
+        vidaRoja_3.SetActive(false);
+        vidaRoja_2.SetActive(false);
+        vidaRoja_1.SetActive(false);
+
+        if (isOwned)
+        {
+            switch (currentLives)
+            {
+                case 3:
+                    vidaAzul_3.SetActive(true);
+                    vidaAzul_2.SetActive(false);
+                    vidaAzul_1.SetActive(false);
+                    break;
+                case 2:
+                    vidaAzul_3.SetActive(false);
+                    vidaAzul_2.SetActive(true);
+                    vidaAzul_1.SetActive(false);
+                    break;
+                case 1:
+                    vidaAzul_3.SetActive(false);
+                    vidaAzul_2.SetActive(false);
+                    vidaAzul_1.SetActive(true);
+                    break;
+            }
+        }
+        else
+        {
+            switch (currentLives)
+            {
+                case 3:
+                    vidaRoja_3.SetActive(true);
+                    vidaRoja_2.SetActive(false);
+                    vidaRoja_1.SetActive(false);
+                    break;
+                case 2:
+                    vidaRoja_3.SetActive(false);
+                    vidaRoja_2.SetActive(true);
+                    vidaRoja_1.SetActive(false);
+                    break;
+                case 1:
+                    vidaRoja_3.SetActive(false);
+                    vidaRoja_2.SetActive(false);
+                    vidaRoja_1.SetActive(true);
+                    break;
+            }
+        }
+    }
+
+    #endregion
 
     private void Start()
     {
@@ -299,6 +369,8 @@ public class PlayerController : NetworkBehaviour
             if (coverButton) coverButton.onClick.AddListener(() => OnCoverButton());
             if (superShootButton) superShootButton.onClick.AddListener(() => OnSuperShootButton());*/
 
+            if(exitGameButton) exitGameButton.onClick.AddListener(() => OnExitLeaderboardPressed());
+
             AddPointerDownEvent(shootButton, ActionType.Shoot);
 
             AddPointerDownEvent(reloadButton, ActionType.Reload);
@@ -306,9 +378,23 @@ public class PlayerController : NetworkBehaviour
             AddPointerDownEvent(coverButton, ActionType.Cover);
 
             AddPointerDownEvent(superShootButton, ActionType.SuperShoot);
+
+            vidaAzulBarra.SetActive(true);
+            corazonAzul.SetActive(true);
+            vidaRojaBarra.SetActive(false);
+            corazonRojo.SetActive(false);
+            parcaAzul.SetActive(false);
+            parcaRojo.SetActive(false);
         }
         else
         {
+            vidaRojaBarra.SetActive(true);
+            corazonRojo.SetActive(true);
+            vidaAzulBarra.SetActive(false);
+            corazonAzul.SetActive(false);
+            parcaAzul.SetActive(false);
+            parcaRojo.SetActive(false);
+
             playerCanvas.SetActive(false);
             localPlayerIndicator.SetActive(false);
             gameModifierCanvas.SetActive(false);
@@ -342,6 +428,21 @@ public class PlayerController : NetworkBehaviour
     {
         if (!isOwned || !clientDecisionPhase) return;
 
+        Button button = action switch
+        {
+            ActionType.Shoot => shootButton,
+            ActionType.SuperShoot => superShootButton,
+            ActionType.Reload => reloadButton,
+            ActionType.Cover => coverButton,
+            _ => null
+        };
+
+        if (button == null || !button.interactable)
+        {
+            Debug.Log($"Botón para acción {action} no interactuable, ignorando click.");
+            return;
+        }
+
         if (lastPressedButton == action)
         {
             CancelCurrentAction();
@@ -354,13 +455,17 @@ public class PlayerController : NetworkBehaviour
         switch (action)
         {
             case ActionType.Shoot:
-                StartCoroutine(DelayedShoot()); break;
+                StartCoroutine(DelayedShoot());
+                break;
             case ActionType.SuperShoot:
-                StartCoroutine(DelayedSuperShoot()); break;
+                StartCoroutine(DelayedSuperShoot());
+                break;
             case ActionType.Reload:
-                OnReloadButton(); break;
+                OnReloadButton();
+                break;
             case ActionType.Cover:
-                OnCoverButton(); break;
+                OnCoverButton();
+                break;
         }
     }
 
@@ -577,12 +682,14 @@ public class PlayerController : NetworkBehaviour
     {
         if (healthText)
             healthText.text = new string('-', newHealth);
+        UpdateLifeUI(newHealth);
     }
 
     private void OnAmmoChanged(int oldAmmo, int newAmmo)
     {
         if (ammoText)
-            ammoText.text = $"Balas: {newAmmo}";
+            //ammoText.text = $"Balas: {newAmmo}";
+            ammoText.text = $"{newAmmo}";
 
         SuperShootButtonAnimation(newAmmo);
     }
@@ -703,9 +810,6 @@ public class PlayerController : NetworkBehaviour
 
     private void CoverButtonAnimation(int coverLevel)
     {
-        //if (!isLocalPlayer && !isOwned) return;
-        if (!isServer) return; // Solo el servidor manda la animación
-
         coverLevel = Mathf.Clamp(coverLevel, 0, 2); // 0 = 100%%, 1 = 50%, 2 = 1%
         if (coverLevel == lastCoverLevel) return;
 
@@ -728,9 +832,6 @@ public class PlayerController : NetworkBehaviour
 
     private void SuperShootButtonAnimation(int currentAmmo)
     {
-        //if (!isLocalPlayer && !isOwned) return;
-        if (!isServer) return;
-
         int superShootLevel = Mathf.Clamp(currentAmmo, 0, 3);
 
         if (superShootLevel == lastSuperShootLevel) return; // Solo reproducir si hay cambio de estado (evita volver a animar innecesariamente)
@@ -756,12 +857,24 @@ public class PlayerController : NetworkBehaviour
 
     #region Roles
 
+    [Header("Sprites Parca Local y No Local")]
+    public GameObject parcaAzul;  // Parca para jugador local
+    public GameObject parcaRojo;  // Parca para jugadores no locales
+
     [ClientRpc]
     public void RpcSetParcaSprite(bool isActive)
     {
-        if (parcaSprite != null)
+        if (isOwned)
         {
-            parcaSprite.SetActive(isActive);
+            parcaAzul.SetActive(isActive);
+            parcaRojo.SetActive(false);
+            corazonAzul.SetActive(false);
+        }
+        else
+        {
+            parcaRojo.SetActive(isActive);
+            parcaAzul.SetActive(false);
+            corazonRojo.SetActive(false);
         }
     }
 
@@ -1184,10 +1297,11 @@ public class PlayerController : NetworkBehaviour
 
         if (!target.isAlive)//Si el jugador estaba muerto antes de dispararle
         {
-            Debug.Log($"{playerName} le disparó al cadaver de {target.playerName}.");
+            Debug.Log($"{playerName} le disparó al cadaver de {target.playerName}. Parece que le caía mal.");
             return;
         }
 
+        //Importante, esto permite seleccionar al jugador con tiki para darle prioridad, y eliminar el disparo a los jugadores que no tienen Tiki
         if (!canDealDamageThisRound)
         {
             Debug.Log($"[Talisman] {playerName} disparó a {target.playerName}, pero perdió prioridad. No se causa daño.");
@@ -1242,8 +1356,6 @@ public class PlayerController : NetworkBehaviour
             GameManager.RegisterDamagedPlayer(this);
         }
 
-        PlayDirectionalAnimation("Stunned");
-
         health -= damageAmount;
 
         if (health <= 0)
@@ -1266,7 +1378,7 @@ public class PlayerController : NetworkBehaviour
                     rolesManager.RegisterKill(killer, this);
                 }
 
-                Debug.Log($"[Kills] {killer.playerName} mató a {playerName}, es un HOMICIDA, un SIKOPATA, un ASESINO, llamen a la POLIZIA por el AMOR DE DIOS.");
+                Debug.Log($"[Kills] {killer.playerName} mató a {playerName} en la escena {gameObject.scene.name}, es un HOMICIDA, un SIKOPATA, un ASESINO, llamen a la POLIZIA por el AMOR DE DIOS.");
 
                 var stat = FindFirstObjectByType<GameStatistic>();
                 if (stat != null && isServer)
@@ -1277,7 +1389,24 @@ public class PlayerController : NetworkBehaviour
 
             GameManager.PlayerDied(this);
         }
+
+        StartCoroutine(DelayedPlayStunnedAnimation()); // Vamos a actualizar el estado de vida y esperar un segundo para mandar la animación de recibir daño, damos tiempo a que se ejecuten otras animaciones
     }
+
+    private IEnumerator DelayedPlayStunnedAnimation()
+    {
+        yield return new WaitForSeconds(1f);
+
+        if (!isAlive)
+        {
+            PlayDirectionalAnimation("Death");
+        }
+        else
+        {
+            PlayDirectionalAnimation("Stunned");
+        }
+    }
+
     private RolesManager FindRolesManagerInScene()
     {
         Scene myScene = gameObject.scene;
