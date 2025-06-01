@@ -82,6 +82,8 @@ public class AuthManager : MonoBehaviour
         StartCoroutine(LoginUser(email, password));
     }
 
+    public AllowedEmailManager allowedEmailManager; // Asignar en inspector o buscar con GetComponent
+
     public void OnRegisterButtonPressed()
     {
         string email = emailInput_Register.text.Trim();
@@ -97,6 +99,13 @@ public class AuthManager : MonoBehaviour
         if (password != passwordAgain)
         {
             passwordFeedbackText.text = "Password must be identical..";
+            return;
+        }
+
+        // Validar email en lista permitida
+        if (!allowedEmailManager.IsEmailAllowed(email))
+        {
+            passwordFeedbackText.text = "Email no autorizado para registro.";
             return;
         }
 
@@ -158,16 +167,19 @@ public class AuthManager : MonoBehaviour
                         message = "Cuenta o email no existente.";
                         break;
                     case "INVALID_PASSWORD":
-                        message = "Contraseña no válida.";
+                        message = "Password invalid.";
                         break;
                     case "USER_DISABLED":
-                        message = "Usuario deshabilitado.";
+                        message = "User disabled.";
                         break;
                     case "INVALID_EMAIL":
-                        message = "El formato del email no es válido.";
+                        message = "Email format not valid.";
                         break;
                     case "INVALID_LOGIN_CREDENTIALS":
                         message = "Invalid login credentials.";
+                        break;
+                    case "TOO_MANY_ATTEMPTS_TRY_LATER":
+                        message = "To many attempts, take a break.";
                         break;
                     default:
                         message = "Error: " + errorMessage;

@@ -59,8 +59,6 @@ public class CustomRoomPlayer : NetworkBehaviour
             LocalInstance = null;
             Destroy(gameObject);
         }
-
-        AuthManager.Instance.Logout();
     }
 
     //Usar siempre para lógica backEnd (Actualizar listas de server, cerrar GameScenes, abandonar partidas,etc)
@@ -73,8 +71,6 @@ public class CustomRoomPlayer : NetworkBehaviour
             MatchHandler.Instance.LeaveMatch(this);
             MatchHandler.Instance.RemoveFromMatchmakingQueue(this);
         }
-
-        AuthManager.Instance.Logout(); //Desloguear en caso de salida repentina
         Debug.Log($"[SERVER] CustomRoomPlayer desconectado: {playerName}");
     }
 
