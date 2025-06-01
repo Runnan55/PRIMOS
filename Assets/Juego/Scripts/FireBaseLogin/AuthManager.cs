@@ -4,6 +4,9 @@ using UnityEngine.Networking;
 using TMPro;
 using System.Runtime.InteropServices;
 using Mirror;
+using System;
+using Unity.VisualScripting;
+using SimpleJSON;
 
 public class AuthManager : MonoBehaviour
 {
@@ -72,7 +75,7 @@ public class AuthManager : MonoBehaviour
 
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
         {
-            feedbackText.text = "Por favor llena todos los campos.";
+            feedbackText.text = "Please fill in all field.";
             return;
         }
 
@@ -87,7 +90,7 @@ public class AuthManager : MonoBehaviour
 
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(passwordAgain))
         {
-            passwordFeedbackText.text = "Por favor llena todos los campos.";
+            passwordFeedbackText.text = "Please fill in all field.";
             return;
         }
 
@@ -95,6 +98,16 @@ public class AuthManager : MonoBehaviour
         {
             passwordFeedbackText.text = "Password must be identical..";
             return;
+        }
+
+        if (!email.EndsWith("@gmail.com", System.StringComparison.OrdinalIgnoreCase))
+        {
+            passwordFeedbackText.text = "You should use a Gmail.com email address to register.";
+        }
+
+        if (password.Length < 7)
+        {
+            passwordFeedbackText.text = "Password should have at least 7 characters.";
         }
 
         passwordFeedbackText.text = ""; // Limpiar si está todo bien
@@ -127,7 +140,47 @@ public class AuthManager : MonoBehaviour
         if (request.isNetworkError || request.isHttpError)
 #endif
         {
-            feedbackText.text = "Error de login: " + request.downloadHandler.text;
+            //feedbackText.text = "Error de login: " + request.downloadHandler.text;
+
+            string errorJson = request.downloadHandler.text;
+
+            // Parsear usando SimpleJSON
+            var parsedJson = JSON.Parse(errorJson);
+            string errorMessage = parsedJson?["error"]?["message"];
+
+            string message = "Unknown error during login.";
+
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                switch (errorMessage)
+                {
+                    case "EMAIL_NOT_FOUND":
+                        message = "Cuenta o email no existente.";
+                        break;
+                    case "INVALID_PASSWORD":
+                        message = "Contraseña no válida.";
+                        break;
+                    case "USER_DISABLED":
+                        message = "Usuario deshabilitado.";
+                        break;
+                    case "INVALID_EMAIL":
+                        message = "El formato del email no es válido.";
+                        break;
+                    case "INVALID_LOGIN_CREDENTIALS":
+                        message = "Invalid login credentials.";
+                        break;
+                    default:
+                        message = "Error: " + errorMessage;
+                        break;
+                }
+            }
+            else
+            {
+                message = errorJson;
+            }
+
+            feedbackText.text = message;
+
         }
         else
         {
@@ -145,6 +198,20 @@ public class AuthManager : MonoBehaviour
             StartCoroutine(ConnectToMirrorServerAfterDelay());
         }
     }
+
+    [Serializable]
+    private class FirebaseErrorResponse
+    {
+        public FirebaseError error;
+    }
+
+    [Serializable]
+    private class FirebaseError
+    {
+        public int code;
+        public string message;
+    }
+
     private IEnumerator ConnectToMirrorServerAfterDelay()
     {
         yield return new WaitForSeconds(1f);
@@ -357,4 +424,8 @@ public class AuthManager : MonoBehaviour
         public string refresh_token;
         public string user_id;
     }
+}
+
+internal class SerializableAttribute : Attribute
+{
 }
