@@ -88,9 +88,6 @@ public class CustomNetworkManager : NetworkManager
             {
                 // Llama a cualquier lógica de limpieza manual, por ejemplo:
                 player.OnStopServer(); // o tu propio método de limpieza
-                player.OnStopClient();
-
-                // Desregistrar jugador de listas, matchmaking, etc si no lo haces ya en OnStopServer
             }
         }
 

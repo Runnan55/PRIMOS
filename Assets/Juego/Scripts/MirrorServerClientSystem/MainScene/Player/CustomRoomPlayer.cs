@@ -65,11 +65,13 @@ public class CustomRoomPlayer : NetworkBehaviour
     public override void OnStopServer()
     {
         base.OnStopServer();
-        
+
+        MatchHandler.Instance.LeaveMatch(this);
+        MatchHandler.Instance.RemoveFromMatchmakingQueue(this);
+
         if (!string.IsNullOrEmpty(currentMatchId))
         {
-            MatchHandler.Instance.LeaveMatch(this);
-            MatchHandler.Instance.RemoveFromMatchmakingQueue(this);
+            //Esto no est´´a funcionando, pero debería, el jugador debería tener el currentMatchId en su inspector, revisar luego
         }
         Debug.Log($"[SERVER] CustomRoomPlayer desconectado: {playerName}");
     }
