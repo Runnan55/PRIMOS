@@ -50,7 +50,8 @@ public class AuthManager : MonoBehaviour
     private void Start()
     {
 #if UNITY_WEBGL
-        CheckForSavedSession();
+        //CheckForSavedSession();
+        Debug.Log("he comentado el checkforsavedsession porsilasmoscas sino no me permite abrir varias cuentas en el mismo navegador ");
 #endif
     }
 

@@ -78,6 +78,28 @@ public class CustomNetworkManager : NetworkManager
         }
     }
 
+    public override void OnServerDisconnect(NetworkConnectionToClient conn)
+    {
+        // Primero limpia cualquier dato o estado de jugador antes de desconectar
+        if (conn.identity != null)
+        {
+            var player = conn.identity.GetComponent<CustomRoomPlayer>();
+            if (player != null)
+            {
+                // Llama a cualquier lógica de limpieza manual, por ejemplo:
+                player.OnStopServer(); // o tu propio método de limpieza
+                player.OnStopClient();
+
+                // Desregistrar jugador de listas, matchmaking, etc si no lo haces ya en OnStopServer
+            }
+        }
+
+        // Llamar a base para destruir objetos asociados
+        base.OnServerDisconnect(conn);
+
+        Debug.Log($"[SERVER] Conexión desconectada: {conn.connectionId}");
+    }
+
     private void OnReceiveNameMessage(NetworkConnectionToClient conn, NameMessage msg)
     {
         OnClientSendName(conn, msg.playerName);
