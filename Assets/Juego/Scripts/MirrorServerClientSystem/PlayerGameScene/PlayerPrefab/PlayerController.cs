@@ -781,7 +781,7 @@ public class PlayerController : NetworkBehaviour
 
     private IEnumerator MoveProjectileToTarget(GameObject projectile, Vector3 targetPos)
     {
-        float duration = 1f;
+        float duration = 0.7f; // Velocidad de movimiento del proyectil del player, para efectos visuales
         float elapsed = 0f;
 
         Vector3 start = projectile.transform.position;
@@ -1237,9 +1237,7 @@ public class PlayerController : NetworkBehaviour
         bulletsFired++; //Sumar el contador de balas disparadas
         GameStatistic stat = FindFirstObjectByType<GameStatistic>(); if (stat != null && isServer) stat.UpdatePlayerStats(this); // Actualizar en el GameStatistics
 
-        RpcPlayShootEffect(target.transform.position);
-
-        int damage = 1;
+        int damage = 1; //Daño por defecto, se puede alterar con potenciadores
 
         if (hasDoubleDamage)
         {
@@ -1250,16 +1248,17 @@ public class PlayerController : NetworkBehaviour
 
         if (selectedAction == ActionType.Shoot)
         {
+            //Llamamos si o si la animación de disparo en player, luego vemos si sumamos animación de fallo o de proyectil disparado
+            FacingDirection shootDir = GetShootDirection(target);
+            RpcPlayAnimation("Shoot_" + shootDir.ToString());
+
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)
             {
-                Debug.Log($"{playerName} disparó, pero la bala falló debido a Balas Oxidadas.");
                 RpcPlayAnimation("ShootFail");
+                Debug.Log($"{playerName} disparó, pero la bala falló debido a Balas Oxidadas.");
                 return; // Bala se gasta, pero no hace daño
             }
-
-            FacingDirection shootDir = GetShootDirection(target);
-            RpcPlayAnimation("Shoot_" + shootDir.ToString());
         }
 
         if (selectedAction == ActionType.SuperShoot)
@@ -1267,11 +1266,15 @@ public class PlayerController : NetworkBehaviour
             ammo++;// sumamos una bala para compensar la que perdimos antes
             ammo -= minBulletSS;// Restamos las balas especiales
 
+            //Llamamos si o si la animación de disparo en player, luego vemos si sumamos animación de fallo o de proyectil disparado
+            FacingDirection shootDir = GetShootDirection(target);
+            RpcPlayAnimation("SuperShoot_" + shootDir.ToString());
+
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)
             {
-                Debug.Log($"{playerName} disparó, pero la bala falló debido a Balas Oxidadas.");
                 RpcPlayAnimation("ShootFail");
+                Debug.Log($"{playerName} hizo un SUPERSHOOT, pero la bala falló debido a Balas Oxidadas.");
                 return; // Bala se gasta, pero no hace daño
             }
 
@@ -1282,16 +1285,12 @@ public class PlayerController : NetworkBehaviour
                 target.RpcPlayAnimation("CoverBroken");
                 Debug.Log($"{playerName} usó SUPERSHOOT y forzó a {target.playerName} a salir de cobertura");
             }
-
-            FacingDirection shootDir = GetShootDirection(target);
-            RpcPlayAnimation("SuperShoot_" + shootDir.ToString());
         }
 
         if (target.isCovering)
         {
-            Debug.Log($"[SERVER] {target.playerName} está cubierto. Disparo bloqueado..");
-
             target.wasShotBlockedThisRound = true;
+            Debug.Log($"[SERVER] {target.playerName} está cubierto. Disparo bloqueado..");
             return;
         }
 
@@ -1307,6 +1306,8 @@ public class PlayerController : NetworkBehaviour
             Debug.Log($"[Talisman] {playerName} disparó a {target.playerName}, pero perdió prioridad. No se causa daño.");
             return;
         }
+
+        RpcPlayShootEffect(target.transform.position); // Animación de proyectil
 
         damageDealt += damage; // Sumar daño hecho
         sucessfulShots++; // Sumar 1 a disparo exitoso
