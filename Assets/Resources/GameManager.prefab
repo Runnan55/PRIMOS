@@ -68,11 +68,11 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   allowAccumulatedDamage: 0
-  decisionTime: 6.5
+  decisionTime: 10
   executionTime: 5
   players: []
   deadPlayers: []
-  SelectedModifier: 0
+  SelectedModifier: 2
   veryHealthy: []
   randomizeModifier: 1
   missionRounds: 0400000005000000060000000700000008000000

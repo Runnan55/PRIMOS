@@ -7,24 +7,12 @@ public class RolesManager : NetworkBehaviour
 {
     public static RolesManager Instance {  get; private set; }
 
-    [SerializeField] private int ParcaKillRequirement = 2;
-    [SerializeField] private float ParcaRewardProbability = 0.9f ;
+    [SerializeField] private int ParcaKillRequirement;
+    [SerializeField] private float ParcaRewardProbability;
 
     private PlayerController currentParca = null;
 
     private Dictionary<PlayerController, int> playerKills = new Dictionary<PlayerController, int>();
-
-       /* private void Awake()
-    {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(this);
-        }
-        else
-        {
-            Instance = this;
-        }
-    }*/
 
     [Server]
     public void RegisterKill(PlayerController killer, PlayerController victim)
@@ -40,6 +28,12 @@ public class RolesManager : NetworkBehaviour
         killer.kills = playerKills[killer];//Actualizar contador de kills de jugador
 
         Debug.Log($"{killer.gameObject.name} ha matado a {victim.gameObject.name}. Total de kills: {playerKills[killer]}");
+
+        //Si el asesinado era la Parca actual, transfiere el rol inmediatamente
+        if (currentParca == victim)
+        {
+            TransferParcaRole(killer, victim);
+        }
 
         //Si el killer ya es la Parca, curarlo 1 de vida
         if (currentParca == killer)
@@ -126,6 +120,8 @@ public class RolesManager : NetworkBehaviour
 
         Debug.Log($"{oldParca.gameObject.name} ha perdido el rol PARCA");
 
+        AssignParcaRole(newParca, false);
+
         // Si el asesino califica, hereda el rol
         if (playerKills.ContainsKey(newParca) && playerKills[newParca] >= ParcaKillRequirement)
         {
@@ -136,5 +132,4 @@ public class RolesManager : NetworkBehaviour
             Debug.Log("No hay un candidato claro para Parca. Se reiniciará el ciclo.");
         }
     }
-
 }

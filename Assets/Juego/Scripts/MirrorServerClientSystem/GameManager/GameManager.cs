@@ -628,9 +628,45 @@ public class GameManager : NetworkBehaviour
             }
         }
 
-        //Luego aplica "Disparar" y "Recargar"
-        yield return new WaitForSeconds(0.5f); //Pausa antes del tiroteo
+        //Luego aplica "Recargar" y "Disparar"
+        yield return new WaitForSeconds(0.7f); //Pausa antes del tiroteo
 
+        //Aplicar recarga ...
+        foreach (var entry in actionsQueue)
+        {
+            switch (entry.Value.type)
+            {
+                case ActionType.Reload:
+                    entry.Key.ServerReload();
+                    break;
+                /*case ActionType.Shoot:
+                    entry.Key.ServerAttemptShoot(entry.Value.target);
+                    entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
+                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
+                    break;
+                case ActionType.SuperShoot:
+                    entry.Key.ServerAttemptShoot(entry.Value.target);
+                    entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
+                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
+                    break;*/
+                case ActionType.None:
+                    entry.Key.RpcPlayAnimation("None");
+                    break;
+            }
+
+            //Recargar escudos si no te has cubierto
+            if (entry.Value.type == ActionType.Reload ||
+                entry.Value.type == ActionType.Shoot ||
+                entry.Value.type == ActionType.SuperShoot)
+            {
+                entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
+                entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
+            }
+        }
+
+        yield return new WaitForSeconds(0.7f); //Otra pausa pa' agregar tiempo
+
+        //Aplicar disparos
         foreach (var target in targetToShooters.Keys)
         {
             List<PlayerController> shooters = targetToShooters[target];
@@ -665,32 +701,6 @@ public class GameManager : NetworkBehaviour
             }
         }
         
-        //Aplicar recarga o otros...
-        foreach (var entry in actionsQueue) 
-        {
-            switch (entry.Value.type)
-            {
-                case ActionType.Reload:
-                    entry.Key.ServerReload();
-                    entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
-                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
-                    break;
-                /*case ActionType.Shoot:
-                    entry.Key.ServerAttemptShoot(entry.Value.target);
-                    entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
-                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
-                    break;
-                case ActionType.SuperShoot:
-                    entry.Key.ServerAttemptShoot(entry.Value.target);
-                    entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
-                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
-                    break;*/
-                case ActionType.None:
-                    entry.Key.RpcPlayAnimation("None");
-                    break;
-            }
-        }
-
         foreach (var player in players)
         {
             player.selectedAction = ActionType.None;
@@ -727,7 +737,6 @@ public class GameManager : NetworkBehaviour
                 player.TargetPlayAnimation(animName);
             }
         }
-        
 
         damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
 
@@ -967,13 +976,6 @@ public class GameManager : NetworkBehaviour
 
         // Agregar un delay antes de procesar la muerte
         StartCoroutine(HandlePlayerDeath(deadPlayer));
-
-        PlayerController killer = players.FirstOrDefault(p => p.lastShotTarget == deadPlayer);
-
-        if (killer != null && RolesManager.Instance != null)
-        {
-            RolesManager.Instance.TransferParcaRole(killer, deadPlayer);
-        }
     }
 
     private IEnumerator HandlePlayerDeath(PlayerController deadPlayer)

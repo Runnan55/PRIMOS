@@ -763,11 +763,29 @@ public class PlayerController : NetworkBehaviour
     }
 
     [ClientRpc]
-    public void RpcPlayShootEffect(Vector3 targetPosition)
+    public void RpcPlayShootEffect(Vector3 targetPosition, string accionElegida)
     {
         if (projectilePrefab == null || shootOrigin == null) return;
 
         GameObject proj = Instantiate(projectilePrefab, shootOrigin.position, Quaternion.identity);
+
+        // Cambiar color según el tipo de disparo
+        var spriteRenderer = proj.GetComponent<SpriteRenderer>();
+        if (spriteRenderer != null)
+        {
+            switch (accionElegida.ToLower())
+            {
+                case "fail":
+                    spriteRenderer.color = new Color(0.3f, 1f, 0.3f); // Verde tóxico
+                    break;
+                case "supershoot":
+                    spriteRenderer.color = Color.red;
+                    break;
+                case "shoot":
+                    spriteRenderer.color = Color.white;
+                    break;
+            }
+        }
 
         //Calcular la dirección hacia el objetivo
         Vector3 direction = (targetPosition - shootOrigin.position).normalized;
@@ -1072,13 +1090,13 @@ public class PlayerController : NetworkBehaviour
         yield return new WaitForSeconds(waitTime);
 
         // Últimos 3 segundos
-        countdownText.text = "PREPARADOS\n3";
+        countdownText.text = "Ready\n3";
         yield return new WaitForSeconds(1f);
 
-        countdownText.text = "LISTOS\n2";
+        countdownText.text = "Set\n2";
         yield return new WaitForSeconds(1f);
 
-        countdownText.text = "YA!\n1";
+        countdownText.text = "Go!\n1";
         yield return new WaitForSeconds(1f);
 
         countdownText.text = "";
@@ -1181,6 +1199,7 @@ public class PlayerController : NetworkBehaviour
             deathCanvas.SetActive(true);
         }
 
+        tikiSprite.SetActive(false); // Apagamos Tiki
         PlayDirectionalAnimation("Death"); //Animacion de muerte 
         coverProbabilityText.gameObject.SetActive(false);
         healthText.gameObject.SetActive(false);
@@ -1256,9 +1275,13 @@ public class PlayerController : NetworkBehaviour
             if (rustyBulletsActive && Random.value < 0.25f)
             {
                 RpcPlayAnimation("ShootFail");
+                RpcPlayShootEffect(target.transform.position, "Fail"); // Efecto visual de bala oxidada (verde)
                 Debug.Log($"{playerName} disparó, pero la bala falló debido a Balas Oxidadas.");
                 return; // Bala se gasta, pero no hace daño
             }
+
+            RpcPlayShootEffect(target.transform.position, "Shoot");
+
         }
 
         if (selectedAction == ActionType.SuperShoot)
@@ -1274,6 +1297,7 @@ public class PlayerController : NetworkBehaviour
             if (rustyBulletsActive && Random.value < 0.25f)
             {
                 RpcPlayAnimation("ShootFail");
+                RpcPlayShootEffect(target.transform.position, "Fail"); // Efecto visual de bala oxidada (verde)
                 Debug.Log($"{playerName} hizo un SUPERSHOOT, pero la bala falló debido a Balas Oxidadas.");
                 return; // Bala se gasta, pero no hace daño
             }
@@ -1285,6 +1309,9 @@ public class PlayerController : NetworkBehaviour
                 target.RpcPlayAnimation("CoverBroken");
                 Debug.Log($"{playerName} usó SUPERSHOOT y forzó a {target.playerName} a salir de cobertura");
             }
+
+            RpcPlayShootEffect(target.transform.position, "SuperShoot");
+
         }
 
         if (target.isCovering)
@@ -1306,8 +1333,6 @@ public class PlayerController : NetworkBehaviour
             Debug.Log($"[Talisman] {playerName} disparó a {target.playerName}, pero perdió prioridad. No se causa daño.");
             return;
         }
-
-        RpcPlayShootEffect(target.transform.position); // Animación de proyectil
 
         damageDealt += damage; // Sumar daño hecho
         sucessfulShots++; // Sumar 1 a disparo exitoso
@@ -1376,7 +1401,7 @@ public class PlayerController : NetworkBehaviour
 
                 if (rolesManager != null)
                 {
-                    rolesManager.RegisterKill(killer, this);
+                    rolesManager.RegisterKill(killer, this); // Aquí se asigna la muerte en el rolManager para el tema de Parca
                 }
 
                 Debug.Log($"[Kills] {killer.playerName} mató a {playerName} en la escena {gameObject.scene.name}, es un HOMICIDA, un SIKOPATA, un ASESINO, llamen a la POLIZIA por el AMOR DE DIOS.");
@@ -1388,7 +1413,7 @@ public class PlayerController : NetworkBehaviour
                 }
             }
 
-            GameManager.PlayerDied(this);
+            GameManager.PlayerDied(this); // Aquí se vuelve a asignar la muerte en el Gamemanager pa otras cosas, no está bien optimizado, deberían ir juntos
         }
 
         StartCoroutine(DelayedPlayStunnedAnimation()); // Vamos a actualizar el estado de vida y esperar un segundo para mandar la animación de recibir daño, damos tiempo a que se ejecuten otras animaciones

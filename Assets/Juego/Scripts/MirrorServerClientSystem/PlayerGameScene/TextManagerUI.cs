@@ -68,7 +68,7 @@ public class TextManagerUI : MonoBehaviour
         {
             case "CaceriaDelLider":
                 GM_titleText.text = "Hunt for the leader";
-                GM_descriptionText.text = "The player(s) with the most lives lose the ability to cover"; //El o los jugadores con mas vidas pierden la capacidad de cubrirse
+                GM_descriptionText.text = "The player(s) with the most lifes lose the ability to cover"; //El o los jugadores con mas vidas pierden la capacidad de cubrirse
                 break;
             case "GatilloFacil":
                 GM_titleText.text = "Quick Trigger";
