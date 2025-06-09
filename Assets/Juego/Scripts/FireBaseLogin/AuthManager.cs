@@ -55,6 +55,75 @@ public class AuthManager : MonoBehaviour
 #endif
     }
 
+    #region Recover Password
+
+    [System.Serializable]
+    private class PasswordResetRequest
+    {
+        public string requestType = "PASSWORD_RESET";
+        public string email;
+    }
+
+    public void OnForgotPasswordButtonPressed()
+    {
+        string email = emailInput_Login.text.Trim();
+
+        if (string.IsNullOrEmpty(email))
+        {
+            feedbackText.text = "Please enter an email.";
+            return;
+        }
+
+        if (!allowedEmailManager.IsEmailAllowed(email))
+        {
+            feedbackText.text = "Correo inválido";
+            return;
+        }
+
+        StartCoroutine(SendPasswordResetEmail(email));
+    }
+
+    private IEnumerator SendPasswordResetEmail(string email)
+    {
+        string url = $"https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key={firebaseWebAPIKey}";
+
+        var payload = new PasswordResetRequest
+        {
+            email = email
+        };
+
+        string json = JsonUtility.ToJson(payload);
+
+        UnityWebRequest request = new UnityWebRequest(url, "POST");
+        byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(json);
+        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+
+        yield return request.SendWebRequest();
+
+#if UNITY_2023_1_OR_NEWER
+        if (request.result != UnityWebRequest.Result.Success)
+#else
+    if (request.isNetworkError || request.isHttpError)
+#endif
+        {
+            var errorResponse = JSON.Parse(request.downloadHandler.text);
+            string errorMessage = errorResponse?["error"]?["message"];
+
+            if (errorMessage == "EMAIL_NOT_FOUND")
+                feedbackText.text = "Correo inválido";
+            else
+                feedbackText.text = "Error: " + errorMessage;
+        }
+        else
+        {
+            feedbackText.text = "Email sent";
+        }
+    }
+
+    #endregion
+
     public void ShowLoginPanel()
     {
         loginPanel.SetActive(true);

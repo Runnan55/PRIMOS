@@ -91,7 +91,7 @@ public class RolesManager : NetworkBehaviour
     {
         currentParca = newParca;
         newParca.RpcSetParcaSprite(true);
-        newParca.ammo += 1;
+        newParca.ammo += 2;
 
         if (firstParca)
         {

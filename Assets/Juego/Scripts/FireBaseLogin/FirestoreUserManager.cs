@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
 using TMPro;
+using Mirror;
 
 public class FirestoreUserManager : MonoBehaviour
 {
@@ -92,6 +93,14 @@ public class FirestoreUserManager : MonoBehaviour
             string nickname = doc.fields.nickname.stringValue;
             nicknameInput.text = nickname;
             feedbackText.text = "Usuario cargado.";
+
+            // NUEVO: Enviar nombre al servidor después de cargarlo
+            yield return new WaitForSeconds(0.1f); // Pequeño delay para asegurar que el jugador fue registrado
+            if (NetworkClient.isConnected && NetworkClient.connection != null)
+            {
+                NetworkClient.connection.Send(new NameMessage { playerName = nickname });
+                Debug.Log($"[FirestoreUserManager] Nickname enviado al servidor tras carga: {nickname}");
+            }
         }
     }
 

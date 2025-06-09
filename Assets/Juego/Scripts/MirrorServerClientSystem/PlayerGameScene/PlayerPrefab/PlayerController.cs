@@ -1084,6 +1084,8 @@ public class PlayerController : NetworkBehaviour
 
     private IEnumerator ShowCountdownUI(float executionTime)
     {
+        if (!isAlive) yield break;
+
         countdownText.gameObject.SetActive(true); // Mostrar el texto en pantalla
 
         float waitTime = executionTime - 3f; // Esperar hasta los últimos 3 segundos

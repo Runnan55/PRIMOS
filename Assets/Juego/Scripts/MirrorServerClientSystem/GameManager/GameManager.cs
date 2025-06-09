@@ -433,7 +433,8 @@ public class GameManager : NetworkBehaviour
                 break;
 
             case QuickMissionType.ReloadAndTakeDamage:
-                player.shieldBoostActivate = true;
+                //player.shieldBoostActivate = true; // Esto recarga los escudos al 100%, pero de momento usamos otra recompensa
+                player.ServerHeal(1);
                 break;
 
             case QuickMissionType.DoNothing:
@@ -458,7 +459,7 @@ public class GameManager : NetworkBehaviour
 
         currentRound++;
 
-        foreach (var player in players)
+        foreach (var player in players.Concat(deadPlayers))
         {
             player.syncedRound = currentRound;
             player.canDealDamageThisRound = true;
@@ -529,7 +530,7 @@ public class GameManager : NetworkBehaviour
             yield return new WaitForSeconds(1f);
             currentDecisionTime = Mathf.Max(0, currentDecisionTime - 1);
 
-            foreach (var player in players)
+            foreach (var player in players.Concat(deadPlayers))
             {
                 player.syncedTimer = currentDecisionTime;
             }
