@@ -602,7 +602,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -29.42987, y: -250.39996}
+  m_AnchoredPosition: {x: -29.429749, y: -250.39996}
   m_SizeDelta: {x: -1689.4398, y: -1153.038}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &85746939
@@ -3011,7 +3011,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &749896102
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3688,7 +3688,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -29.429932, y: -210.1}
+  m_AnchoredPosition: {x: -29.429993, y: -210.09998}
   m_SizeDelta: {x: -1689.4397, y: -1153.038}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &917712028
@@ -3837,7 +3837,7 @@ AudioSource:
   m_PlayOnAwake: 1
   m_Volume: 1
   m_Pitch: 1
-  Loop: 0
+  Loop: 1
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0
@@ -6404,7 +6404,7 @@ AudioSource:
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 0}
-  m_PlayOnAwake: 1
+  m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
   Loop: 0
@@ -7446,7 +7446,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3316401913925202819, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: m_Enabled
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: playerPrefab
@@ -7733,8 +7733,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c03bd911aaa58bd4b8cb3d655a9f9676, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  musicSounds: []
-  sfxSounds: []
+  musicSounds:
+  - name: Theme
+    clip: {fileID: 8300000, guid: c3d157b9a24d1094ba15be36a0d0dc3b, type: 3}
+  sfxSounds:
+  - name: OneClick
+    clip: {fileID: 8300000, guid: 58aba01cf7c86f14088e266c5d07497c, type: 3}
+  - name: TwoClick
+    clip: {fileID: 8300000, guid: 8661f4af18bc89c4f8740d4a7c312b17, type: 3}
+  - name: ButtonClic
+    clip: {fileID: 8300000, guid: 66740239de93ced4f81588538daf1c9d, type: 3}
   musicSource: {fileID: 924317093}
   sfxSource: {fileID: 1815865215}
 --- !u!1 &2092214590
