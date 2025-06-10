@@ -43,7 +43,7 @@ AnimationClip:
     - time: 0.8333333
       value: {fileID: 21300000, guid: 24f53c158de8e5f40baac93c3af5c92f, type: 3}
     attribute: m_Sprite
-    path: BuscarPartida/SpriteBuscandoPartida
+    path: BuscarPartida_WithMask/SpriteBuscandoPartida
     classID: 114
     script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
     flags: 2
@@ -55,7 +55,7 @@ AnimationClip:
   m_ClipBindingConstant:
     genericBindings:
     - serializedVersion: 2
-      path: 524807725
+      path: 692704387
       attribute: 2015549526
       script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
       typeID: 114
