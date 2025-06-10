@@ -57,7 +57,7 @@ public class TextManagerUI : MonoBehaviour
                 break;
             case "ReloadAndTakeDamage":
                 Reward_titleText.text = "MISSION COMPLETE";
-                Reward_descriptionText.text = "You recharged your shields";
+                Reward_descriptionText.text = "You get 1 life";
                 break;
 
         }
