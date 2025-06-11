@@ -7,6 +7,7 @@ using Mirror;
 using System;
 using Unity.VisualScripting;
 using SimpleJSON;
+using UnityEngine.UI;
 
 public class AuthManager : MonoBehaviour
 {
@@ -20,6 +21,7 @@ public class AuthManager : MonoBehaviour
     [Header("Login UI")]
     public TMP_InputField emailInput_Login;
     public TMP_InputField passwordInput_Login;
+    private bool isPasswordVisible_Login = false;
 
     [Header("Register UI")]
     public TMP_InputField emailInput_Register;
@@ -45,6 +47,14 @@ public class AuthManager : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(this.gameObject);
+    }
+
+    public void ToggleShowPassword_Login()
+    {
+        isPasswordVisible_Login = !isPasswordVisible_Login;
+        passwordInput_Login.contentType = isPasswordVisible_Login ? TMP_InputField.ContentType.Standard : TMP_InputField.ContentType.Password;
+        passwordInput_Login.ForceLabelUpdate();
+        // Aquí puedes cambiar el sprite del botón según el estado
     }
 
     private void Start()
