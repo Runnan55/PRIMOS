@@ -329,6 +329,9 @@ public class MatchHandler : NetworkBehaviour
     #region Busqueda Automática
 
     private Dictionary<string, List<CustomRoomPlayer>> matchQueue = new();
+    private Dictionary<string, Coroutine> countdownCoroutines = new();
+    private Dictionary<string, int> countdownSeconds = new();
+    private const int MIN_PLAYERS_TO_START = 3;
     private const int MATCH_SIZE = 6; //Cantidad de jugadores para iniciar partida
 
     [Server]
@@ -343,13 +346,31 @@ public class MatchHandler : NetworkBehaviour
         {
             queue.Add(player);
             UpdateSearchingUIForMode(player.currentMode);
+
+            // --- NUEVO: iniciar cuenta atrás si llegan a 3
+            if (queue.Count == MIN_PLAYERS_TO_START && !countdownCoroutines.ContainsKey(player.currentMode))
+            {
+                countdownCoroutines[player.currentMode] = StartCoroutine(StartCountdownForMode(player.currentMode));
+            }
+
             Debug.Log($"[Matchmaking] Jugador {player.playerName} agregado a la cola del modo {player.currentMode}. Total: {queue.Count}");
 
-            if (queue.Count >= MATCH_SIZE)
+            /*if (queue.Count >= MATCH_SIZE)
             {
                 List<CustomRoomPlayer> playersForMatch = queue.Take(MATCH_SIZE).ToList();
                 queue.RemoveRange(0, MATCH_SIZE);
                 CreateAutoMatch(playersForMatch, player.currentMode);
+            }*/
+
+            // --- NUEVO: iniciar partida inmediata si llegan a 6
+            if (queue.Count == MATCH_SIZE)
+            {
+                if (countdownCoroutines.ContainsKey(player.currentMode))
+                {
+                    StopCoroutine(countdownCoroutines[player.currentMode]);
+                    countdownCoroutines.Remove(player.currentMode);
+                }
+                CreateMatchNow(player.currentMode);
             }
         }
     }
@@ -364,10 +385,94 @@ public class MatchHandler : NetworkBehaviour
             if (queue.Remove(player))
             {
                 UpdateSearchingUIForMode(player.currentMode);
+
+                // --- NUEVO: cancelar countdown si bajan de 3
+                if (queue.Count < MIN_PLAYERS_TO_START && countdownCoroutines.ContainsKey(player.currentMode))
+                {
+                    StopCoroutine(countdownCoroutines[player.currentMode]);
+                    countdownCoroutines.Remove(player.currentMode);
+                    UpdateCountdownUIForMode(player.currentMode, -1); // Restablece a "Searching..."
+                }
+
                 Debug.Log($"[Matchmaking] Jugador {player.playerName} removido de la cola del modo {player.currentMode}.");
             }
         }
     }
+
+    private IEnumerator StartCountdownForMode(string mode)
+    {
+        int seconds = 30;
+        countdownSeconds[mode] = seconds;
+
+        while (seconds > 0)
+        {
+            // Actualiza la UI en todos los jugadores de ese modo
+            UpdateCountdownUIForMode(mode, seconds);
+
+            yield return new WaitForSeconds(1f);
+            seconds--;
+
+            // Verifica si llegaron a 6 para empezar ya
+            var queue = matchQueue[mode];
+            if (queue.Count >= MATCH_SIZE)
+            {
+                break;
+            }
+            // Si bajan de 3, cortamos
+            if (queue.Count < MIN_PLAYERS_TO_START)
+            {
+                UpdateCountdownUIForMode(mode, -1); // Reset UI
+                yield break;
+            }
+        }
+
+        // Si hay mínimo 3 jugadores, inicia partida
+        var queueAfter = matchQueue[mode];
+        if (queueAfter.Count >= MIN_PLAYERS_TO_START)
+        {
+            CreateMatchNow(mode);
+        }
+        else
+        {
+            UpdateCountdownUIForMode(mode, -1); // Reset UI
+        }
+
+        countdownCoroutines.Remove(mode);
+    }
+
+    private void UpdateCountdownUIForMode(string mode, int secondsLeft)
+    {
+        foreach (var conn in NetworkServer.connections.Values)
+        {
+            if (conn.identity == null) continue;
+            var roomPlayer = conn.identity.GetComponent<CustomRoomPlayer>();
+            if (roomPlayer == null || roomPlayer.currentMode != mode) continue;
+
+            if (secondsLeft > 0)
+            {
+                roomPlayer.TargetUpdateSearchingCountdown(roomPlayer.connectionToClient, secondsLeft, MATCH_SIZE);
+            }
+            else
+            {
+                roomPlayer.TargetUpdateSearchingCount(Mathf.Min(matchQueue[mode].Count, MATCH_SIZE), MATCH_SIZE);
+            }
+        }
+    }
+
+    [Server]
+    private void CreateMatchNow(string mode)
+    {
+        if (!matchQueue.TryGetValue(mode, out var queue)) return;
+        int playersToUse = Mathf.Min(queue.Count, MATCH_SIZE);
+
+        List<CustomRoomPlayer> playersForMatch = queue.Take(playersToUse).ToList();
+        queue.RemoveRange(0, playersToUse);
+
+        CreateAutoMatch(playersForMatch, mode);
+
+        UpdateCountdownUIForMode(mode, -1); // Reset UI
+    }
+
 
     [Server]
     private void UpdateSearchingUIForMode(string mode)

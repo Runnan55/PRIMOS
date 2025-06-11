@@ -23,36 +23,6 @@ AnimationClip:
       m_Curve:
       - serializedVersion: 3
         time: 0
-        value: 740
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 136
-        weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
-      - serializedVersion: 3
-        time: 0.16666667
-        value: 380
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 136
-        weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    attribute: m_AnchoredPosition.y
-    path: CanvasGameModifierType/GlobalMissionBoard
-    classID: 224
-    script: {fileID: 0}
-    flags: 0
-  - serializedVersion: 2
-    curve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
         value: 40
         inSlope: 0
         outSlope: 0
@@ -64,7 +34,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_SizeDelta.x
-    path: CanvasGameModifierType/GlobalMissionBoard/MiniaturaLogo
+    path: CanvasGameModifierType/Panel_WithMask/GlobalMissionBoard/MiniaturaLogo
     classID: 224
     script: {fileID: 0}
     flags: 0
@@ -85,7 +55,37 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_SizeDelta.y
-    path: CanvasGameModifierType/GlobalMissionBoard/MiniaturaLogo
+    path: CanvasGameModifierType/Panel_WithMask/GlobalMissionBoard/MiniaturaLogo
+    classID: 224
+    script: {fileID: 0}
+    flags: 0
+  - serializedVersion: 2
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 330
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.16666667
+        value: 165
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    attribute: m_AnchoredPosition.y
+    path: CanvasGameModifierType/Panel_WithMask/GlobalMissionBoard
     classID: 224
     script: {fileID: 0}
     flags: 0
@@ -95,7 +95,7 @@ AnimationClip:
     - time: 0
       value: {fileID: 1895370899, guid: 6d487fbebf81aa64e89a42c48b56e56c, type: 3}
     attribute: m_Sprite
-    path: CanvasGameModifierType/GlobalMissionBoard/MiniaturaLogo
+    path: CanvasGameModifierType/Panel_WithMask/GlobalMissionBoard/MiniaturaLogo
     classID: 114
     script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
     flags: 2
@@ -107,7 +107,7 @@ AnimationClip:
   m_ClipBindingConstant:
     genericBindings:
     - serializedVersion: 2
-      path: 2002491972
+      path: 1799116549
       attribute: 538195251
       script: {fileID: 0}
       typeID: 224
@@ -116,7 +116,7 @@ AnimationClip:
       isIntCurve: 0
       isSerializeReferenceCurve: 0
     - serializedVersion: 2
-      path: 2625915221
+      path: 3806288027
       attribute: 2015549526
       script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
       typeID: 114
@@ -125,7 +125,7 @@ AnimationClip:
       isIntCurve: 0
       isSerializeReferenceCurve: 0
     - serializedVersion: 2
-      path: 2625915221
+      path: 3806288027
       attribute: 1967290853
       script: {fileID: 0}
       typeID: 224
@@ -134,7 +134,7 @@ AnimationClip:
       isIntCurve: 0
       isSerializeReferenceCurve: 0
     - serializedVersion: 2
-      path: 2625915221
+      path: 3806288027
       attribute: 38095219
       script: {fileID: 0}
       typeID: 224
@@ -171,36 +171,6 @@ AnimationClip:
       m_Curve:
       - serializedVersion: 3
         time: 0
-        value: 740
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 136
-        weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
-      - serializedVersion: 3
-        time: 0.16666667
-        value: 380
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 136
-        weightedMode: 0
-        inWeight: 0.33333334
-        outWeight: 0.33333334
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    attribute: m_AnchoredPosition.y
-    path: CanvasGameModifierType/GlobalMissionBoard
-    classID: 224
-    script: {fileID: 0}
-    flags: 0
-  - serializedVersion: 2
-    curve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
         value: 40
         inSlope: 0
         outSlope: 0
@@ -212,7 +182,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_SizeDelta.x
-    path: CanvasGameModifierType/GlobalMissionBoard/MiniaturaLogo
+    path: CanvasGameModifierType/Panel_WithMask/GlobalMissionBoard/MiniaturaLogo
     classID: 224
     script: {fileID: 0}
     flags: 0
@@ -233,7 +203,37 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_SizeDelta.y
-    path: CanvasGameModifierType/GlobalMissionBoard/MiniaturaLogo
+    path: CanvasGameModifierType/Panel_WithMask/GlobalMissionBoard/MiniaturaLogo
+    classID: 224
+    script: {fileID: 0}
+    flags: 0
+  - serializedVersion: 2
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 330
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      - serializedVersion: 3
+        time: 0.16666667
+        value: 165
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0.33333334
+        outWeight: 0.33333334
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    attribute: m_AnchoredPosition.y
+    path: CanvasGameModifierType/Panel_WithMask/GlobalMissionBoard
     classID: 224
     script: {fileID: 0}
     flags: 0

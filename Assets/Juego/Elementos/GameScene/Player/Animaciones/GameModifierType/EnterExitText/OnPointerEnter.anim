@@ -22,27 +22,6 @@ AnimationClip:
       serializedVersion: 2
       m_Curve:
       - serializedVersion: 3
-        time: 0.41666666
-        value: -45.923798
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 136
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    attribute: m_SizeDelta.y
-    path: CanvasGameModifierType/MiniaturaTextMask/TextPanel
-    classID: 224
-    script: {fileID: 0}
-    flags: 0
-  - serializedVersion: 2
-    curve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
         time: 0
         value: -125.5
         inSlope: 0
@@ -64,7 +43,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_AnchoredPosition.x
-    path: CanvasGameModifierType/MiniaturaTextMask/TextPanel
+    path: CanvasGameModifierType/Panel_WithMask/MiniaturaTextMask/TextPanel
     classID: 224
     script: {fileID: 0}
     flags: 0
@@ -94,7 +73,28 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_AnchoredPosition.y
-    path: CanvasGameModifierType/MiniaturaTextMask/TextPanel
+    path: CanvasGameModifierType/Panel_WithMask/MiniaturaTextMask/TextPanel
+    classID: 224
+    script: {fileID: 0}
+    flags: 0
+  - serializedVersion: 2
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0.41666666
+        value: -45.923798
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    attribute: m_SizeDelta.y
+    path: CanvasGameModifierType/Panel_WithMask/MiniaturaTextMask/TextPanel
     classID: 224
     script: {fileID: 0}
     flags: 0
@@ -107,7 +107,7 @@ AnimationClip:
   m_ClipBindingConstant:
     genericBindings:
     - serializedVersion: 2
-      path: 4275942263
+      path: 3969009246
       attribute: 1460864421
       script: {fileID: 0}
       typeID: 224
@@ -116,8 +116,8 @@ AnimationClip:
       isIntCurve: 0
       isSerializeReferenceCurve: 0
     - serializedVersion: 2
-      path: 4275942263
-      attribute: 38095219
+      path: 3969009246
+      attribute: 538195251
       script: {fileID: 0}
       typeID: 224
       customType: 28
@@ -125,8 +125,8 @@ AnimationClip:
       isIntCurve: 0
       isSerializeReferenceCurve: 0
     - serializedVersion: 2
-      path: 4275942263
-      attribute: 538195251
+      path: 3969009246
+      attribute: 38095219
       script: {fileID: 0}
       typeID: 224
       customType: 28
@@ -160,27 +160,6 @@ AnimationClip:
       serializedVersion: 2
       m_Curve:
       - serializedVersion: 3
-        time: 0.41666666
-        value: -45.923798
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 136
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    attribute: m_SizeDelta.y
-    path: CanvasGameModifierType/MiniaturaTextMask/TextPanel
-    classID: 224
-    script: {fileID: 0}
-    flags: 0
-  - serializedVersion: 2
-    curve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
         time: 0
         value: -125.5
         inSlope: 0
@@ -202,7 +181,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_AnchoredPosition.x
-    path: CanvasGameModifierType/MiniaturaTextMask/TextPanel
+    path: CanvasGameModifierType/Panel_WithMask/MiniaturaTextMask/TextPanel
     classID: 224
     script: {fileID: 0}
     flags: 0
@@ -232,7 +211,28 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_AnchoredPosition.y
-    path: CanvasGameModifierType/MiniaturaTextMask/TextPanel
+    path: CanvasGameModifierType/Panel_WithMask/MiniaturaTextMask/TextPanel
+    classID: 224
+    script: {fileID: 0}
+    flags: 0
+  - serializedVersion: 2
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0.41666666
+        value: -45.923798
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 136
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    attribute: m_SizeDelta.y
+    path: CanvasGameModifierType/Panel_WithMask/MiniaturaTextMask/TextPanel
     classID: 224
     script: {fileID: 0}
     flags: 0

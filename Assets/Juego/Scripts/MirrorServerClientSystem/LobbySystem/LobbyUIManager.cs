@@ -29,6 +29,7 @@ public class LobbyUIManager : MonoBehaviour
     public Button searchButton;
     public Button cancelSearchButton;
     public TMP_Text searchingText;
+    public TMP_Text playerText;
 
     private CustomRoomPlayer localPlayer;
 
@@ -85,7 +86,16 @@ public class LobbyUIManager : MonoBehaviour
 
     public void UpdateSearchingText(int current, int max)
     {
-        searchingText.text = $"Players: {current}/{max}";
+        playerText.text = $"Players: {current}/{max}";
+
+        // BONUS: texto dinámico
+        if (current < 3)
+            searchingText.text = "Searching...";
+    }
+
+    public void UpdateSearchingTextWithCountdown(int secondsLeft, int max)
+    {
+        searchingText.text = $"Starting game in: {secondsLeft}";
     }
 
     #endregion

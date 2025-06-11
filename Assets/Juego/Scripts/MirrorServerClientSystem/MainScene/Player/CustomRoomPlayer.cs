@@ -477,6 +477,16 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
 
     [TargetRpc]
+    public void TargetUpdateSearchingCountdown(NetworkConnection target, int secondsLeft, int maxCount)
+    {
+        LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
+        if (ui != null)
+        {
+            ui.UpdateSearchingTextWithCountdown(secondsLeft, maxCount);
+        }
+    }
+
+    [TargetRpc]
     public void TargetUpdateSearchingCount(int currentCount, int maxCount)
     {
         LobbyUIManager ui = FindFirstObjectByType<LobbyUIManager>();
