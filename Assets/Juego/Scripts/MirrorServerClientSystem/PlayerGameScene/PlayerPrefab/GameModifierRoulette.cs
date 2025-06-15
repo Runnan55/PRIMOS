@@ -118,6 +118,10 @@ public class GameModifierRoulette : MonoBehaviour
                 HighlightStone(rt.gameObject);
                 isSpinning = false;
                 hasStopped = true;
+
+                AudioManager.Instance.PlaySFX("GlobalMission_Selected");
+                AudioManager.Instance.musicSource.Stop();
+                Debug.Log("[Roulette] Ruleta se detuvo por cruce central.");
             }
 
             // Destruir si se sale de pantalla

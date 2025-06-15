@@ -293,7 +293,7 @@ public class GameManager : NetworkBehaviour
     [Server]
     private IEnumerator BegingameAfterDelay()
     {
-        yield return new WaitForSeconds(3f); //Tiempo de carga falsa
+        //yield return new WaitForSeconds(3f); //Tiempo de carga falsa
 
         if (gameStatistic != null)
         {

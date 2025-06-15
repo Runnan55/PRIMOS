@@ -183,6 +183,8 @@ public class MainLobbyUI : MonoBehaviour
 
     private void JoinMode(string mode)
     {
+        AudioManager.Instance.PlaySFX("Clic");
+
         // Verificamos que el modo exista en el diccionario
         if (!modeToScene.TryGetValue(mode, out string sceneName))
         {

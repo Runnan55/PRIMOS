@@ -314,6 +314,8 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: cfd9560e48cd29d4aac491c10733c094, type: 3}
   - name: CasualGameSceneTheme
     clip: {fileID: 8300000, guid: d1eac29c0cb383346933e764fdd764ec, type: 3}
+  - name: Spinning_Loop
+    clip: {fileID: 8300000, guid: 183b841d47b5d204a95ff083d54de39c, type: 3}
   sfxSounds:
   - name: Clic_1
     clip: {fileID: 8300000, guid: 275d3318401b4964ba48c329d1d11983, type: 3}
@@ -325,7 +327,9 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: bfd23d49039725640b80af058dd346f8, type: 3}
   - name: Clic_5
     clip: {fileID: 8300000, guid: 17f3982ab8de2bc4aacb6b016fe8bdba, type: 3}
-  - name: QM_PopUp
+  - name: GlobalMission_Selected
+    clip: {fileID: 8300000, guid: e43dc4cf3878d1744a0f2e37680a354b, type: 3}
+  - name: QuickMission_PopUp
     clip: {fileID: 8300000, guid: 3098c0296d585494f975b3cdb9eb5928, type: 3}
   - name: Reload_1
     clip: {fileID: 8300000, guid: 9947cd82cb1acc648bc3807fd721dfef, type: 3}

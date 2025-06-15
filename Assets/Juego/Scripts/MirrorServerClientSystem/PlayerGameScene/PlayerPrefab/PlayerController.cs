@@ -137,6 +137,8 @@ public class PlayerController : NetworkBehaviour
     {
         if (gameModifierCanvas != null)
             gameModifierCanvas.SetActive(false);
+        
+        AudioManager.Instance.PlayMusic("CasualGameSceneTheme");
     }
 
     #region Leaderboard
@@ -348,9 +350,9 @@ public class PlayerController : NetworkBehaviour
             Debug.Log("El jugador tiene autoridad sobre este playerprefab, pero el Network de Mirror no lo detecta como Local Player, pero está bien");
         }
 
-        if (isOwned && ownerRoomPlayer != null && ownerRoomPlayer.loadingCanvas != null)
+        if (isOwned && CustomRoomPlayer.LocalInstance?.loadingCanvas != null)
         {
-            ownerRoomPlayer.loadingCanvas.SetActive(false);
+            CustomRoomPlayer.LocalInstance.loadingCanvas.SetActive(false);
         }
 
         if (isLocalPlayer || isOwned)
@@ -522,7 +524,7 @@ public class PlayerController : NetworkBehaviour
 
     [SyncVar] public string playerId;
 
-    public CustomRoomPlayer ownerRoomPlayer;
+    public CustomRoomPlayer ownerRoomPlayer; //Esto sincroniza solo en el Server no en el cliente, ojito
 
     #endregion
 
@@ -739,7 +741,7 @@ public class PlayerController : NetworkBehaviour
 
     #endregion
 
-    #region Animations
+    #region Animations and Sounds
     [TargetRpc]
     public void TargetPlayButtonAnimation(NetworkConnection target, bool enableButtons)
     {
@@ -759,6 +761,18 @@ public class PlayerController : NetworkBehaviour
         if (!isAlive) return;
 
         GetComponent<NetworkAnimator>().animator.Play(animation);//Esto sirve por ejemplo para que el player llame animación en otro player, tambien se puede llamar desde el Server
+    }
+
+    [ClientRpc] //Se ejecuta en todos los clientes siempre
+    public void RpcPlaySFX(string sfx)
+    {
+        AudioManager.Instance.PlaySFX(sfx);
+    }
+
+    [TargetRpc] //Se ejecuta en solo un cliente especifico
+    public void TargetPlaySFX(string sfx)
+    {
+        AudioManager.Instance.PlaySFX(sfx);
     }
 
     [TargetRpc] //Se ejecuta en solo un cliente especifico
@@ -1283,6 +1297,7 @@ public class PlayerController : NetworkBehaviour
             {
                 RpcPlayAnimation("ShootFail");
                 RpcPlayShootEffect(target.transform.position, "Fail"); // Efecto visual de bala oxidada (verde)
+                RpcPlaySFX("SlingShot");
                 Debug.Log($"{playerName} disparó, pero la bala falló debido a Balas Oxidadas.");
                 return; // Bala se gasta, pero no hace daño
             }
@@ -1354,6 +1369,7 @@ public class PlayerController : NetworkBehaviour
     public void ServerReload()
     {
         PlayDirectionalAnimation("Reload");
+        RpcPlaySFX("Reload");
         if (isDarkReloadEnabled)
         {
             ammo++;
@@ -1390,11 +1406,13 @@ public class PlayerController : NetworkBehaviour
         }
 
         health -= damageAmount;
+        RpcPlaySFX("Hit");
 
         if (health <= 0)
         {
             if (!isAlive) return; // Segunda verificación para evitar doble ejecución
             isAlive = false;
+            RpcPlaySFX("Death");
 
             Debug.Log($"{playerName} ha sido eliminado.");
 
@@ -1499,6 +1517,8 @@ public class PlayerController : NetworkBehaviour
     public void TargetStartRouletteWithWinner(NetworkConnection target, float duration, int winnerIndex)
     {
         if (!isOwned) return;
+
+        AudioManager.Instance.PlayMusic("Spinning_Loop");
 
         if (gameModifierCanvas != null)
             gameModifierCanvas.SetActive(true);
