@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 6520424867772751989}
   - component: {fileID: 5386434795408345121}
   - component: {fileID: 6435192516816470635}
+  - component: {fileID: 4450137200486721657}
   m_Layer: 0
   m_Name: MatchHandler
   m_TagString: Untagged
@@ -48,6 +49,7 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
+  gameManagerPrefab: {fileID: 8326968152673269228, guid: 84876c097daff814691f6a043e7330d1, type: 3}
 --- !u!114 &6435192516816470635
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -65,3 +67,18 @@ MonoBehaviour:
   serverOnly: 1
   visibility: 0
   hasSpawned: 0
+--- !u!114 &4450137200486721657
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4655261265728897739}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07ebdcd98288d4f46969a60bd3944e06, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0

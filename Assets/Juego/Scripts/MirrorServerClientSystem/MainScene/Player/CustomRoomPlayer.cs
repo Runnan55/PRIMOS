@@ -31,6 +31,8 @@ public class CustomRoomPlayer : NetworkBehaviour
 
     public static event Action OnRoomDataUpdated; // Evento que llamaremos
 
+    public GameObject loadingCanvas;
+
 
     #region ConectWithClient
 
@@ -252,6 +254,11 @@ public class CustomRoomPlayer : NetworkBehaviour
         {
             Debug.Log($"[CLIENT] Cargando escena (plantilla): {clientSceneName}");
             currentMatchId = sceneName; // GUARDAMOS la partida real (ejemplo "GameScene_7cddf7")
+
+            if (loadingCanvas != null)
+            {
+                loadingCanvas.SetActive(true);
+            }
 
             SceneManager.sceneLoaded += OnGameSceneLoaded;
             SceneLoaderManager.Instance.LoadScene(clientSceneName);

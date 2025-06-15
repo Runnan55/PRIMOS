@@ -2264,7 +2264,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a8b182dd519f4c418da2c09a5a5d9ab, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  tooltipPanel: {fileID: 4910705471813728774}
+  playerAnimator: {fileID: 0}
 --- !u!1 &3270134471259385304
 GameObject:
   m_ObjectHideFlags: 0
@@ -4421,7 +4421,7 @@ SpriteRenderer:
   m_Size: {x: 30.000002, y: 30.000002}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
+  m_WasSpriteAssigned: 0
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!1 &5975788804502805131
@@ -5164,6 +5164,7 @@ MonoBehaviour:
   hasConfirmedName: 0
   playerName: 
   kills: 0
+  clientDecisionPhase: 0
   isCovering: 0
   minBulletS: 1
   minBulletSS: 3
@@ -5191,11 +5192,11 @@ MonoBehaviour:
   superShootButton: {fileID: 5774999069479955459}
   defaultButtonColor: {r: 1, g: 1, b: 1, a: 1}
   highlightedColor: {r: 0.49056602, g: 0.49056602, b: 0.49056602, a: 1}
+  exitGameButton: {fileID: 0}
   syncedRound: 0
   syncedTimer: 0
   roundTextUI: {fileID: 0}
   timerTextUI: {fileID: 0}
-  parcaSprite: {fileID: 6731626543737339234}
   isDarkReloadEnabled: 0
   isVeryHealthy: 0
   rustyBulletsActive: 0
@@ -5216,9 +5217,26 @@ MonoBehaviour:
   canDealDamageThisRound: 1
   sucessfulShots: 0
   tikiSprite: {fileID: 0}
+  roulette: {fileID: 0}
+  gameModifierCanvas: {fileID: 0}
   gameManagerNetId: 0
+  leaderboardCanvas: {fileID: 0}
+  leaderboardContent: {fileID: 0}
+  leaderboardEntryPrefab: {fileID: 0}
+  vidaAzul_3: {fileID: 0}
+  vidaAzul_2: {fileID: 0}
+  vidaAzul_1: {fileID: 0}
+  vidaAzulBarra: {fileID: 0}
+  corazonAzul: {fileID: 0}
+  vidaRoja_3: {fileID: 0}
+  vidaRoja_2: {fileID: 0}
+  vidaRoja_1: {fileID: 0}
+  vidaRojaBarra: {fileID: 0}
+  corazonRojo: {fileID: 0}
   playerId: 
   ownerRoomPlayer: {fileID: 0}
+  parcaAzul: {fileID: 0}
+  parcaRojo: {fileID: 0}
   currentFacingDirection: 0
 --- !u!114 &1995742921654557300
 MonoBehaviour:

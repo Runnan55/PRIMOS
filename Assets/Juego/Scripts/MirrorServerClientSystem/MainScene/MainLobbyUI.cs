@@ -46,6 +46,8 @@ public class MainLobbyUI : MonoBehaviour
 
     private void Start()
     {
+        AudioManager.Instance.PlayMusic("MenuTheme");
+
         nameInputField.characterLimit = 11;
 
         nameInputField.onEndEdit.AddListener(OnNameEntered);
@@ -139,6 +141,8 @@ public class MainLobbyUI : MonoBehaviour
 
     private void OpenSettingsPanel()
     {
+        AudioManager.Instance.PlaySFX("Clic");
+
         settingsPanel.SetActive(true);
         audioPanel.SetActive(false); // por si estaba abierto
     }
@@ -163,12 +167,16 @@ public class MainLobbyUI : MonoBehaviour
 
     public void StartGameSelectionMenu()
     {
+        AudioManager.Instance.PlaySFX("Clic");
+
         gameSelectionCanvas.SetActive(true);
         startMenuCanvas.SetActive(false);
     }
 
     private void BackToStartMenu()
     {
+        AudioManager.Instance.PlaySFX("Clic");
+
         startMenuCanvas.SetActive(true);
         gameSelectionCanvas.SetActive(false);
     }
@@ -192,6 +200,8 @@ public class MainLobbyUI : MonoBehaviour
     //Esto usa referencia al AuthManager y Firebase, ojo con los cruces
     public void OnLogoutButton()
     {
+        AudioManager.Instance.PlaySFX("Clic");
+
         if (NetworkClient.isConnected)
         {
             NetworkManager.singleton.StopClient();

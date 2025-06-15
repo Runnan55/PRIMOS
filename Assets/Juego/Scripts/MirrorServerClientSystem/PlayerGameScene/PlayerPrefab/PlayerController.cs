@@ -335,17 +335,22 @@ public class PlayerController : NetworkBehaviour
     {
         if (GameManager.Instance != null)
         {
-            Debug.Log("GameManager en Cliente inexistente, pero estaba previsto");
+            Debug.Log("GameManager en Cliente inexistente, es lo correcto");
         }
 
-        if (!isLocalPlayer)
+        if (isLocalPlayer)
         {
-            Debug.Log("El localPlayer no tiene poder sobre este prefab, pero estaba previsto");
+            Debug.Log("El localPlayer tiene poder sobre este prefab, estaba previsto");
         }
 
         if (isOwned)
         {
             Debug.Log("El jugador tiene autoridad sobre este playerprefab, pero el Network de Mirror no lo detecta como Local Player, pero está bien");
+        }
+
+        if (isOwned && ownerRoomPlayer != null && ownerRoomPlayer.loadingCanvas != null)
+        {
+            ownerRoomPlayer.loadingCanvas.SetActive(false);
         }
 
         if (isLocalPlayer || isOwned)
@@ -799,7 +804,7 @@ public class PlayerController : NetworkBehaviour
 
     private IEnumerator MoveProjectileToTarget(GameObject projectile, Vector3 targetPos)
     {
-        float duration = 0.7f; // Velocidad de movimiento del proyectil del player, para efectos visuales
+        float duration = 0.9f; // Velocidad de movimiento del proyectil del player, para efectos visuales
         float elapsed = 0f;
 
         Vector3 start = projectile.transform.position;

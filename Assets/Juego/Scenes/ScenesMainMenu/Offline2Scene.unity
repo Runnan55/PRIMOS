@@ -2774,7 +2774,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &749896102
 RectTransform:
   m_ObjectHideFlags: 0
@@ -5038,7 +5038,6 @@ Transform:
   m_Children:
   - {fileID: 994280062}
   - {fileID: 881756916}
-  - {fileID: 2088655250}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1696647211
@@ -6753,7 +6752,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3316401913925202819, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: m_Enabled
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4205052979057025816, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: playerPrefab
@@ -6994,11 +6993,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2062766628}
   m_CullTransparentMesh: 1
---- !u!4 &2088655250 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 1630804992232105993, guid: d9fdca390122ee845862f592b74cde98, type: 3}
-  m_PrefabInstance: {fileID: 3894003138037943142}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &2092214590
 GameObject:
   m_ObjectHideFlags: 0
@@ -7262,7 +7256,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 1606711597}
+    m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 1630804992232105993, guid: d9fdca390122ee845862f592b74cde98, type: 3}
       propertyPath: m_LocalPosition.x
@@ -7282,15 +7276,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1630804992232105993, guid: d9fdca390122ee845862f592b74cde98, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 1630804992232105993, guid: d9fdca390122ee845862f592b74cde98, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 1630804992232105993, guid: d9fdca390122ee845862f592b74cde98, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 1630804992232105993, guid: d9fdca390122ee845862f592b74cde98, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -7377,4 +7371,5 @@ SceneRoots:
   - {fileID: 1993840786}
   - {fileID: 1330148979}
   - {fileID: 110619181}
+  - {fileID: 3894003138037943142}
   - {fileID: 1606711597}

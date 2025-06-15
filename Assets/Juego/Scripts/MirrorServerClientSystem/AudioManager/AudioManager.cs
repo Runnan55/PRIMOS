@@ -23,7 +23,7 @@ public class AudioManager : MonoBehaviour
 
     private void Start()
     {
-        PlayMusic("Theme");
+        PlayMusic("OfflineTheme");
     }
 
     public void PlayMusic(string name)
@@ -44,16 +44,16 @@ public class AudioManager : MonoBehaviour
 
     public void PlaySFX(string name)
     {
-        Sound s = Array.Find(sfxSounds, x => x.name == name);
+        var matchingSounds = Array.FindAll(sfxSounds, s => s.name.StartsWith(name));
 
-        if (s == null)
+        if (matchingSounds.Length == 0)
         {
-            Debug.Log("Sound not found");
+            Debug.LogWarning($"[AudioManager] No se encontraron SFX que comiencen con: {name}");
+            return;
         }
 
-        else
-        {
-            sfxSource.PlayOneShot(s.clip);
-        }
+        Sound selected = matchingSounds[UnityEngine.Random.Range(0, matchingSounds.Length)];
+
+        sfxSource.PlayOneShot(selected.clip);
     }
 }

@@ -268,6 +268,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1630804992232105993}
   - component: {fileID: 7316028519323222607}
+  - component: {fileID: 4559572081030079154}
   m_Layer: 0
   m_Name: Audio Manager
   m_TagString: Untagged
@@ -305,16 +306,62 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   musicSounds:
-  - name: Theme
-    clip: {fileID: 8300000, guid: c3d157b9a24d1094ba15be36a0d0dc3b, type: 3}
-  - name: MusicaGameScene
-    clip: {fileID: 8300000, guid: c3d157b9a24d1094ba15be36a0d0dc3b, type: 3}
+  - name: OfflineTheme
+    clip: {fileID: 8300000, guid: 3a4685029ba2e5e4d9b136f0a88e5fa7, type: 3}
+  - name: MenuTheme
+    clip: {fileID: 8300000, guid: 34029587d375d8d4cac67d9dd27ac77f, type: 3}
+  - name: CasualSearchingGameTheme
+    clip: {fileID: 8300000, guid: cfd9560e48cd29d4aac491c10733c094, type: 3}
+  - name: CasualGameSceneTheme
+    clip: {fileID: 8300000, guid: d1eac29c0cb383346933e764fdd764ec, type: 3}
   sfxSounds:
-  - name: OneClick
-    clip: {fileID: 8300000, guid: 58aba01cf7c86f14088e266c5d07497c, type: 3}
-  - name: TwoClick
-    clip: {fileID: 8300000, guid: 8661f4af18bc89c4f8740d4a7c312b17, type: 3}
-  - name: ButtonClic
-    clip: {fileID: 8300000, guid: 66740239de93ced4f81588538daf1c9d, type: 3}
+  - name: Clic_1
+    clip: {fileID: 8300000, guid: 275d3318401b4964ba48c329d1d11983, type: 3}
+  - name: Clic_2
+    clip: {fileID: 8300000, guid: 4bcbc64e6cc82ae459fec80925b6399d, type: 3}
+  - name: Clic_3
+    clip: {fileID: 8300000, guid: abbe1d4365efd2848b19312e4a258167, type: 3}
+  - name: Clic_4
+    clip: {fileID: 8300000, guid: bfd23d49039725640b80af058dd346f8, type: 3}
+  - name: Clic_5
+    clip: {fileID: 8300000, guid: 17f3982ab8de2bc4aacb6b016fe8bdba, type: 3}
+  - name: QM_PopUp
+    clip: {fileID: 8300000, guid: 3098c0296d585494f975b3cdb9eb5928, type: 3}
+  - name: Reload_1
+    clip: {fileID: 8300000, guid: 9947cd82cb1acc648bc3807fd721dfef, type: 3}
+  - name: Reload_2
+    clip: {fileID: 8300000, guid: 2befe7130904bcb45bda4693be0fa441, type: 3}
+  - name: Reload_3
+    clip: {fileID: 8300000, guid: 33a68c2d0a2273f46ac285539c6a7425, type: 3}
+  - name: Death
+    clip: {fileID: 8300000, guid: f0fec02ba30eda740b0ab03c2e3cd0ab, type: 3}
+  - name: Hit_1
+    clip: {fileID: 8300000, guid: 71801da5d54ea074e927df4219ea8d5f, type: 3}
+  - name: Hit_2
+    clip: {fileID: 8300000, guid: fa07a880b69e8dc469e00caa52348eea, type: 3}
+  - name: Hit_3
+    clip: {fileID: 8300000, guid: bb557ef4eae5b4e408e0078f18cd8667, type: 3}
+  - name: Hit_4
+    clip: {fileID: 8300000, guid: 3c09131c9f2eead40b29fbe71be33156, type: 3}
+  - name: SlingShot_1
+    clip: {fileID: 8300000, guid: b38690c6ac5e6644186f8331649032da, type: 3}
+  - name: SlingShot_2
+    clip: {fileID: 8300000, guid: 99f19696cf02fa4439355b5e81509e29, type: 3}
+  - name: SlingShot_3
+    clip: {fileID: 8300000, guid: af0a0c870cb8ee6408d2f4b563befd97, type: 3}
+  - name: SlingShot_4
+    clip: {fileID: 8300000, guid: 1fa4a835e897d9545b9715c1877c50ad, type: 3}
   musicSource: {fileID: 8667795040168531451}
   sfxSource: {fileID: 7138314209850784980}
+--- !u!114 &4559572081030079154
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5342823029757340280}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccb059ec9648e3d4fb7c492ba1b40452, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

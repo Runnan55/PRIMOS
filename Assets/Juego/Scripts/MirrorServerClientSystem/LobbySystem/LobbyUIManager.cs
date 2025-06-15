@@ -40,6 +40,8 @@ public class LobbyUIManager : MonoBehaviour
 
     void Start()
     {
+        AudioManager.Instance.PlayMusic("CasualSearchingGameTheme");
+
         createRoomButton.onClick.AddListener(CreateRoom);
         refreshButton.onClick.AddListener(RequestMatchList);
         readyButton.onClick.AddListener(ToogleReady);

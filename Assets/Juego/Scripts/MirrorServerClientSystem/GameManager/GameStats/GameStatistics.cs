@@ -3,6 +3,7 @@ using System.Linq;
 using Mirror;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class GameStatistic : NetworkBehaviour
@@ -153,11 +154,17 @@ public class GameStatistic : NetworkBehaviour
         Debug.Log("[GameStatistic] Mostrando Leaderboard desde el servidor...");
 
         List<PlayerInfo> copy = players.ToList();
+
+        //Obtener la escena actual (la del GameManager asociado)
+        Scene myScene = gameObject.scene;
+
         var playerControllers = UnityEngine.Object.FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
 
         foreach (var player in playerControllers)
         {
-            if (player != null && player.connectionToClient != null)
+            if (player != null &&
+                player.connectionToClient != null &&
+                player.gameObject.scene == myScene) //Solo jugadores en esta escena
             {
                 Debug.Log($"[Server] Enviando leaderboard a {player.playerName} con NetId {player.netId}");
                 player.RpcShowLeaderboard(copy);

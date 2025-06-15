@@ -143,7 +143,7 @@ public class AuthManager : MonoBehaviour
 
     public void ShowRegisterPanel()
     {
-        AudioManager.Instance.PlaySFX("OneClick");
+        AudioManager.Instance.PlaySFX("Clic");
 
         loginPanel.SetActive(false);
         registerPanel.SetActive(true);
@@ -155,7 +155,7 @@ public class AuthManager : MonoBehaviour
         string email = emailInput_Login.text.Trim();
         string password = passwordInput_Login.text;
 
-        AudioManager.Instance.PlaySFX("OneClick");
+        AudioManager.Instance.PlaySFX("Clic");
 
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
         {
@@ -174,7 +174,7 @@ public class AuthManager : MonoBehaviour
         string password = passwordInput_Register.text;
         string passwordAgain = passwordAgainInput_Register.text;
 
-        AudioManager.Instance.PlaySFX("OneClick");
+        AudioManager.Instance.PlaySFX("Clic");
 
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(passwordAgain))
         {
@@ -488,6 +488,7 @@ public class AuthManager : MonoBehaviour
     private IEnumerator DelayerShowLoginPanel()
     {
         yield return new WaitForSeconds(1f);
+        AudioManager.Instance.PlayMusic("OfflineTheme");
         ShowLoginPanel();
         isLoggingOut = false;
     }
