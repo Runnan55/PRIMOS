@@ -287,8 +287,59 @@ public class GameManager : NetworkBehaviour
         }
 
         isGameStarted = true;
+        FillBotsIfNeeded();
         StartCoroutine (BegingameAfterDelay()); //Usamos esto para agregar una pantalla de LOADING, para la ilusión de espera, LOL
     }
+
+    #region BOT BOT BOT
+
+    [Server]
+    private void FillBotsIfNeeded()
+    {
+        MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
+        if (match == null) return;
+
+        int needed = MatchHandler.MATCH_SIZE - players.Count;
+        if (needed <= 0) return;
+
+        List<Vector3> spawnPositions = gameObject.scene.GetRootGameObjects()
+            .SelectMany(go => go.GetComponentsInChildren<NetworkStartPosition>())
+            .Select(pos => pos.transform.position).ToList();
+
+        for (int i = 0; i < needed; i++)
+        {
+            // Recalcula las posiciones disponibles en cada iteración
+            List<Vector3> availablePositions = spawnPositions
+                .Where(pos => players.All(p => Vector3.Distance(p.transform.position, pos) >= 0.5f))
+                .ToList();
+
+            Vector3 pos = availablePositions.Count > 0
+                ? availablePositions[UnityEngine.Random.Range(0, availablePositions.Count)]
+                : Vector3.zero;
+
+            GameObject bot = Instantiate(playerControllerPrefab, pos, Quaternion.identity);
+            SceneManager.MoveGameObjectToScene(bot, gameObject.scene);
+            NetworkServer.Spawn(bot);
+
+            PlayerController pc = bot.GetComponent<PlayerController>();
+            pc.playerName = GenerateName();
+            pc.isBot = true;
+            pc.gameManagerNetId = netId;
+            RegisterPlayer(pc);
+        }
+    }
+
+    private string[] prefixes = { "Zan", "Kor", "Vel", "Thar", "Lum", "Nex", "Mal", "Run", "Luc", "Put" };
+    private string[] suffixes = { "trik", "vel", "dor", "gorn", "ion", "rax", "mir", "nan", "ius", "in" };
+
+    public string GenerateName()
+    {
+        string prefix = prefixes[UnityEngine.Random.Range(0, prefixes.Length)];
+        string suffix = suffixes[UnityEngine.Random.Range(0, suffixes.Length)];
+        return prefix + suffix;
+    }
+
+    #endregion
 
     [Server]
     private IEnumerator BegingameAfterDelay()
@@ -394,8 +445,11 @@ public class GameManager : NetworkBehaviour
         QuickMissionType type = (QuickMissionType) UnityEngine.Random.Range(0,Enum.GetValues(typeof(QuickMissionType)).Length);
         player.currentQuickMission = new QuickMission(type, currentRound);
 
-        string animName = "QM_Start_" + player.currentQuickMission.type.ToString(); // El nombre exacto de la misión como string
-        player.TargetPlayAnimation(animName);
+        if (!player.isBot && player.connectionToClient != null)
+        {
+            string animName = "QM_Start_" + player.currentQuickMission.type.ToString(); // El nombre exacto de la misión como string
+            player.TargetPlayAnimation(animName);
+        }
     }
 
     private bool EvaluateQuickMission(PlayerController player, QuickMission mission)
@@ -521,7 +575,38 @@ public class GameManager : NetworkBehaviour
         actionsQueue.Clear();
 
         currentDecisionTime = decisionTime; //Restaurar el tiempo original
-        //timerText.gameObject.SetActive(true);
+                                            //timerText.gameObject.SetActive(true);
+
+        #region BOT_ACTION_DECISION_PHASE
+
+        foreach (var bot in players.Where(p => p.isBot && p.isAlive))
+        {
+            ActionType chosenAction;
+            PlayerController chosenTarget = null;
+
+            if (bot.ammo >= 3)
+            {
+                chosenAction = ActionType.SuperShoot;
+            }
+            else if (bot.ammo > 0)
+            {
+                var possibleTargets = players.Where(p => p != bot && p.isAlive).ToList();
+                chosenTarget = possibleTargets.Count > 0
+                    ? possibleTargets[UnityEngine.Random.Range(0, possibleTargets.Count)]
+                    : null;
+
+                chosenAction = chosenTarget != null ? ActionType.Shoot : ActionType.Cover;
+            }
+            else
+            {
+                // 50% chance de recargar o cubrirse si no tiene balas
+                chosenAction = UnityEngine.Random.value > 0.5f ? ActionType.Reload : ActionType.Cover;
+            }
+
+            RegisterAction(bot, chosenAction, chosenTarget);
+        }
+
+        #endregion
 
         Debug.Log("Comienza la fase de decisión. Jugadores decidiendo acciones");
 

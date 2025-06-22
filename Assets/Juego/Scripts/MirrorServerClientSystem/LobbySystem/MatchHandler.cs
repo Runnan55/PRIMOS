@@ -332,7 +332,7 @@ public class MatchHandler : NetworkBehaviour
     private Dictionary<string, Coroutine> countdownCoroutines = new();
     private Dictionary<string, int> countdownSeconds = new();
     private const int MIN_PLAYERS_TO_START = 3;
-    private const int MATCH_SIZE = 6; //Cantidad de jugadores para iniciar partida
+    public const int MATCH_SIZE = 6; //Cantidad de jugadores para iniciar partida
 
     [Server]
     public void EnqueueForMatchmaking(CustomRoomPlayer player)

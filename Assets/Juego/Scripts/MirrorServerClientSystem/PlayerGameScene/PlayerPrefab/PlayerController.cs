@@ -132,6 +132,9 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public uint gameManagerNetId;
     private GameManager cachedGameManager;
 
+    [Header("Bot Bot Bot")]
+    [SyncVar] public bool isBot = false;
+
     [TargetRpc]
     public void TargetHideRouletteCanvas(NetworkConnection target)
     {
@@ -504,7 +507,6 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-
     private IEnumerator DelayedShoot()
     {
         yield return null; // espera 1 frame
@@ -516,7 +518,6 @@ public class PlayerController : NetworkBehaviour
         yield return null; // espera 1 frame
         OnSuperShootButton();
     }
-
 
     #endregion
 
