@@ -1291,7 +1291,9 @@ public class PlayerController : NetworkBehaviour
         {
             //Llamamos si o si la animación de disparo en player, luego vemos si sumamos animación de fallo o de proyectil disparado
             FacingDirection shootDir = GetShootDirection(target);
-            RpcPlayAnimation("Shoot_" + shootDir.ToString());
+            currentFacingDirection = shootDir;
+            PlayDirectionalAnimation("Shoot");
+            //RpcPlayAnimation("Shoot_" + shootDir.ToString());
 
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)
