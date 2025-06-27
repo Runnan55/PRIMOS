@@ -996,7 +996,7 @@ public class PlayerController : NetworkBehaviour
             RpcPlayAnimation(animName);
             Debug.Log("Estoy reproduciendo la animación sin el error, la csm esto es un caos");
         }
-        else
+        else 
         {
             animator.Play(animName); // Reproducir localmente, para el actionEvent de las animaciones
         }
@@ -1293,7 +1293,6 @@ public class PlayerController : NetworkBehaviour
             FacingDirection shootDir = GetShootDirection(target);
             currentFacingDirection = shootDir;
             PlayDirectionalAnimation("Shoot");
-            //RpcPlayAnimation("Shoot_" + shootDir.ToString());
 
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)
@@ -1316,7 +1315,7 @@ public class PlayerController : NetworkBehaviour
 
             //Llamamos si o si la animación de disparo en player, luego vemos si sumamos animación de fallo o de proyectil disparado
             FacingDirection shootDir = GetShootDirection(target);
-            RpcPlayAnimation("SuperShoot_" + shootDir.ToString());
+            PlayDirectionalAnimation("SuperShoot");
 
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)

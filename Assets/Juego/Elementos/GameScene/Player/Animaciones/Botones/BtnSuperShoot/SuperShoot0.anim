@@ -31,7 +31,7 @@ AnimationClip:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    path: PlayerCanvas/Botones/BtnSuperShoot
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot
   m_FloatCurves:
   - serializedVersion: 2
     curve:
@@ -50,7 +50,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_IsActive
-    path: PlayerCanvas/Botones/BtnSuperShoot/Sharp1
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot/Sharp1
     classID: 1
     script: {fileID: 0}
     flags: 0
@@ -71,7 +71,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_IsActive
-    path: PlayerCanvas/Botones/BtnSuperShoot/Sharp2
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot/Sharp2
     classID: 1
     script: {fileID: 0}
     flags: 0
@@ -92,7 +92,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_IsActive
-    path: PlayerCanvas/Botones/BtnSuperShoot/Sharp3
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot/Sharp3
     classID: 1
     script: {fileID: 0}
     flags: 0
@@ -102,7 +102,7 @@ AnimationClip:
     - time: 0
       value: {fileID: -1131622916, guid: b11a615468459074a95ac44e696f6775, type: 3}
     attribute: m_Sprite
-    path: PlayerCanvas/Botones/BtnSuperShoot
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot
     classID: 114
     script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
     flags: 2
@@ -114,7 +114,7 @@ AnimationClip:
   m_ClipBindingConstant:
     genericBindings:
     - serializedVersion: 2
-      path: 4185781205
+      path: 2554092633
       attribute: 2086281974
       script: {fileID: 0}
       typeID: 1
@@ -123,7 +123,7 @@ AnimationClip:
       isIntCurve: 0
       isSerializeReferenceCurve: 0
     - serializedVersion: 2
-      path: 1618256495
+      path: 20254179
       attribute: 2086281974
       script: {fileID: 0}
       typeID: 1
@@ -132,7 +132,7 @@ AnimationClip:
       isIntCurve: 0
       isSerializeReferenceCurve: 0
     - serializedVersion: 2
-      path: 393450233
+      path: 1983004021
       attribute: 2086281974
       script: {fileID: 0}
       typeID: 1
@@ -141,7 +141,7 @@ AnimationClip:
       isIntCurve: 0
       isSerializeReferenceCurve: 0
     - serializedVersion: 2
-      path: 412580145
+      path: 372408954
       attribute: 2015549526
       script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
       typeID: 114
@@ -150,7 +150,7 @@ AnimationClip:
       isIntCurve: 0
       isSerializeReferenceCurve: 0
     - serializedVersion: 2
-      path: 412580145
+      path: 372408954
       attribute: 3
       script: {fileID: 0}
       typeID: 4
@@ -187,69 +187,6 @@ AnimationClip:
       m_Curve:
       - serializedVersion: 3
         time: 0
-        value: 0
-        inSlope: Infinity
-        outSlope: Infinity
-        tangentMode: 103
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    attribute: m_IsActive
-    path: PlayerCanvas/Botones/BtnSuperShoot/Sharp1
-    classID: 1
-    script: {fileID: 0}
-    flags: 0
-  - serializedVersion: 2
-    curve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: Infinity
-        outSlope: Infinity
-        tangentMode: 103
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    attribute: m_IsActive
-    path: PlayerCanvas/Botones/BtnSuperShoot/Sharp2
-    classID: 1
-    script: {fileID: 0}
-    flags: 0
-  - serializedVersion: 2
-    curve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: Infinity
-        outSlope: Infinity
-        tangentMode: 103
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    attribute: m_IsActive
-    path: PlayerCanvas/Botones/BtnSuperShoot/Sharp3
-    classID: 1
-    script: {fileID: 0}
-    flags: 0
-  - serializedVersion: 2
-    curve:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
         value: 1
         inSlope: 0
         outSlope: 0
@@ -261,7 +198,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalScale.x
-    path: PlayerCanvas/Botones/BtnSuperShoot
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot
     classID: 224
     script: {fileID: 0}
     flags: 0
@@ -282,7 +219,7 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalScale.y
-    path: PlayerCanvas/Botones/BtnSuperShoot
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot
     classID: 224
     script: {fileID: 0}
     flags: 0
@@ -303,8 +240,71 @@ AnimationClip:
       m_PostInfinity: 2
       m_RotationOrder: 4
     attribute: m_LocalScale.z
-    path: PlayerCanvas/Botones/BtnSuperShoot
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot
     classID: 224
+    script: {fileID: 0}
+    flags: 0
+  - serializedVersion: 2
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: Infinity
+        outSlope: Infinity
+        tangentMode: 103
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    attribute: m_IsActive
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot/Sharp1
+    classID: 1
+    script: {fileID: 0}
+    flags: 0
+  - serializedVersion: 2
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: Infinity
+        outSlope: Infinity
+        tangentMode: 103
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    attribute: m_IsActive
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot/Sharp2
+    classID: 1
+    script: {fileID: 0}
+    flags: 0
+  - serializedVersion: 2
+    curve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: Infinity
+        outSlope: Infinity
+        tangentMode: 103
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    attribute: m_IsActive
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnSuperShoot/Sharp3
+    classID: 1
     script: {fileID: 0}
     flags: 0
   m_EulerEditorCurves: []
