@@ -994,7 +994,6 @@ public class PlayerController : NetworkBehaviour
         if (isServer)
         {
             RpcPlayAnimation(animName);
-            Debug.Log("Estoy reproduciendo la animación sin el error, la csm esto es un caos");
         }
         else 
         {
