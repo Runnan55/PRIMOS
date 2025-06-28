@@ -1290,8 +1290,17 @@ public class PlayerController : NetworkBehaviour
         {
             //Llamamos si o si la animación de disparo en player, luego vemos si sumamos animación de fallo o de proyectil disparado
             FacingDirection shootDir = GetShootDirection(target);
-            currentFacingDirection = shootDir;
-            PlayDirectionalAnimation("Shoot");
+
+            if (isServer)
+            {
+                RpcPlayAnimation("Shoot_" + shootDir.ToString());
+            }
+            else
+            {
+                animator.Play("Shoot_" + shootDir.ToString()); // Reproducir localmente, para el actionEvent de las animaciones
+            }
+
+            //PlayDirectionalAnimation("Shoot");
 
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)
@@ -1314,7 +1323,8 @@ public class PlayerController : NetworkBehaviour
 
             //Llamamos si o si la animación de disparo en player, luego vemos si sumamos animación de fallo o de proyectil disparado
             FacingDirection shootDir = GetShootDirection(target);
-            PlayDirectionalAnimation("SuperShoot");
+            RpcPlayAnimation("SuperShoot_" + shootDir.ToString());
+            //PlayDirectionalAnimation("SuperShoot");
 
             // Verificamos si Balas Oxidadas está activo y si el disparo falla (25% de probabilidad)
             if (rustyBulletsActive && Random.value < 0.25f)
@@ -1364,6 +1374,19 @@ public class PlayerController : NetworkBehaviour
         
         lastShotTarget = target; // Almacenar víctima de disparo
         Debug.Log($"{playerName} disparó a {target.playerName}. Balas restantes: {ammo}");
+    }
+
+    [ClientRpc]
+    public void RpcForcePlayAnimation(string animationName)
+    {
+        if (animator == null)
+        {
+            Debug.LogWarning($"[RpcForcePlayAnimation] {playerName} no tiene Animator.");
+            return;
+        }
+
+        Debug.Log($"[RpcForcePlayAnimation] {playerName} reproduce {animationName}");
+        GetComponent<Animator>().Play(animationName);
     }
 
     [Server]
