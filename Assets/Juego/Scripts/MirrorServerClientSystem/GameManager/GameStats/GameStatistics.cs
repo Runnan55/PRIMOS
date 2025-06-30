@@ -9,7 +9,7 @@ using UnityEngine.UI;
 public class GameStatistic : NetworkBehaviour
 {
     // Cambiar de List<PlayerController> a SyncList<PlayerInfo>
-    [SyncVar] private SyncList<PlayerInfo> players = new SyncList<PlayerInfo>();
+    private readonly SyncList<PlayerInfo> players = new SyncList<PlayerInfo>();
 
     private int currentDeathCount = 1;
 

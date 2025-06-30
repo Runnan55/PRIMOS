@@ -572,7 +572,7 @@ public class GameManager : NetworkBehaviour
 
         foreach (var player in players)
         {
-            player.TargetPlayButtonAnimation(player.connectionToClient, true);
+            if (!player.isBot && player.connectionToClient != null) player.TargetPlayButtonAnimation(player.connectionToClient, true);
             player.PlayDirectionalAnimation("Idle");
         }
 
@@ -618,6 +618,16 @@ public class GameManager : NetworkBehaviour
                             }
                             else if (bot.consecutiveCovers >= 2 || ammoEnemies.Count == 0)
                             {
+                                // Buscar a un enemigo con 1 de vida y atacarlo traicioneramente si se puede
+                                var lowHpTarget = enemies.FirstOrDefault(p => p.health == 1);
+
+                                if (lowHpTarget != null && bot.ammo > 0)
+                                {
+                                    chosenAction = ActionType.Shoot;
+                                    chosenTarget = lowHpTarget;
+                                    break;
+                                }
+
                                 chosenAction = bot.ammo < 3 ? ActionType.Reload : ActionType.Shoot;
                                 break;
                             }
@@ -1247,14 +1257,16 @@ public class GameManager : NetworkBehaviour
 
         foreach (var player in players)
         {
-            player.TargetStartRouletteWithWinner(player.connectionToClient, rouletteDuration, winnerIndex);
+            if (!player.isBot && player.connectionToClient != null)
+                player.TargetStartRouletteWithWinner(player.connectionToClient, rouletteDuration, winnerIndex);
         }
 
         yield return new WaitForSeconds(rouletteDuration);
 
         foreach (var player in players)
         {
-            player.TargetHideRouletteCanvas(player.connectionToClient);
+            if (!player.isBot && player.connectionToClient != null)
+                player.TargetHideRouletteCanvas(player.connectionToClient);
         }
     }
     
