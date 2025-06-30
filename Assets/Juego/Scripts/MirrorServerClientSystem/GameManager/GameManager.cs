@@ -104,6 +104,9 @@ public class GameManager : NetworkBehaviour
     [SyncVar] public string matchId; //Identificador de partida
     public GameObject playerControllerPrefab; //Prefab asignado por MatchHandler
 
+    [Header("Bot Bot Bot")]
+    private Dictionary<PlayerController, Queue<PlayerController>> recentAttackers = new();
+
     private void IdentifyVeryHealthy()
     {
         if (players.Count == 0 || SelectedModifier != GameModifierType.CaceriaDelLider) return;
@@ -325,6 +328,7 @@ public class GameManager : NetworkBehaviour
             pc.playerName = GenerateName();
             pc.isBot = true;
             pc.gameManagerNetId = netId;
+            pc.botPersonality = (BotPersonality)UnityEngine.Random.Range(0, Enum.GetValues(typeof(BotPersonality)).Length);
             RegisterPlayer(pc);
         }
     }
@@ -581,10 +585,79 @@ public class GameManager : NetworkBehaviour
 
         foreach (var bot in players.Where(p => p.isBot && p.isAlive))
         {
-            ActionType chosenAction;
+            ActionType chosenAction = ActionType.None;
             PlayerController chosenTarget = null;
 
-            if (bot.ammo >= 3)
+            var memory = recentAttackers.ContainsKey(bot) ? recentAttackers[bot] : new Queue<PlayerController>();
+            var liveAttackers = memory.Where(p => p != null && p.isAlive).Distinct().ToList();
+            var enemies = players.Where(p => p != bot && p.isAlive).ToList();
+            var ammoEnemies = enemies.Where(p => p.ammo > 0).ToList();
+            var visibleEnemies = enemies.Where(p => !p.isCovering || p.consecutiveCovers >= 2).ToList();
+            var killableWithSS = enemies.Where(p => p.health == 1).ToList();
+            bool hasAmmo = bot.ammo > 0;
+            bool canSuperShoot = bot.ammo >= 3;
+
+            // Comportamiento global de SuperShoot si puede matar
+            if (canSuperShoot && killableWithSS.Count > 0)
+            {
+                chosenTarget = killableWithSS[UnityEngine.Random.Range(0, killableWithSS.Count)];
+                chosenAction = ActionType.SuperShoot;
+            }
+            else
+            {
+                //Evaluar acción basada en personalidad
+                switch (bot.botPersonality)
+                {
+                    case BotPersonality.Shy:
+                        if (liveAttackers.Count > 0 && ammoEnemies.Count > 0)
+                        {
+                            if (bot.health == 1 || bot.consecutiveCovers < 2)
+                            {
+                                chosenAction = ActionType.Cover;
+                                break;
+                            }
+                            else if (bot.consecutiveCovers >= 2 || ammoEnemies.Count == 0)
+                            {
+                                chosenAction = bot.ammo < 3 ? ActionType.Reload : ActionType.Shoot;
+                                break;
+                            }
+                        }
+                        goto case BotPersonality.Vengador;
+
+                    case BotPersonality.Vengador:
+                        if (liveAttackers.Count > 0 && hasAmmo)
+                        {
+                            chosenTarget = liveAttackers.FirstOrDefault();
+                            chosenAction = canSuperShoot ? ActionType.SuperShoot : ActionType.Shoot;
+                            break;
+                        }
+                        goto case BotPersonality.Aggro;
+
+                    case BotPersonality.Aggro:
+                    default:
+                        if (canSuperShoot && visibleEnemies.Count > 0)
+                        {
+                            chosenTarget = visibleEnemies.OrderBy(p => UnityEngine.Random.value).First();
+                            chosenAction = ActionType.SuperShoot;
+                        }
+                        else if (hasAmmo && visibleEnemies.Count > 0)
+                        {
+                            chosenTarget = visibleEnemies.OrderBy(p => UnityEngine.Random.value).First();
+                            chosenAction = ActionType.Shoot;
+                        }
+                        else if (bot.ammo < 3)
+                        {
+                            chosenAction = ActionType.Reload;
+                        }
+                        else
+                        {
+                            chosenAction = ActionType.Cover;
+                        }
+                        break;
+                }
+            }
+
+            /*if (bot.ammo >= 3)
             {
                 chosenAction = ActionType.SuperShoot;
             }
@@ -601,7 +674,7 @@ public class GameManager : NetworkBehaviour
             {
                 // 50% chance de recargar o cubrirse si no tiene balas
                 chosenAction = UnityEngine.Random.value > 0.5f ? ActionType.Reload : ActionType.Cover;
-            }
+            }*/
 
             RegisterAction(bot, chosenAction, chosenTarget);
         }
@@ -717,7 +790,7 @@ public class GameManager : NetworkBehaviour
         //Luego aplica "Recargar" y "Disparar"
         yield return new WaitForSeconds(0.7f); //Pausa antes del tiroteo
 
-        //Aplicar recarga ...
+        //Aplicar recarga o None...
         foreach (var entry in actionsQueue)
         {
             switch (entry.Value.type)
@@ -827,6 +900,32 @@ public class GameManager : NetworkBehaviour
         damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
 
         CheckGameOver();
+
+        #region Registro de disparos para los BOTS
+
+        foreach (var shooter in players)
+        {
+            if (!actionsQueue.ContainsKey(shooter)) continue;
+            var action = actionsQueue[shooter];
+            if ((action.type == ActionType.Shoot || action.type == ActionType.SuperShoot) && action.target != null)
+            {
+                if (!recentAttackers.ContainsKey(action.target))
+                {
+                    recentAttackers[action.target] = new Queue<PlayerController>();
+                }
+
+                if (action.target != shooter && shooter.isAlive)
+                {
+                    recentAttackers[action.target].Enqueue(shooter);
+                    if (recentAttackers[action.target].Count > 5)
+                    {
+                        recentAttackers[action.target].Dequeue();
+                    }
+                }
+            }
+        }
+
+        #endregion
 
         foreach (var player in players)
         {
@@ -1115,9 +1214,11 @@ public class GameManager : NetworkBehaviour
     //Se supone que acá va [Server], pero no lo he puesto porque GameManager está siempre en servidor así que quiero probar como va así
     public void RegisterAction(PlayerController player, ActionType actionType, PlayerController target = null)//Registra decisiones de jugadores durante DecisionPhase()
     {
-        if (!isDecisionPhase || !player.isAlive) return; //Solo se pueden elegir acciones en la fase de decisión ni si estás muerto
+        if (!isDecisionPhase || !player.isAlive) return; //Solo se pueden elegir acciones en la fase de decisión no si estás muerto
 
         actionsQueue[player] = new PlayerAction(actionType, target);
+        player.selectedAction = actionType; //Con esto los bots y los players siempre marcarán su selectedAction igual al actionType
+
         Debug.Log($"{player.playerName} ha elegido {actionType}");
         player.RpcSendLogToClients($"{player.playerName} ha elegido {actionType}");
 

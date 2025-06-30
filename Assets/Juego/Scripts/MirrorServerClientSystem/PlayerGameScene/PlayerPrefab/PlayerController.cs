@@ -30,6 +30,8 @@ public class PlayerAction
     }
 }
 
+public enum BotPersonality { Aggro, Shy, Vengador }
+
 public class PlayerController : NetworkBehaviour
 {
     public bool isAlive = true;
@@ -52,7 +54,7 @@ public class PlayerController : NetworkBehaviour
 
     private Animator animator;
 
-    public ActionType selectedAction = ActionType.None;
+    [SyncVar] public ActionType selectedAction = ActionType.None;
 
     [Header("UI Elements")]
     public GameObject playerCanvas;
@@ -134,6 +136,7 @@ public class PlayerController : NetworkBehaviour
 
     [Header("Bot Bot Bot")]
     [SyncVar] public bool isBot = false;
+    [SyncVar] public BotPersonality botPersonality;
 
     [TargetRpc]
     public void TargetHideRouletteCanvas(NetworkConnection target)
@@ -1271,7 +1274,7 @@ public class PlayerController : NetworkBehaviour
     [Server]
     public void ServerAttemptShoot(PlayerController target)
     {
-        if (ammo <= 0 || target == null) return;
+        if (ammo <= 0 || target == null) return; //Acá agregué el !isBot, por que parece que los bots no marcán bien el target y por tanto no ejecutan este bloque, pero luego funciona en otro lado por alguna razón que desconozco
 
         ammo--;
         bulletsFired++; //Sumar el contador de balas disparadas
@@ -1291,14 +1294,8 @@ public class PlayerController : NetworkBehaviour
             //Llamamos si o si la animación de disparo en player, luego vemos si sumamos animación de fallo o de proyectil disparado
             FacingDirection shootDir = GetShootDirection(target);
 
-            if (isServer)
-            {
-                RpcPlayAnimation("Shoot_" + shootDir.ToString());
-            }
-            else
-            {
-                animator.Play("Shoot_" + shootDir.ToString()); // Reproducir localmente, para el actionEvent de las animaciones
-            }
+            RpcPlayAnimation("Shoot_" + shootDir.ToString());
+            Debug.Log("Ejecutando animación de disparo de jugador");
 
             //PlayDirectionalAnimation("Shoot");
 
