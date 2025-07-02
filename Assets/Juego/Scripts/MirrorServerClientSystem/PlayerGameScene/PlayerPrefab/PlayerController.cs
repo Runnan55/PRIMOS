@@ -30,7 +30,7 @@ public class PlayerAction
     }
 }
 
-public enum BotPersonality { Aggro, Shy, Vengador }
+public enum BotPersonality {  Shy, Vengador, Aggro, Tactico }
 
 public class PlayerController : NetworkBehaviour
 {

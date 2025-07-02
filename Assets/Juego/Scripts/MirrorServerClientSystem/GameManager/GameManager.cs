@@ -325,7 +325,7 @@ public class GameManager : NetworkBehaviour
             NetworkServer.Spawn(bot);
 
             PlayerController pc = bot.GetComponent<PlayerController>();
-            pc.playerName = GenerateName();
+            pc.playerName = NameGenerator();
             pc.isBot = true;
             pc.gameManagerNetId = netId;
             pc.botPersonality = (BotPersonality)UnityEngine.Random.Range(0, Enum.GetValues(typeof(BotPersonality)).Length);
@@ -333,15 +333,20 @@ public class GameManager : NetworkBehaviour
         }
     }
 
+    #region NameGenerator
+
     private string[] prefixes = { "Zan", "Kor", "Vel", "Thar", "Lum", "Nex", "Mal", "Run", "Luc", "Put" };
     private string[] suffixes = { "trik", "vel", "dor", "gorn", "ion", "rax", "mir", "nan", "ius", "in" };
 
-    public string GenerateName()
+    public string NameGenerator()
     {
+
         string prefix = prefixes[UnityEngine.Random.Range(0, prefixes.Length)];
         string suffix = suffixes[UnityEngine.Random.Range(0, suffixes.Length)];
         return prefix + suffix;
     }
+
+    #endregion
 
     #endregion
 
@@ -611,7 +616,7 @@ public class GameManager : NetworkBehaviour
                     case BotPersonality.Shy:
                         if (liveAttackers.Count > 0 && ammoEnemies.Count > 0)
                         {
-                            if (bot.health == 1 || bot.consecutiveCovers < 2)
+                            if (bot.consecutiveCovers < 2)
                             {
                                 chosenAction = ActionType.Cover;
                                 break;
@@ -632,7 +637,7 @@ public class GameManager : NetworkBehaviour
                                 break;
                             }
                         }
-                        goto case BotPersonality.Vengador;
+                        goto case BotPersonality.Vengador; //Si no hay necesidad de defenderse pasa a Vengador
 
                     case BotPersonality.Vengador:
                         if (liveAttackers.Count > 0 && hasAmmo)
@@ -641,7 +646,40 @@ public class GameManager : NetworkBehaviour
                             chosenAction = canSuperShoot ? ActionType.SuperShoot : ActionType.Shoot;
                             break;
                         }
-                        goto case BotPersonality.Aggro;
+                        goto case BotPersonality.Tactico; // Si no hay venganza posible pasa a Tactico
+
+                    case BotPersonality.Tactico:
+                        if (liveAttackers.Count > 0 && ammoEnemies.Count > 0) // Si su atacante está vivo y los enemigos tienen balas, actua como Shy
+                        {
+                            goto case BotPersonality.Shy;
+                        }
+                        else if (bot.ammo <= 3)
+                        {
+                            chosenAction = ActionType.Reload;
+                        }
+                        else if (bot.ammo >= 5 && enemies.Count >0)
+                        {
+                            // Si está bien armado y no hay amenaza, puede hacer un SuperShoot aleatorio como presión
+                            chosenTarget = enemies[UnityEngine.Random.Range(0, enemies.Count)];
+                            chosenAction = ActionType.SuperShoot;
+                        }
+                        else
+                        {
+                            // Si no se lanza un supershoot, lanza un disparo de prueba a enemigos que no se han cubierto
+                            var possibleTargets = visibleEnemies;
+                            if (possibleTargets.Count > 0)
+                            {
+                                chosenTarget = possibleTargets[UnityEngine.Random.Range(0, possibleTargets.Count)];
+                                chosenAction = ActionType.Shoot;
+                            }
+                            else
+                            {
+                                // Si todos están cubiertos, recarga por si acaso
+                                chosenAction = ActionType.Reload;
+                            }
+                        }
+                        
+                        break;
 
                     case BotPersonality.Aggro:
                     default:
@@ -664,6 +702,7 @@ public class GameManager : NetworkBehaviour
                             chosenAction = ActionType.Cover;
                         }
                         break;
+
                 }
             }
 
