@@ -335,11 +335,32 @@ public class GameManager : NetworkBehaviour
 
     #region NameGenerator
 
-    private string[] prefixes = { "Zan", "Kor", "Vel", "Thar", "Lum", "Nex", "Mal", "Run", "Luc", "Put" };
-    private string[] suffixes = { "trik", "vel", "dor", "gorn", "ion", "rax", "mir", "nan", "ius", "in" };
+    private string[] prefixes = {
+    "Zan", "Kor", "Vel", "Thar", "Lum", "Nex", "Mal", "Run", "Luc", "Put",
+    "Vor", "Xel", "Dro", "Gar", "Kel", "Mor", "Sar", "Tor", "Val", "Yor",
+    "Zer", "Alk", "Bren", "Cyn", "Del", "Ekr", "Fal", "Gor", "Hul", "Irn"
+    };
+
+    private string[] suffixes = {
+    "trik", "vel", "dor", "gorn", "ion", "rax", "mir", "nan", "ius", "in",
+    "gath", "nor", "zoth", "arn", "vex", "mon", "zul", "grim", "ros", "ther",
+    "vek", "lorn", "drix", "zor", "thus", "kan", "jorn", "mok", "thar", "quinn"
+    };
+
+    private string[] fullNames = {
+        "Cazaputas42", "Jajaja", "Jejeje", "Jijiji", "DonComedia", "MataPanchos", "ChamucoReload",
+        "CasiTeDoy", "TukiReload", "XDxdxDxd", "lolarion", "Terreneitor", "TengoHambre"
+    };
 
     public string NameGenerator()
     {
+        float roll = UnityEngine.Random.value;
+
+        //10% de probabilidad de usar un nombre completo
+        if (roll <= 0.1f)
+        {
+            return fullNames[UnityEngine.Random.Range(0, fullNames.Length)];
+        }
 
         string prefix = prefixes[UnityEngine.Random.Range(0, prefixes.Length)];
         string suffix = suffixes[UnityEngine.Random.Range(0, suffixes.Length)];
@@ -752,10 +773,14 @@ public class GameManager : NetworkBehaviour
 
         foreach (var player in players)
         {
-            player.TargetPlayButtonAnimation(player.connectionToClient, false);
+            if (!player.isBot)
+            {
+                player.TargetPlayButtonAnimation(player.connectionToClient, false);
+            }
+
             player.RpcCancelAiming();
 
-            if (player.currentQuickMission == null)
+            if (player.currentQuickMission == null && !player.isBot)
             {
                 player.TargetPlayAnimation("QM_Default_State");
             }
@@ -915,7 +940,7 @@ public class GameManager : NetworkBehaviour
 
             var mission = player.currentQuickMission;
 
-            if (player.hasQMRewardThisRound)
+            if (player.hasQMRewardThisRound && !player.isBot)
             {
                 player.hasQMRewardThisRound = false;
                 player.TargetPlayAnimation("QM_Reward_Exit");
@@ -942,7 +967,11 @@ public class GameManager : NetworkBehaviour
 
                 string animSuffix = success ? "Reward" : "Exit";
                 string animName = $"QM_{animSuffix}_{mission.type}";
-                player.TargetPlayAnimation(animName);
+
+                if (!player.isBot)
+                {
+                    player.TargetPlayAnimation(animName);
+                }
             }
         }
 
@@ -1222,7 +1251,10 @@ public class GameManager : NetworkBehaviour
         if (deadPlayer.hasQMRewardThisRound)
         {
             deadPlayer.hasQMRewardThisRound = false;
-            deadPlayer.TargetPlayAnimation("QM_Reward_Exit");
+            if (!deadPlayer.isBot)
+            {
+                deadPlayer.TargetPlayAnimation("QM_Reward_Exit");
+            }
         }
 
         deadPlayer.currentQuickMission = null;

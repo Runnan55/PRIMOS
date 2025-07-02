@@ -48,7 +48,7 @@ public class MainLobbyUI : MonoBehaviour
     {
         AudioManager.Instance.PlayMusic("MenuTheme");
 
-        nameInputField.characterLimit = 11;
+        nameInputField.characterLimit = 14;
 
         nameInputField.onEndEdit.AddListener(OnNameEntered);
         playButton.onClick.AddListener(() => StartGameSelectionMenu());
