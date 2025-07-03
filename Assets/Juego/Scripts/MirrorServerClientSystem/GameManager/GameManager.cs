@@ -727,25 +727,6 @@ public class GameManager : NetworkBehaviour
                 }
             }
 
-            /*if (bot.ammo >= 3)
-            {
-                chosenAction = ActionType.SuperShoot;
-            }
-            else if (bot.ammo > 0)
-            {
-                var possibleTargets = players.Where(p => p != bot && p.isAlive).ToList();
-                chosenTarget = possibleTargets.Count > 0
-                    ? possibleTargets[UnityEngine.Random.Range(0, possibleTargets.Count)]
-                    : null;
-
-                chosenAction = chosenTarget != null ? ActionType.Shoot : ActionType.Cover;
-            }
-            else
-            {
-                // 50% chance de recargar o cubrirse si no tiene balas
-                chosenAction = UnityEngine.Random.value > 0.5f ? ActionType.Reload : ActionType.Cover;
-            }*/
-
             RegisterAction(bot, chosenAction, chosenTarget);
         }
 
