@@ -70,8 +70,7 @@ public class MainLobbyUI : MonoBehaviour
 
         nameInputField.onValueChanged.AddListener(OnNameChangedLive);
 
-        //De momento rankedButton no hace nada
-        //rankedButton.onClick.AddListener(() => JoinMode("Ranked")); 
+        rankedButton.onClick.AddListener(() => JoinMode("Ranked")); 
         comingSoonButton.onClick.AddListener(() => Debug.Log("Este modo aún no está disponible."));
         casualButton.onClick.AddListener(() => JoinMode("Casual"));
         //exitButton.onClick.AddListener(() => Application.Quit());

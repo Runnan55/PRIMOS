@@ -772,7 +772,7 @@ MonoBehaviour:
   playButton: {fileID: 946042860}
   exitButton: {fileID: 1501005312}
   nameInputField: {fileID: 1052629268}
-  rankedButton: {fileID: 0}
+  rankedButton: {fileID: 1371931275}
   casualButton: {fileID: 126820881}
   comingSoonButton: {fileID: 1752417104}
   backToStartMenuButton: {fileID: 1501005312}
@@ -3521,7 +3521,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -627, y: -64}
-  m_SizeDelta: {x: 600, y: 810}
+  m_SizeDelta: {x: 800, y: 1050}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1371931274
 MonoBehaviour:
@@ -3599,7 +3599,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 81fec5a14e77f914c88c89788eed5f0e, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d139fa68fda00824ea23ffb94f5641ad, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

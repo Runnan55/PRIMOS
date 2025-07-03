@@ -13,7 +13,6 @@ public class CustomNetworkManager : NetworkManager
 {
     public GameObject roomPlayerPrefab;
     public GameObject gameManagerPrefab;
-    public GameObject playerControllerPrefab;
 
     public override void OnStartServer()
     {

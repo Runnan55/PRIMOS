@@ -2165,7 +2165,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -157.1}
-  m_SizeDelta: {x: 243.7, y: 50}
+  m_SizeDelta: {x: 500, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1237875582
 MonoBehaviour:
@@ -3373,7 +3373,8 @@ MonoBehaviour:
   playerListItemPrefab: {fileID: 8162035935665991294, guid: abd9870e7d640e14e9d1d95b26278068, type: 3}
   searchButton: {fileID: 1370009846}
   cancelSearchButton: {fileID: 1042200701}
-  searchingText: {fileID: 1448954457}
+  searchingText: {fileID: 1237875582}
+  playerText: {fileID: 1448954457}
   localAdminId: 
   roomInfoText: {fileID: 1680462629}
 --- !u!4 &1745025543

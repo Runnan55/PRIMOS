@@ -23,7 +23,7 @@ AnimationClip:
     - time: 0
       value: {fileID: 1382866002, guid: d3095a10ad693784db59c2476018f00d, type: 3}
     attribute: m_Sprite
-    path: PlayerCanvas/Botones/BtnCubrirse
+    path: PlayerCanvas/Panel_WithMask/Botones/BtnCubrirse
     classID: 114
     script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
     flags: 2
@@ -35,7 +35,7 @@ AnimationClip:
   m_ClipBindingConstant:
     genericBindings:
     - serializedVersion: 2
-      path: 590443921
+      path: 3778330780
       attribute: 2015549526
       script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
       typeID: 114
