@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Collections;
 using TMPro;
+using Unity.VisualScripting;
 
 public class MainLobbyUI : MonoBehaviour
 {
@@ -34,6 +35,10 @@ public class MainLobbyUI : MonoBehaviour
     public Button audioButton;
     public Button backFromSettingsButton;
     public Button backFromAudioButton;
+
+    [Header("Timer para Ranked")]
+    public GameObject missingTime;
+    public GameObject timeRemainingForPlay;
 
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
@@ -170,6 +175,16 @@ public class MainLobbyUI : MonoBehaviour
 
         gameSelectionCanvas.SetActive(true);
         startMenuCanvas.SetActive(false);
+
+        //Asegura el estado correcto del botón Ranked apenas se entra
+        var countdown = FindFirstObjectByType<ClientCountdownTimer>();
+        if (countdown != null)
+        {
+            if (countdown.timerReachedZero == true)
+                OnRankedTimerFinished();
+            else
+                OnRankedTimeRemaining();
+        }
     }
 
     private void BackToStartMenu()
@@ -210,4 +225,32 @@ public class MainLobbyUI : MonoBehaviour
 
         AuthManager.Instance.Logout();
     }
+
+    #region Timer para Ranked
+
+    public void OnRankedTimerFinished()
+    {
+        if (rankedButton != null)
+            rankedButton.interactable = true;
+
+        if (missingTime != null)
+            missingTime.SetActive(false);
+
+        if (timeRemainingForPlay != null)
+            timeRemainingForPlay.SetActive(true);
+    }
+
+    public void OnRankedTimeRemaining()
+    {
+        if (rankedButton != null)
+            rankedButton.interactable = false;
+
+        if (missingTime != null)
+            missingTime.SetActive(true);
+
+        if (timeRemainingForPlay != null)
+            timeRemainingForPlay.SetActive(false);
+    }
+
+    #endregion
 }

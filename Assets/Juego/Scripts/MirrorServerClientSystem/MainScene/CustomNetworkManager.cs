@@ -9,6 +9,9 @@ public struct NameMessage : NetworkMessage
     public string playerName;
 }
 
+
+public struct EmptyTimerMessage : NetworkMessage { }
+
 public class CustomNetworkManager : NetworkManager
 {
     public GameObject roomPlayerPrefab;
@@ -22,7 +25,16 @@ public class CustomNetworkManager : NetworkManager
 
         // REGISTRAR EL HANDLER DEL MENSAJE
         NetworkServer.RegisterHandler<NameMessage>(OnReceiveNameMessage);
+
+        //Registrar el mensaje de tiempo
+        NetworkServer.RegisterHandler<EmptyTimerMessage>(OnClientRequestedTime);
     }
+
+    private void OnClientRequestedTime(NetworkConnectionToClient conn, EmptyTimerMessage msg)
+    {
+        EventTimeManager.Instance?.HandleTimeRequest(conn);
+    }
+
     private IEnumerator LoadLobbyScenesWithDelay()
     {
         yield return new WaitForSeconds(0.1f);
