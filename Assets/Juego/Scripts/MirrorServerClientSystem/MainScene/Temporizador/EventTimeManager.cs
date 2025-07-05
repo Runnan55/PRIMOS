@@ -7,13 +7,6 @@ public class EventTimeManager : NetworkBehaviour
 {
     public static EventTimeManager Instance { get; private set; }
 
-    [Header("Hora objetivo (hora de España)")]
-    [SerializeField] private int targetYear = 2025;
-    [SerializeField] private int targetMonth = 7;
-    [SerializeField] private int targetDay = 5;
-    [SerializeField] private int targetHour = 20;
-    [SerializeField] private int targetMinute = 00;
-
     [Header("Configuración periodica")]
     public DayOfWeek[] activeDays = new DayOfWeek[] {DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday};
     public int activeHourStart = 12;
@@ -33,12 +26,46 @@ public class EventTimeManager : NetworkBehaviour
         DateTime utcNow = DateTime.UtcNow;
         DateTime spainNow = utcNow + GetSpainOffset(utcNow);
 
-        DateTime localTarget = new DateTime(targetYear, targetMonth, targetDay, targetHour, targetMinute, 0);
-        DateTime targetUtc = localTarget - GetSpainOffset(localTarget);
+        bool isActiveNow = IsWithinActivePeriod(spainNow, out TimeSpan timeRemaining, out DateTime nextStart);
 
-        TargetReceiveTime(conn, spainNow.Ticks, targetUtc.Ticks);
+
+        DateTime eventTimeUtc = isActiveNow ? spainNow : nextStart - GetSpainOffset(nextStart);
+        TargetReceiveTime(conn, spainNow.Ticks, eventTimeUtc.Ticks);
     }
 
+    private bool IsWithinActivePeriod(DateTime localNow, out TimeSpan timeRemaining, out DateTime nextStart)
+    {
+        DayOfWeek today = localNow.DayOfWeek;
+        DateTime startToday = new DateTime(localNow.Year, localNow.Month, localNow.Day, activeHourStart, activeMinuteStart, 0);
+        DateTime endToday = new DateTime(localNow.Year, localNow.Month, localNow.Day, activeHourEnd, activeMinuteEnd, 0);
+
+        if (Array.Exists(activeDays, d => d == today))
+        {
+            if (localNow >= startToday && localNow < endToday)
+            {
+                timeRemaining = endToday - localNow;
+                nextStart = DateTime.MinValue;
+                return true;
+            }
+        }
+
+        //Buscar la próxima fecha de inicio activa
+        for (int i = 1; i <= 7; i++)
+        {
+            DateTime next = localNow.AddDays(i);
+            if (Array.Exists(activeDays, d => d == next.DayOfWeek))
+            {
+                nextStart = new DateTime(next.Year, next.Month, next.Day, activeHourStart, activeMinuteStart, 0);
+                timeRemaining = nextStart - localNow;
+                return false;
+            }
+        }
+
+        //Nunca debería llegar hasta aquí
+        nextStart = localNow;
+        timeRemaining = TimeSpan.Zero;
+        return false;
+    }
 
     private TimeSpan GetSpainOffset(DateTime utc)
     {

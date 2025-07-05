@@ -80,6 +80,17 @@ public class MainLobbyUI : MonoBehaviour
         casualButton.onClick.AddListener(() => JoinMode("Casual"));
         //exitButton.onClick.AddListener(() => Application.Quit());
         //Desactivé el exit button por mientras pq bugea en la web
+
+        //Parte del sincronizador de Timer de Ranked
+        //Asegura el estado correcto del botón Ranked apenas se entra
+        var countdown = FindFirstObjectByType<ClientCountdownTimer>();
+        if (countdown != null)
+        {
+            if (countdown.timerReachedZero == true)
+                OnRankedTimerFinished();
+            else
+                OnRankedTimeRemaining();
+        }
     }
 
     private IEnumerator OnNameEnteredDelayed()
@@ -175,16 +186,6 @@ public class MainLobbyUI : MonoBehaviour
 
         gameSelectionCanvas.SetActive(true);
         startMenuCanvas.SetActive(false);
-
-        //Asegura el estado correcto del botón Ranked apenas se entra
-        var countdown = FindFirstObjectByType<ClientCountdownTimer>();
-        if (countdown != null)
-        {
-            if (countdown.timerReachedZero == true)
-                OnRankedTimerFinished();
-            else
-                OnRankedTimeRemaining();
-        }
     }
 
     private void BackToStartMenu()

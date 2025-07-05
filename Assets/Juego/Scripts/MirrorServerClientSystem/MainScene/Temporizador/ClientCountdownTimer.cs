@@ -7,6 +7,7 @@ public class ClientCountdownTimer : MonoBehaviour
 {
     [Header("UI")]
     public TMP_Text countdownText;
+    public TMP_Text rankedRemainingText;
 
     private DateTime serverNow;
     private DateTime eventTime;
@@ -42,7 +43,24 @@ public class ClientCountdownTimer : MonoBehaviour
             var lobbyUI = FindFirstObjectByType<MainLobbyUI>();
             if (lobbyUI != null)
                 lobbyUI.OnRankedTimerFinished();
+
+            // Calcular cuánto queda de tiempo activo
+            TimeSpan tiempoActivoRestante = eventTime - estimatedNow;
+            if (rankedRemainingText != null)
+            {
+                if (tiempoActivoRestante.TotalSeconds > 0)
+                {
+                    rankedRemainingText.text = $"Ranked disponible por {tiempoActivoRestante.Hours:D2}:{tiempoActivoRestante.Minutes:D2}:{tiempoActivoRestante.Seconds:D2}";
+                    rankedRemainingText.gameObject.SetActive(true);
+                }
+                else
+                {
+                    rankedRemainingText.text = "";
+                    rankedRemainingText.gameObject.SetActive(false);
+                }
+            }
         }
+
         else
         {
             timerReachedZero = false;
