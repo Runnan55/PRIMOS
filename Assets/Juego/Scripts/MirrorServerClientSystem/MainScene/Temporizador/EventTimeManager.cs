@@ -23,15 +23,23 @@ public class EventTimeManager : NetworkBehaviour
     [Server]
     public void HandleTimeRequest(NetworkConnectionToClient conn)
     {
+        Debug.Log("[SERVER] Ejecutando HandleTimeRequest...");
+
         DateTime utcNow = DateTime.UtcNow;
         DateTime spainNow = utcNow + GetSpainOffset(utcNow);
 
         bool isActiveNow = IsWithinActivePeriod(spainNow, out TimeSpan timeRemaining, out DateTime nextStart);
+        DateTime endToday = new DateTime(spainNow.Year, spainNow.Month, spainNow.Day, activeHourEnd, activeMinuteEnd, 0);
+        DateTime eventTimeUtc = isActiveNow
+            ? endToday - GetSpainOffset(endToday)
+            : nextStart - GetSpainOffset(nextStart);
 
+        Debug.Log($"[SERVER] Enviando tiempo al cliente. now={spainNow}, target={eventTimeUtc}");
 
-        DateTime eventTimeUtc = isActiveNow ? spainNow : nextStart - GetSpainOffset(nextStart);
-        TargetReceiveTime(conn, spainNow.Ticks, eventTimeUtc.Ticks);
+        var player = conn.identity.GetComponent<CustomRoomPlayer>();
+        player?.TargetReceiveTime(conn, spainNow.Ticks, eventTimeUtc.Ticks);
     }
+
 
     private bool IsWithinActivePeriod(DateTime localNow, out TimeSpan timeRemaining, out DateTime nextStart)
     {
@@ -46,6 +54,12 @@ public class EventTimeManager : NetworkBehaviour
                 timeRemaining = endToday - localNow;
                 nextStart = DateTime.MinValue;
                 return true;
+            }
+            else if (localNow < startToday)
+            {
+                timeRemaining = startToday - localNow;
+                nextStart = startToday;
+                return false;
             }
         }
 
@@ -78,11 +92,5 @@ public class EventTimeManager : NetworkBehaviour
         while (endDST.DayOfWeek != DayOfWeek.Sunday) endDST = endDST.AddDays(-1);
 
         return (utc >= startDST && utc < endDST) ? new TimeSpan(1, 0, 0) : new TimeSpan(0, 0, 0);
-    }
-
-    [TargetRpc]
-    private void TargetReceiveTime(NetworkConnectionToClient target, long nowTicks, long targetTicks)
-    {
-        ClientCountdownTimer.Instance?.SetTimesFromServer(new DateTime(nowTicks), new DateTime(targetTicks));
     }
 }

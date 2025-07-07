@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Collections;
 using TMPro;
 using Unity.VisualScripting;
+using System;
 
 public class MainLobbyUI : MonoBehaviour
 {
@@ -39,6 +40,9 @@ public class MainLobbyUI : MonoBehaviour
     [Header("Timer para Ranked")]
     public GameObject missingTime;
     public GameObject timeRemainingForPlay;
+
+    public TMP_Text countdownText;
+    public TMP_Text rankedRemainingText;
 
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
@@ -81,15 +85,12 @@ public class MainLobbyUI : MonoBehaviour
         //exitButton.onClick.AddListener(() => Application.Quit());
         //Desactivé el exit button por mientras pq bugea en la web
 
-        //Parte del sincronizador de Timer de Ranked
-        //Asegura el estado correcto del botón Ranked apenas se entra
-        var countdown = FindFirstObjectByType<ClientCountdownTimer>();
-        if (countdown != null)
+        if (ClientCountdownTimer.Instance != null)
         {
-            if (countdown.timerReachedZero == true)
+            if (ClientCountdownTimer.Instance.timerReachedZero)
                 OnRankedTimerFinished();
             else
-                OnRankedTimeRemaining();
+                OnRankedTimerRemaining();
         }
     }
 
@@ -186,6 +187,19 @@ public class MainLobbyUI : MonoBehaviour
 
         gameSelectionCanvas.SetActive(true);
         startMenuCanvas.SetActive(false);
+
+        //Parte del sincronizador de Timer de Ranked
+        //Asegura el estado correcto del botón Ranked apenas se entra
+        var countdown = FindFirstObjectByType<ClientCountdownTimer>();
+        if (countdown != null)
+        {
+            countdown.RequestTimeFromServer();
+
+            if (countdown.timerReachedZero == true)
+                OnRankedTimerFinished();
+            else
+                OnRankedTimerRemaining();
+        }
     }
 
     private void BackToStartMenu()
@@ -241,7 +255,7 @@ public class MainLobbyUI : MonoBehaviour
             timeRemainingForPlay.SetActive(true);
     }
 
-    public void OnRankedTimeRemaining()
+    public void OnRankedTimerRemaining()
     {
         if (rankedButton != null)
             rankedButton.interactable = false;
@@ -252,6 +266,25 @@ public class MainLobbyUI : MonoBehaviour
         if (timeRemainingForPlay != null)
             timeRemainingForPlay.SetActive(false);
     }
+
+    public void UpdateTimerUI(TimeSpan remaining)
+    {
+        if (remaining.TotalSeconds <= 0)
+        {
+            if (rankedRemainingText != null)
+            {
+                rankedRemainingText.text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+            }
+        }
+        else
+        {
+            if (countdownText != null)
+            {
+                countdownText.text = $"{remaining.Days}d {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+            }
+        }
+    }
+
 
     #endregion
 }

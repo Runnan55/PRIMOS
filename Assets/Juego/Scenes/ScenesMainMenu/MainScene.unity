@@ -786,6 +786,8 @@ MonoBehaviour:
   backFromAudioButton: {fileID: 1983060029}
   missingTime: {fileID: 266903815}
   timeRemainingForPlay: {fileID: 2100395397}
+  countdownText: {fileID: 1224711246}
+  rankedRemainingText: {fileID: 418781114}
 --- !u!4 &186979933
 Transform:
   m_ObjectHideFlags: 0
@@ -1538,7 +1540,7 @@ GameObject:
   - component: {fileID: 418781115}
   - component: {fileID: 418781114}
   m_Layer: 5
-  m_Name: TextTimerRemaining
+  m_Name: Text_RankedRemainingTime
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2191,14 +2193,22 @@ PrefabInstance:
       propertyPath: sceneId
       value: 3261658162
       objectReference: {fileID: 0}
-    - target: {fileID: 7808159940250101669, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
-      propertyPath: countdownText
-      value: 
-      objectReference: {fileID: 1224711246}
-    - target: {fileID: 7808159940250101669, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
-      propertyPath: rankedRemainingText
-      value: 
-      objectReference: {fileID: 418781114}
+    - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: activeHourEnd
+      value: 23
+      objectReference: {fileID: 0}
+    - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: activeHourStart
+      value: 22
+      objectReference: {fileID: 0}
+    - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: activeMinuteEnd
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: activeMinuteStart
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

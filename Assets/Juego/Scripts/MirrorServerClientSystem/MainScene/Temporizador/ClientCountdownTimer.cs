@@ -5,10 +5,6 @@ using UnityEngine;
 
 public class ClientCountdownTimer : MonoBehaviour
 {
-    [Header("UI")]
-    public TMP_Text countdownText;
-    public TMP_Text rankedRemainingText;
-
     private DateTime serverNow;
     private DateTime eventTime;
     private float timeSinceReceived;
@@ -26,6 +22,7 @@ public class ClientCountdownTimer : MonoBehaviour
     private void Start()
     {
         InvokeRepeating(nameof(RequestTimeFromServer), 1f, 30f); //Actualiza cada 30s
+        RequestTimeFromServer();
     }
 
     private void Update()
@@ -35,56 +32,43 @@ public class ClientCountdownTimer : MonoBehaviour
         DateTime estimatedNow = serverNow.AddSeconds(Time.time - timeSinceReceived);
         TimeSpan remaining = eventTime - estimatedNow;
 
+        var lobbyUI = FindFirstObjectByType<MainLobbyUI>();
+        if (lobbyUI == null) return;
+
         if (remaining.TotalSeconds <= 0)
         {
-            countdownText.text = "¡El evento ha comenzado!";
-
             timerReachedZero = true;
-            var lobbyUI = FindFirstObjectByType<MainLobbyUI>();
-            if (lobbyUI != null)
-                lobbyUI.OnRankedTimerFinished();
-
-            // Calcular cuánto queda de tiempo activo
-            TimeSpan tiempoActivoRestante = eventTime - estimatedNow;
-            if (rankedRemainingText != null)
-            {
-                if (tiempoActivoRestante.TotalSeconds > 0)
-                {
-                    rankedRemainingText.text = $"Ranked disponible por {tiempoActivoRestante.Hours:D2}:{tiempoActivoRestante.Minutes:D2}:{tiempoActivoRestante.Seconds:D2}";
-                    rankedRemainingText.gameObject.SetActive(true);
-                }
-                else
-                {
-                    rankedRemainingText.text = "";
-                    rankedRemainingText.gameObject.SetActive(false);
-                }
-            }
+            lobbyUI.OnRankedTimerFinished();
         }
-
         else
         {
             timerReachedZero = false;
-            var lobbyUI = FindFirstObjectByType<MainLobbyUI>();
-            if (lobbyUI != null)
-                lobbyUI.OnRankedTimeRemaining();
-
-            countdownText.text = $"{remaining.Days}d {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}"; //Tiempo faltante
+            lobbyUI.OnRankedTimerRemaining();
         }
+
+        lobbyUI.UpdateTimerUI(remaining);
     }
 
     public void SetTimesFromServer(DateTime now, DateTime target)
     {
+        Debug.Log($"[ClientCountdownTimer] SetTimesFromServer: now={now}, target={target}");
+
         serverNow = now;
         eventTime = target;
         timeSinceReceived = Time.time;
         timerStarted = true;
     }
 
-    private void RequestTimeFromServer()
+    public void RequestTimeFromServer()
     {
         if (NetworkClient.isConnected && NetworkClient.connection != null)
         {
+            Debug.Log("[ClientCountdownTimer] Enviando EmptyTimerMessage al servidor...");
             NetworkClient.connection.Send(new EmptyTimerMessage());
+        }
+        else
+        {
+            Debug.LogWarning("[ClientCountdownTimer] No conectado, no se envió EmptyTimerMessage.");
         }
     }
 }

@@ -9,7 +9,6 @@ public struct NameMessage : NetworkMessage
     public string playerName;
 }
 
-
 public struct EmptyTimerMessage : NetworkMessage { }
 
 public class CustomNetworkManager : NetworkManager
@@ -32,7 +31,17 @@ public class CustomNetworkManager : NetworkManager
 
     private void OnClientRequestedTime(NetworkConnectionToClient conn, EmptyTimerMessage msg)
     {
-        EventTimeManager.Instance?.HandleTimeRequest(conn);
+        Debug.Log("[SERVER] Recibido EmptyTimerMessage desde cliente.");
+
+        if (EventTimeManager.Instance == null)
+        {
+            Debug.LogError("[SERVER] EventTimeManager.Instance es NULL. No puedo responder.");
+        }
+        else
+        {
+            Debug.Log("[SERVER] Llamando a EventTimeManager.HandleTimeRequest...");
+            EventTimeManager.Instance.HandleTimeRequest(conn);
+        }
     }
 
     private IEnumerator LoadLobbyScenesWithDelay()

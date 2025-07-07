@@ -504,6 +504,25 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
 
     #endregion
+
+    #region Client Ranked Timer
+
+    [TargetRpc]
+    public void TargetReceiveTime(NetworkConnectionToClient target, long nowTicks, long targetTicks)
+    {
+        Debug.Log("[CustomRoomPlayer] Recibido tiempo del servidor, reenviando a UI");
+
+        DateTime now = new DateTime(nowTicks);
+        DateTime targetTime = new DateTime(targetTicks);
+
+        var timer = FindFirstObjectByType<ClientCountdownTimer>();
+        if (timer != null)
+        {
+            timer.SetTimesFromServer(now, targetTime);
+        }
+    }
+
+    #endregion
 }
 
 public class PlayerDataForLobby
