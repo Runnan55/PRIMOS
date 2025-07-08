@@ -267,22 +267,16 @@ public class MainLobbyUI : MonoBehaviour
             timeRemainingForPlay.SetActive(false);
     }
 
-    public void UpdateTimerUI(TimeSpan remaining)
+    public void UpdateCountdownToEvent(TimeSpan remaining)
     {
-        if (remaining.TotalSeconds <= 0)
-        {
-            if (rankedRemainingText != null)
-            {
-                rankedRemainingText.text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
-            }
-        }
-        else
-        {
-            if (countdownText != null)
-            {
-                countdownText.text = $"{remaining.Days}d {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
-            }
-        }
+        if (countdownText != null)
+            countdownText.text = $"{remaining.Days}d {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+    }
+
+    public void UpdateRankedRemainingTime(TimeSpan remaining)
+    {
+        if (rankedRemainingText != null)
+            rankedRemainingText.text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
     }
 
     #endregion

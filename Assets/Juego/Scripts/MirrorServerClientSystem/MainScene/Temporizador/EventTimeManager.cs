@@ -35,7 +35,7 @@ public class EventTimeManager : NetworkBehaviour
         Debug.Log($"[SERVER] Enviando tiempo al cliente. now={spainNow}, target={eventTime}");
 
         var player = conn.identity.GetComponent<CustomRoomPlayer>();
-        player?.TargetReceiveTime(conn, spainNow.Ticks, eventTime.Ticks);
+        player?.TargetReceiveTime(conn, spainNow.Ticks, eventTime.Ticks, isActiveNow);
     }
 
 

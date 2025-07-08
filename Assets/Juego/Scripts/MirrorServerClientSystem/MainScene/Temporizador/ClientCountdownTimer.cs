@@ -35,43 +35,48 @@ public class ClientCountdownTimer : MonoBehaviour
         var lobbyUI = FindFirstObjectByType<MainLobbyUI>();
         if (lobbyUI == null) return;
 
-        bool isEventNow = estimatedNow >= serverNow &&
-                          estimatedNow.TimeOfDay >= new TimeSpan(EventTimeManager.Instance.activeHourStart, EventTimeManager.Instance.activeMinuteStart, 0) &&
-                          estimatedNow.TimeOfDay < new TimeSpan(EventTimeManager.Instance.activeHourEnd, EventTimeManager.Instance.activeMinuteEnd, 0);
-
-        if (isEventNow)
+        if (isActivePeriod)
         {
-            // Evento activo, mostrar tiempo restante hasta fin
-            timerReachedZero = false;
-            lobbyUI.OnRankedTimerFinished();
-            lobbyUI.UpdateTimerUI(remaining);
-        }
-        else if (remaining.TotalSeconds > 0)
-        {
-            // Evento aún no comenzó
-            timerReachedZero = false;
-            lobbyUI.OnRankedTimerRemaining();
-            lobbyUI.UpdateTimerUI(remaining);
+            if (remaining.TotalSeconds > 0)
+            {
+                timerReachedZero = false;
+                lobbyUI.OnRankedTimerFinished();
+                lobbyUI.UpdateRankedRemainingTime(remaining); // <<< NUEVO
+            }
+            else
+            {
+                timerReachedZero = true;
+                lobbyUI.OnRankedTimerRemaining(); // evento terminó
+            }
         }
         else
         {
-            // Evento terminó
-            timerReachedZero = true;
-            lobbyUI.OnRankedTimerRemaining();
+            if (remaining.TotalSeconds > 0)
+            {
+                timerReachedZero = false;
+                lobbyUI.OnRankedTimerRemaining();
+                lobbyUI.UpdateCountdownToEvent(remaining); // <<< NUEVO
+            }
+            else
+            {
+                timerReachedZero = true;
+                lobbyUI.OnRankedTimerFinished(); // evento acaba de comenzar
+            }
         }
     }
 
-    public void SetTimesFromServer(DateTime now, DateTime target)
-    {
-        Debug.Log($"[ClientCountdownTimer] SetTimesFromServer: now={now}, target={target}");
+    private bool isActivePeriod = false;
 
+    public void SetTimesFromServer(DateTime now, DateTime target, bool isActive)
+    {
         serverNow = now;
         eventTime = target;
         timeSinceReceived = Time.time;
         timerStarted = true;
+        isActivePeriod = isActive;
     }
 
-    public void RequestTimeFromServer()
+public void RequestTimeFromServer()
     {
         if (NetworkClient.isConnected && NetworkClient.connection != null)
         {
