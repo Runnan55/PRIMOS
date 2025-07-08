@@ -30,14 +30,12 @@ public class EventTimeManager : NetworkBehaviour
 
         bool isActiveNow = IsWithinActivePeriod(spainNow, out TimeSpan timeRemaining, out DateTime nextStart);
         DateTime endToday = new DateTime(spainNow.Year, spainNow.Month, spainNow.Day, activeHourEnd, activeMinuteEnd, 0);
-        DateTime eventTimeUtc = isActiveNow
-            ? endToday - GetSpainOffset(endToday)
-            : nextStart - GetSpainOffset(nextStart);
+        DateTime eventTime = isActiveNow ? endToday : nextStart;
 
-        Debug.Log($"[SERVER] Enviando tiempo al cliente. now={spainNow}, target={eventTimeUtc}");
+        Debug.Log($"[SERVER] Enviando tiempo al cliente. now={spainNow}, target={eventTime}");
 
         var player = conn.identity.GetComponent<CustomRoomPlayer>();
-        player?.TargetReceiveTime(conn, spainNow.Ticks, eventTimeUtc.Ticks);
+        player?.TargetReceiveTime(conn, spainNow.Ticks, eventTime.Ticks);
     }
 
 
@@ -91,6 +89,6 @@ public class EventTimeManager : NetworkBehaviour
         DateTime endDST = new DateTime(utc.Year, 10, 31);
         while (endDST.DayOfWeek != DayOfWeek.Sunday) endDST = endDST.AddDays(-1);
 
-        return (utc >= startDST && utc < endDST) ? new TimeSpan(1, 0, 0) : new TimeSpan(0, 0, 0);
+        return (utc >= startDST && utc < endDST) ? new TimeSpan(2, 0, 0) : new TimeSpan(1, 0, 0);
     }
 }

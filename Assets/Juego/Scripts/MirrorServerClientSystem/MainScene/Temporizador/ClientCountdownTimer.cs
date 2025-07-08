@@ -35,18 +35,30 @@ public class ClientCountdownTimer : MonoBehaviour
         var lobbyUI = FindFirstObjectByType<MainLobbyUI>();
         if (lobbyUI == null) return;
 
-        if (remaining.TotalSeconds <= 0)
+        bool isEventNow = estimatedNow >= serverNow &&
+                          estimatedNow.TimeOfDay >= new TimeSpan(EventTimeManager.Instance.activeHourStart, EventTimeManager.Instance.activeMinuteStart, 0) &&
+                          estimatedNow.TimeOfDay < new TimeSpan(EventTimeManager.Instance.activeHourEnd, EventTimeManager.Instance.activeMinuteEnd, 0);
+
+        if (isEventNow)
         {
-            timerReachedZero = true;
+            // Evento activo, mostrar tiempo restante hasta fin
+            timerReachedZero = false;
             lobbyUI.OnRankedTimerFinished();
+            lobbyUI.UpdateTimerUI(remaining);
+        }
+        else if (remaining.TotalSeconds > 0)
+        {
+            // Evento aún no comenzó
+            timerReachedZero = false;
+            lobbyUI.OnRankedTimerRemaining();
+            lobbyUI.UpdateTimerUI(remaining);
         }
         else
         {
-            timerReachedZero = false;
+            // Evento terminó
+            timerReachedZero = true;
             lobbyUI.OnRankedTimerRemaining();
         }
-
-        lobbyUI.UpdateTimerUI(remaining);
     }
 
     public void SetTimesFromServer(DateTime now, DateTime target)
