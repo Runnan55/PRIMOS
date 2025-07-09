@@ -1179,6 +1179,19 @@ public class GameManager : NetworkBehaviour
             gameStatistic.ShowLeaderboard();
             Debug.Log("Enviando señal de activación de statsCanvas");
         }
+
+        //Actualiza Leaderboard Ranked en Firestore
+        MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
+        if (match != null && match.mode == "Ranked")
+        {
+            foreach (var p in players)
+            {
+                if (!p.isBot && p.kills > 0 && !string.IsNullOrEmpty(p.playerId))
+                {
+                    LeaderboardRankedUpdater.Instance?.AddKillsToFirestore(p.playerId, p.kills);
+                }
+            }
+        }
     }
 
     private void StopGamePhases()
