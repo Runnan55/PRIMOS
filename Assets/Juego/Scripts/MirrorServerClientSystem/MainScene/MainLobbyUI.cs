@@ -85,9 +85,10 @@ public class MainLobbyUI : MonoBehaviour
         //exitButton.onClick.AddListener(() => Application.Quit());
         //Desactivé el exit button por mientras pq bugea en la web
 
-        if (ClientCountdownTimer.Instance != null)
+        var timer = FindFirstObjectByType<ClientCountdownTimer>();
+        if (timer != null)
         {
-            if (ClientCountdownTimer.Instance.timerReachedZero)
+            if (timer.timerReachedZero)
                 OnRankedTimerFinished();
             else
                 OnRankedTimerRemaining();

@@ -427,8 +427,6 @@ public class CustomRoomPlayer : NetworkBehaviour
         TargetReceiveMatchList(connectionToClient, matchesToSend);
     }
 
-
-
     [TargetRpc]
     public void TargetReturnToLobbyScene(NetworkConnection target, string mode)
     {

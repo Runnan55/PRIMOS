@@ -11,14 +11,6 @@ public class ClientCountdownTimer : MonoBehaviour
     private bool timerStarted;
     public bool timerReachedZero = false;
 
-    public static ClientCountdownTimer Instance { get; private set; }
-
-    private void Awake()
-    {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
-    }
-
     private void Start()
     {
         InvokeRepeating(nameof(RequestTimeFromServer), 1f, 30f); //Actualiza cada 30s
