@@ -349,7 +349,7 @@ public class GameManager : NetworkBehaviour
 
     private string[] fullNames = {
         "Cazaputas42", "Jajaja", "Jejeje", "Jijiji", "DonComedia", "MataPanchos", "ChamucoReload",
-        "CasiTeDoy", "TukiReload", "XDxdxDxd", "lolarion", "Terreneitor", "TengoHambre"
+        "CasiTeDoy", "TukiReload", "XDxdxDxd", "lolarion", "Terreneitor", "TengoHambre", "pichulaTriste"
     };
 
     public string NameGenerator()

@@ -2195,15 +2195,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeHourEnd
-      value: 13
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeHourStart
-      value: 8
+      value: 13
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeMinuteEnd
-      value: 0
+      value: 59
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeMinuteStart
