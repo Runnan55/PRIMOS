@@ -163,7 +163,12 @@ public class PlayerController : NetworkBehaviour
         leaderboardCanvas.SetActive(true); // Activar canvas que ya está en tu prefab
         ClearLeaderboard();
 
-        var ordered = playerInfos.OrderBy(p => p.deathOrder == 0 ? int.MinValue : p.deathOrder).ToList();
+        // Ordenar: vivo primero, luego por muerte más tardía
+        var ordered = playerInfos
+            .OrderByDescending(p => p.deathOrder == 0 ? int.MaxValue : p.deathOrder)
+            .ToList();
+
+        int rank = 1;
 
         foreach (var player in ordered)
         {
@@ -178,7 +183,7 @@ public class PlayerController : NetworkBehaviour
                 continue;
             }
 
-            string displayName = player.playerName;
+            string displayName = $"{rank}. {player.playerName}";
             if (player.isDisconnected)
             {
                 displayName += " (Offline)";
@@ -191,6 +196,8 @@ public class PlayerController : NetworkBehaviour
             texts[4].text = player.damageDealt.ToString();
             texts[5].text = player.timesCovered.ToString();
             texts[6].text = player.points.ToString();
+
+            rank++;
         }
     }
 

@@ -6844,8 +6844,8 @@ MonoBehaviour:
   syncInterval: 0
   isAlive: 1
   lastShotTarget: {fileID: 0}
-  ammo: 0
-  health: 3
+  ammo: 3
+  health: 1
   hasConfirmedName: 0
   playerName: 
   kills: 0
@@ -6905,6 +6905,8 @@ MonoBehaviour:
   roulette: {fileID: 438625208929732015}
   gameModifierCanvas: {fileID: 6183842888619299736}
   gameManagerNetId: 0
+  isBot: 0
+  botPersonality: 0
   leaderboardCanvas: {fileID: 5425550610921173356}
   leaderboardContent: {fileID: 1628792646861002936}
   leaderboardEntryPrefab: {fileID: 5744724382073687794, guid: 1e3836d2c05766147a439e2191571cd7, type: 3}

@@ -107,6 +107,11 @@ public class GameManager : NetworkBehaviour
     [Header("Bot Bot Bot")]
     private Dictionary<PlayerController, Queue<PlayerController>> recentAttackers = new();
 
+    [Header("Orden de muerte para el Leaderboard")]
+    private List<PlayerController> deathBuffer = new();
+    private bool isProcessingDeath = false;
+
+
     private void IdentifyVeryHealthy()
     {
         if (players.Count == 0 || SelectedModifier != GameModifierType.CaceriaDelLider) return;
@@ -1014,61 +1019,50 @@ public class GameManager : NetworkBehaviour
     [Server]
     private void AdvanceTalisman()
     {
-        if (players.Count == 0) return;
+        var alivePlayers = players.Where(p => p.isAlive).ToList();
 
-        int currentIndex = players.IndexOf(talismanHolder);
+        if (alivePlayers.Count == 0) return;
 
-        for (int i = 1; i <= players.Count; i++)
+        // Ordenar por posición visual horaria
+        alivePlayers = alivePlayers.OrderBy(p => p.playerPosition).ToList();
+
+        int currentIndex = alivePlayers.IndexOf(talismanHolder);
+
+        if (currentIndex == -1)
         {
-            int nextIndex = (currentIndex + i) % players.Count;
-            if (players[nextIndex].isAlive)
-            {
-                PlayerController previousHolder = talismanHolder;
-                talismanHolder = players[nextIndex];
-                talismanHolderNetId = talismanHolder.netId;
+            Debug.LogWarning("[Tiki] El portador murió. Buscando nuevo portador...");
+            talismanHolder = alivePlayers[0];
+            talismanHolderNetId = talismanHolder.netId;
+            tikiHistory.Add(talismanHolder);
 
-                //RpcMoveTalisman(previousHolder.netId, talismanHolder.netId);
-
-                // ⬇️ ACTUALIZAR HISTORIAL
-                if (!tikiHistory.Contains(previousHolder))
-                    tikiHistory.Add(previousHolder);
-
-                if (!tikiHistory.Contains(talismanHolder))
-                    tikiHistory.Add(talismanHolder);
-                else
-                {
-                    // Moverlo al final si ya existía
-                    tikiHistory.Remove(talismanHolder);
-                    tikiHistory.Add(talismanHolder);
-                }
-
-
-                // Limitar a los últimos 7 portadores
-                if (tikiHistory.Count > 7)
-                    tikiHistory.RemoveAt(0); // Eliminar el más antiguo
-
-                Debug.Log($"[Talisman] Ahora lo tiene {talismanHolder.playerName}");
-                break;
-            }
-        }
-    }
-
-    private IEnumerator MoveTalismanVisual(Vector3 start, Vector3 end)
-    {
-        float elapsed = 0f;
-        Vector3 peak = (start + end) / 2 + Vector3.up * 1.5f;
-
-        while (elapsed < talismanMoveDuration)
-        {
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / talismanMoveDuration);
-            Vector3 pos = Mathf.Pow(1 - t, 2) * start + 2 * (1 - t) * t * peak + Mathf.Pow(t, 2) * end;
-            talismanIconInstance.transform.position = pos;
-            yield return null;
+            UpdateTikiVisual(talismanHolder);
+            Debug.LogWarning("[Tiki] El portador actual no está entre los vivos.");
+            return;
         }
 
-        talismanIconInstance.transform.position = end;
+        int nextIndex = (currentIndex + 1) % alivePlayers.Count;
+        PlayerController previousHolder = talismanHolder;
+        talismanHolder = alivePlayers[nextIndex];
+        talismanHolderNetId = talismanHolder.netId;
+
+        // Actualizar historial
+        if (!tikiHistory.Contains(previousHolder))
+            tikiHistory.Add(previousHolder);
+
+        if (!tikiHistory.Contains(talismanHolder))
+            tikiHistory.Add(talismanHolder);
+        else
+        {
+            tikiHistory.Remove(talismanHolder);
+            tikiHistory.Add(talismanHolder);
+        }
+
+        if (tikiHistory.Count > 7)
+            tikiHistory.RemoveAt(0);
+
+        Debug.Log($"[Talisman] Ahora lo tiene {talismanHolder.playerName}");
     }
+
 
     private PlayerController GetClosestToTalisman(List<PlayerController> shooters)
     {
@@ -1231,44 +1225,60 @@ public class GameManager : NetworkBehaviour
     {
         if (!players.Contains(deadPlayer)) return; // Asegurar que no intente eliminar dos veces
 
+        if (!deathBuffer.Contains(deadPlayer))
+            deathBuffer.Add(deadPlayer);
+
         // Agregar un delay antes de procesar la muerte
-        StartCoroutine(HandlePlayerDeath(deadPlayer));
+        if (!isProcessingDeath)
+            StartCoroutine(HandleBufferedDeaths());
     }
 
-    private IEnumerator HandlePlayerDeath(PlayerController deadPlayer)
+    private IEnumerator HandleBufferedDeaths()
     {
-        if (deadPlayer.deathOrder == 0)
-        {
-            deadPlayer.deathOrder = deathCounter++;
-        }
+        isProcessingDeath = true;
 
-        if (deadPlayer.hasQMRewardThisRound)
+        yield return new WaitForSeconds(0.05f); // Espera breve para juntar todos los que murieron en la ronda
+
+        var tikiPriority = tikiHistory.ToList();
+
+        // Ordenar según lejanía al Tiki
+        var sortedDeaths = deathBuffer
+            .OrderBy(p => {
+                int index = tikiPriority.IndexOf(p);
+                return index == -1 ? int.MaxValue : index;
+            }).ToList();
+
+        foreach (var deadPlayer in sortedDeaths)
         {
-            deadPlayer.hasQMRewardThisRound = false;
-            if (!deadPlayer.isBot)
+            if (deadPlayer.deathOrder == 0)
+                deadPlayer.deathOrder = deathCounter++;
+
+            if (deadPlayer.hasQMRewardThisRound)
             {
-                deadPlayer.TargetPlayAnimation("QM_Reward_Exit");
+                deadPlayer.hasQMRewardThisRound = false;
+                if (!deadPlayer.isBot)
+                    deadPlayer.TargetPlayAnimation("QM_Reward_Exit");
+            }
+
+            deadPlayer.currentQuickMission = null;
+
+            players.Remove(deadPlayer);
+            deadPlayers.Add(deadPlayer);
+
+            yield return new WaitForSeconds(0.1f);
+
+            CheckGameOver();
+
+            if (!isDraw)
+            {
+                deadPlayer.RpcOnDeath();
             }
         }
 
-        deadPlayer.currentQuickMission = null;
-
-        yield return new WaitForSeconds(0.1f); // Pequeño delay para registrar todas las acciones antes de procesar la muerte
-        players.Remove(deadPlayer);
-        deadPlayers.Add(deadPlayer); // Movemos al jugador del grupo de vivos a muertos
-
-        yield return new WaitForSeconds(0.1f);//Otro pequeño delay para permitir el registro de muertes antes del CheckGameOver()
-
-        bool wasDraw = false;
-
-        CheckGameOver();
-        wasDraw = isDraw;
-
-        if (!wasDraw)
-        {
-            deadPlayer.RpcOnDeath();
-        }
+        deathBuffer.Clear();
+        isProcessingDeath = false;
     }
+
 
     [Server]
     private void ResetAllCovers()//Elimina coberturas al finalizar una ronda
