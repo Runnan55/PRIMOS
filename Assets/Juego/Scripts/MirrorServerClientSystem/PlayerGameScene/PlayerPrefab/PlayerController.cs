@@ -154,23 +154,16 @@ public class PlayerController : NetworkBehaviour
     [SerializeField] private GameObject leaderboardEntryPrefab;
 
     [ClientRpc]
-    public void RpcShowLeaderboard(List<GameStatistic.PlayerInfo> playerInfos)
+    public void RpcShowLeaderboard(string[] names, int[] kills, int[] reloaded, int[] fired, int[] damage, int[] covered, int[] points, int[] orders, bool[] disconnected)
     {
-        Debug.Log("[PlayerController] Recibido RpcShowLeaderboard, activando canvas local...");
-
         if (!isOwned) return;
 
-        leaderboardCanvas.SetActive(true); // Activar canvas que ya está en tu prefab
+        leaderboardCanvas.SetActive(true);
         ClearLeaderboard();
 
-        // Ordenar: vivo primero, luego por muerte más tardía
-        var ordered = playerInfos
-            .OrderByDescending(p => p.deathOrder == 0 ? int.MaxValue : p.deathOrder)
-            .ToList();
+        int count = names.Length;
 
-        int rank = 1;
-
-        foreach (var player in ordered)
+        for (int i = 0; i < count; i++)
         {
             GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContent);
             entry.transform.SetParent(leaderboardContent, false);
@@ -183,21 +176,14 @@ public class PlayerController : NetworkBehaviour
                 continue;
             }
 
-            string displayName = $"{rank}. {player.playerName}";
-            if (player.isDisconnected)
-            {
-                displayName += " (Offline)";
-            }
-
+            string displayName = $"{i + 1}. {names[i]}" + (disconnected[i] ? " (Offline)" : "");
             texts[0].text = displayName;
-            texts[1].text = player.kills.ToString();
-            texts[2].text = player.bulletsReloaded.ToString();
-            texts[3].text = player.bulletsFired.ToString();
-            texts[4].text = player.damageDealt.ToString();
-            texts[5].text = player.timesCovered.ToString();
-            texts[6].text = player.points.ToString();
-
-            rank++;
+            texts[1].text = kills[i].ToString();
+            texts[2].text = reloaded[i].ToString();
+            texts[3].text = fired[i].ToString();
+            texts[4].text = damage[i].ToString();
+            texts[5].text = covered[i].ToString();
+            texts[6].text = points[i].ToString();
         }
     }
 

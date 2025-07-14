@@ -24,8 +24,9 @@ public class GameStatistic : NetworkBehaviour
         public int points;
         public bool isDisconnected;
         public int deathOrder;
+        public bool isAlive;
 
-        public PlayerInfo(string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered, bool isDisconnected = false, int deathOrder = 0)
+        public PlayerInfo(string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered, bool isDisconnected = false, int deathOrder = 0, bool isAlive = true)
         {
             playerName = name;
             this.kills = kills;
@@ -35,6 +36,7 @@ public class GameStatistic : NetworkBehaviour
             this.timesCovered = timesCovered;
             this.isDisconnected = isDisconnected;
             this.deathOrder = deathOrder;
+            this.isAlive = isAlive;
 
             points = CalculatePoints(kills, bulletsReloaded, bulletsFired, damageDealt, timesCovered);
         }
@@ -61,45 +63,28 @@ public class GameStatistic : NetworkBehaviour
     [Server]
     public void Initialize(List<PlayerController> playerList)
     {
-        // No hacemos Clear()
+        players.Clear();
 
         foreach (var player in playerList)
         {
             if (player == null) continue;
 
-            // Si ya existe en la lista, lo actualizamos
-            int index = players.FindIndex(p => p.playerName == player.playerName);
-            if (index >= 0)
-            {
-                var existing = players[index];
-                players[index] = new PlayerInfo(
-                    player.playerName,
-                    player.kills,
-                    player.bulletsReloaded,
-                    player.bulletsFired,
-                    player.damageDealt,
-                    player.timesCovered,
-                    existing.isDisconnected,
-                    existing.deathOrder
-                );
-            }
-            else
-            {
-                players.Add(new PlayerInfo(
-                    player.playerName,
-                    player.kills,
-                    player.bulletsReloaded,
-                    player.bulletsFired,
-                    player.damageDealt,
-                    player.timesCovered,
-                    false,
-                    0
-                ));
-            }
+            players.Add(new PlayerInfo(
+                player.playerName,
+                player.kills,
+                player.bulletsReloaded,
+                player.bulletsFired,
+                player.damageDealt,
+                player.timesCovered,
+                false,
+                player.deathOrder,
+                player.isAlive
+            ));
         }
 
-        Debug.Log($"[GameStatistic] Inicializado con {players.Count} jugadores (incluye desconectados).");
+        Debug.Log($"[GameStatistic] Inicializado con {players.Count} jugadores (orden total GameManager).");
     }
+
 
     [Server]
     public void UpdatePlayerStats(PlayerController player, bool disconnected = false)
@@ -108,11 +93,7 @@ public class GameStatistic : NetworkBehaviour
         {
             if (players[i].playerName == player.playerName)
             {
-                int deathOrder = players[i].deathOrder;
-                if ((!player.isAlive || disconnected) && deathOrder == 0)
-                {
-                    deathOrder = currentDeathCount++;
-                }
+                int updatedDeathOrder = player.deathOrder;
 
                 players[i] = new PlayerInfo(
                     player.playerName,
@@ -122,14 +103,14 @@ public class GameStatistic : NetworkBehaviour
                     player.damageDealt,
                     player.timesCovered,
                     disconnected,
-                    deathOrder
+                    updatedDeathOrder
                 );
                 return;
             }
         }
 
         // Si no estaba, lo agregamos
-        int newDeathOrder = (!player.isAlive || disconnected) ? currentDeathCount++ : 0;
+        int deathOrder = player.deathOrder;
         players.Add(new PlayerInfo(
             player.playerName,
             player.kills,
@@ -138,7 +119,7 @@ public class GameStatistic : NetworkBehaviour
             player.damageDealt,
             player.timesCovered,
             disconnected,
-            newDeathOrder
+            deathOrder
         ));
     }
 
@@ -153,10 +134,39 @@ public class GameStatistic : NetworkBehaviour
     {
         Debug.Log("[GameStatistic] Mostrando Leaderboard desde el servidor...");
 
-        List<PlayerInfo> copy = players.ToList();
+        // Usamos el orden actual inverso de la lista (ya fue ordenada desde GameManager)
+        List<PlayerInfo> copy = players.OrderByDescending(p => p.deathOrder).ToList();
 
-        //Obtener la escena actual (la del GameManager asociado)
-        Scene myScene = gameObject.scene;
+        Debug.Log("[GameStatistics] === ORDEN FINAL PARA LEADERBOARD ===");
+        for (int i = 0; i < copy.Count; i++)
+        {
+            var p = copy[i];
+            Debug.Log($"#{i + 1} -> {p.playerName} | deathOrder: {p.deathOrder} | kills: {p.kills} | alive: {!p.isDisconnected}");
+        }
+
+        int count = copy.Count;
+        string[] names = new string[count];
+        int[] kills = new int[count];
+        int[] reloaded = new int[count];
+        int[] fired = new int[count];
+        int[] damage = new int[count];
+        int[] covered = new int[count];
+        int[] points = new int[count];
+        int[] orders = new int[count];
+        bool[] disconnected = new bool[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            names[i] = copy[i].playerName;
+            kills[i] = copy[i].kills;
+            reloaded[i] = copy[i].bulletsReloaded;
+            fired[i] = copy[i].bulletsFired;
+            damage[i] = copy[i].damageDealt;
+            covered[i] = copy[i].timesCovered;
+            points[i] = copy[i].points;
+            orders[i] = copy[i].deathOrder;
+            disconnected[i] = copy[i].isDisconnected;
+        }
 
         var playerControllers = UnityEngine.Object.FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
 
@@ -164,11 +174,12 @@ public class GameStatistic : NetworkBehaviour
         {
             if (player != null &&
                 player.connectionToClient != null &&
-                player.gameObject.scene == myScene) //Solo jugadores en esta escena
+                player.gameObject.scene == gameObject.scene)
             {
                 Debug.Log($"[Server] Enviando leaderboard a {player.playerName} con NetId {player.netId}");
-                player.RpcShowLeaderboard(copy);
+                player.RpcShowLeaderboard(names, kills, reloaded, fired, damage, covered, points, orders, disconnected);
             }
         }
     }
+
 }

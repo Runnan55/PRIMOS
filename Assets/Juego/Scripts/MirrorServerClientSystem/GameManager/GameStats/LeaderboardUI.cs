@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 public class LeaderboardUI : MonoBehaviour
 {
-    public GameObject leaderboardEntryPrefab;
+    /*public GameObject leaderboardEntryPrefab;
     public Transform leaderboardContent;
     public GameObject leaderboardCanvas;
 
@@ -55,5 +55,5 @@ public class LeaderboardUI : MonoBehaviour
 
         receivedStats.Clear(); // Limpiar la lista para futuros usos
         leaderboardCanvas.SetActive(true);
-    }
+    }*/
 }

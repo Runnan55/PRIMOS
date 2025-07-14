@@ -1087,35 +1087,6 @@ public class GameManager : NetworkBehaviour
         //Si no queda nadie vivo, la partida se detiene
         if (alivePlayers == 0)
         {
-            if (talismanHolder != null && !talismanHolder.isAlive)
-            {
-                Debug.Log("[Tiki] El poseedor del Tiki revive por empate.");
-
-                // Buscar quién mató al portador del Tiki
-                PlayerController killer = players.FirstOrDefault(p => p.lastShotTarget == talismanHolder);
-
-                if (killer != null)
-                {
-                    killer.kills = Mathf.Max(0, killer.kills - 1); // Restar 1 kill, pero no bajarlo a negativo
-                    Debug.Log($"[Tiki] Se resta 1 kill a {killer.playerName} porque el Tiki salvó a {talismanHolder.playerName}.");
-
-                    //Forzar Canvas de muerte al que no tiene tiki
-                    if (killer != talismanHolder)
-                    {
-                        killer.RpcOnDeath();
-                    }
-                }
-
-                talismanHolder.isAlive = true;
-                talismanHolder.health = 1;
-                talismanHolder.RpcOnVictory();
-                isGameOver = true;
-
-                StartCoroutine(StartGameStatistics());
-                StopGamePhases();
-                return;
-            }
-
             Debug.Log("Todos los jugadores han muerto. Se declara empate");
             isDraw = true;
             isGameOver = true;
@@ -1151,30 +1122,33 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator StartGameStatistics()
     {
-        // Esperar 2 segundos antes de procesar estadísticas
         yield return new WaitForSeconds(2f);
 
+        // Clonar lista original de muertos tal cual se registraron
+        List<PlayerController> leaderboardPlayers = new List<PlayerController>(deadPlayers);
+
+        // Agregar al jugador vivo al final (si existe y no está duplicado)
+        var winner = players.FirstOrDefault(p => p.isAlive);
+        if (winner != null && !leaderboardPlayers.Contains(winner))
+        {
+            leaderboardPlayers.Add(winner); // el ganador va al final
+        }
+
+        // Asignar deathOrder según orden de aparición
+        for (int i = 0; i < leaderboardPlayers.Count; i++)
+        {
+            leaderboardPlayers[i].deathOrder = i + 1;
+        }
+
+        // No reordenar: se respeta el orden original del GameManager
         if (gameStatistic != null)
         {
-            // Combina los jugadores vivos y muertos
-            List<PlayerController> allPlayers = new List<PlayerController>(players); // Jugadores vivos
-
-            // Agrega jugadores muertos que NO están ya en la lista de jugadores vivos
-            foreach (var deadPlayer in deadPlayers)
-            {
-                if (!allPlayers.Contains(deadPlayer))
-                {
-                    allPlayers.Add(deadPlayer);
-                }
-            }
-
-            gameStatistic.Initialize(allPlayers); // Pasa TODOS los jugadores al leaderboard
-
+            gameStatistic.Initialize(leaderboardPlayers);
             gameStatistic.ShowLeaderboard();
             Debug.Log("Enviando señal de activación de statsCanvas");
         }
 
-        //Actualiza Leaderboard Ranked en Firestore
+        // Actualiza Firestore si es Ranked
         MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
         if (match != null && match.mode == "Ranked")
         {
@@ -1223,12 +1197,11 @@ public class GameManager : NetworkBehaviour
     [Server]
     public void PlayerDied(PlayerController deadPlayer)
     {
-        if (!players.Contains(deadPlayer)) return; // Asegurar que no intente eliminar dos veces
+        if (!players.Contains(deadPlayer)) return;
 
         if (!deathBuffer.Contains(deadPlayer))
             deathBuffer.Add(deadPlayer);
 
-        // Agregar un delay antes de procesar la muerte
         if (!isProcessingDeath)
             StartCoroutine(HandleBufferedDeaths());
     }
@@ -1236,38 +1209,57 @@ public class GameManager : NetworkBehaviour
     private IEnumerator HandleBufferedDeaths()
     {
         isProcessingDeath = true;
+        yield return new WaitForSeconds(0.05f);
 
-        yield return new WaitForSeconds(0.05f); // Espera breve para juntar todos los que murieron en la ronda
+        if (deathBuffer.Count == 0)
+        {
+            isProcessingDeath = false;
+            yield break;
+        }
 
-        var tikiPriority = tikiHistory.ToList();
+        // Verificar si todos morirían al procesar este buffer
+        int vivosRestantes = players.Count - deathBuffer.Count;
+        bool todosMueren = (vivosRestantes == 0);
+        bool tikiVaAMorir = talismanHolder != null && deathBuffer.Contains(talismanHolder);
 
-        // Ordenar según lejanía al Tiki
+        if (todosMueren && tikiVaAMorir)
+        {
+            Debug.Log("[Tiki] Todos murieron pero el poseedor del Tiki sobrevive.");
+
+            // Revivir al poseedor del tiki
+            talismanHolder.health = 1;
+            talismanHolder.isAlive = true;
+            talismanHolder.deathOrder = 0;
+
+            // Eliminarlo del buffer y evitar que se procese como muerte
+            deathBuffer.RemoveAll(p => p == talismanHolder);
+        }
+
+        int tikiPos = talismanHolder?.playerPosition ?? 0;
+        int DistanciaHoraria(int from, int to) => (to - from + 6) % 6;
+
         var sortedDeaths = deathBuffer
-            .OrderBy(p => {
-                int index = tikiPriority.IndexOf(p);
-                return index == -1 ? int.MaxValue : index;
-            }).ToList();
+            .OrderBy(p => DistanciaHoraria(tikiPos, p.playerPosition))
+            .ToList();
+
+        int totalJugadores = players.Count + deadPlayers.Count + deathBuffer.Count;
 
         foreach (var deadPlayer in sortedDeaths)
         {
             if (deadPlayer.deathOrder == 0)
-                deadPlayer.deathOrder = deathCounter++;
-
-            if (deadPlayer.hasQMRewardThisRound)
             {
-                deadPlayer.hasQMRewardThisRound = false;
-                if (!deadPlayer.isBot)
-                    deadPlayer.TargetPlayAnimation("QM_Reward_Exit");
+                deadPlayer.deathOrder = deathCounter;
+                deathCounter++;
             }
 
-            deadPlayer.currentQuickMission = null;
+            if (mostrarDebugDeMuertesEnInspector)
+                ordenDeMuertesInspector.Add($"#{deadPlayer.deathOrder} → {deadPlayer.playerName}");
 
             players.Remove(deadPlayer);
             deadPlayers.Add(deadPlayer);
 
-            yield return new WaitForSeconds(0.1f);
-
             CheckGameOver();
+            yield return new WaitForSeconds(0.1f);
 
             if (!isDraw)
             {
@@ -1277,6 +1269,17 @@ public class GameManager : NetworkBehaviour
 
         deathBuffer.Clear();
         isProcessingDeath = false;
+    }
+
+    [SerializeField] private bool mostrarDebugDeMuertesEnInspector = true;
+    [SerializeField] private List<string> ordenDeMuertesInspector = new();
+
+    private void RegistrarMuerteDebug(PlayerController muerto)
+    {
+        if (!mostrarDebugDeMuertesEnInspector) return;
+
+        string entrada = $"#{deathCounter} -> {muerto.playerName}";
+        ordenDeMuertesInspector.Add(entrada);
     }
 
 
