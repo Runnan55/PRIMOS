@@ -44,6 +44,11 @@ public class MainLobbyUI : MonoBehaviour
     public TMP_Text countdownText;
     public TMP_Text rankedRemainingText;
 
+    [Header("Leaderboard UI")]
+    public GameObject leaderboardPanel;
+    public Button leaderboardBtn;
+    public Button btnBackLeaderboard;
+
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
         { "Casual", "LobbySceneCasual" },
@@ -67,6 +72,8 @@ public class MainLobbyUI : MonoBehaviour
         audioButton.onClick.AddListener(OpenAudioPanel);
         backFromSettingsButton.onClick.AddListener(CloseSettingsPanel);
         backFromAudioButton.onClick.AddListener(CloseAudioPanel);
+
+        SetupLeaderboardButtons();
 
         playButton.interactable = false;
 
@@ -278,6 +285,29 @@ public class MainLobbyUI : MonoBehaviour
     {
         if (rankedRemainingText != null)
             rankedRemainingText.text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+    }
+
+    #endregion
+
+    #region LeaderboardUI
+
+    private void SetupLeaderboardButtons()
+    {
+        leaderboardBtn.onClick.AddListener(() => ShowLeaderboardPanel());
+        btnBackLeaderboard.onClick.AddListener(() => HideLeaderboardPanel());
+    }
+
+    private void ShowLeaderboardPanel()
+    {
+        AudioManager.Instance.PlaySFX("Clic");
+        leaderboardPanel.SetActive(true);
+        StartCoroutine(FirestoreLeaderboardFetcher.Instance.FetchAndDisplayLeaderboard());
+    }
+
+    private void HideLeaderboardPanel()
+    {
+        AudioManager.Instance.PlaySFX("Clic");
+        leaderboardPanel.SetActive(false);
     }
 
     #endregion

@@ -14,17 +14,17 @@ public class LeaderboardRankedUpdater : MonoBehaviour
         else Destroy(gameObject);
     }
 
-    public void AddKillsToFirestore(string uid, int killsToAdd)
+    public void AddPointsToFirestore(string uid, int pointsToAdd)
     {
-        string idToken = WebGLStorage.LoadString("jwt_token"); //Solo desde cliente
-        StartCoroutine(UpdateKillsCoroutine(idToken, uid, killsToAdd));
+        string idToken = WebGLStorage.LoadString("jwt_token"); // o pasarlo si estás en server
+        StartCoroutine(UpdatePointsCoroutine(idToken, uid, pointsToAdd));
     }
 
-    private IEnumerator UpdateKillsCoroutine(string idToken, string uid, int killsToAdd)
+    private IEnumerator UpdatePointsCoroutine(string idToken, string uid, int pointsToAdd)
     {
         string url = $"https://firestore.googleapis.com/v1/projects/{firebaseProjectId}/databases/(default)/documents/users/{uid}";
         UnityWebRequest getRequest = UnityWebRequest.Get(url);
-        getRequest.SetRequestHeader("Authorization", "Bearer" + idToken);
+        getRequest.SetRequestHeader("Authorization", "Bearer " + idToken);
         yield return getRequest.SendWebRequest();
 
         if (getRequest.result != UnityWebRequest.Result.Success)
@@ -34,13 +34,13 @@ public class LeaderboardRankedUpdater : MonoBehaviour
         }
 
         var response = JSON.Parse(getRequest.downloadHandler.text);
-        int currentKills = response["fields"]["rankedKills"]["integerValue"].AsInt;
+        int currentPoints = response["fields"]["rankedPoints"]["integerValue"].AsInt;
 
-        int newTotalKills = currentKills + killsToAdd;
+        int newTotalPoints = currentPoints + pointsToAdd;
 
         var root = new JSONObject();
         var fields = new JSONObject();
-        fields["rankedKills"] = new JSONObject { ["integerValue"] = newTotalKills.ToString() };
+        fields["rankedPoints"] = new JSONObject { ["integerValue"] = newTotalPoints.ToString() };
         root["fields"] = fields;
 
         string payload = root.ToString();
@@ -56,12 +56,13 @@ public class LeaderboardRankedUpdater : MonoBehaviour
 
         if (patchRequest.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("Error al guardar kills: " + patchRequest.downloadHandler.text);
+            Debug.LogError("Error al guardar puntos: " + patchRequest.downloadHandler.text);
         }
         else
         {
-            Debug.Log("Kills actualizadas con éxito.");
+            Debug.Log("Puntos actualizados con éxito.");
         }
     }
+
 
 }

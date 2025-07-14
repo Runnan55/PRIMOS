@@ -8,10 +8,7 @@ using UnityEngine.UI;
 
 public class GameStatistic : NetworkBehaviour
 {
-    // Cambiar de List<PlayerController> a SyncList<PlayerInfo>
     private readonly SyncList<PlayerInfo> players = new SyncList<PlayerInfo>();
-
-    private int currentDeathCount = 1;
 
     public struct PlayerInfo
     {
@@ -26,7 +23,7 @@ public class GameStatistic : NetworkBehaviour
         public int deathOrder;
         public bool isAlive;
 
-        public PlayerInfo(string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered, bool isDisconnected = false, int deathOrder = 0, bool isAlive = true)
+        public PlayerInfo(string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered, int customPoints, bool isDisconnected = false, int deathOrder = 0, bool isAlive = true)
         {
             playerName = name;
             this.kills = kills;
@@ -37,17 +34,29 @@ public class GameStatistic : NetworkBehaviour
             this.isDisconnected = isDisconnected;
             this.deathOrder = deathOrder;
             this.isAlive = isAlive;
-
-            points = CalculatePoints(kills, bulletsReloaded, bulletsFired, damageDealt, timesCovered);
+            points = customPoints;
         }
 
-        private static int CalculatePoints(int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered)
+        public static int CalculatePoints(int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered)
         {
             int points = 0;
             points += kills * 100;
             points += (bulletsReloaded + bulletsFired + damageDealt + timesCovered) * 5;
             return points;
+        }
+    }
 
+    public static int GetRankedPointsByPosition(int position)
+    {
+        switch (position)
+        {
+            case 1: return 50;
+            case 2: return 30;
+            case 3: return 15;
+            case 4: return 5;
+            case 5: return -5;
+            case 6: return -10;
+            default: return -10;
         }
     }
 
@@ -65,26 +74,41 @@ public class GameStatistic : NetworkBehaviour
     {
         players.Clear();
 
-        foreach (var player in playerList)
+        var gm = GetComponent<GameManager>();
+        var match = MatchHandler.Instance?.GetMatch(gm.matchId);
+        bool isRanked = match != null && match.mode == "Ranked";
+
+        var rankedList = playerList
+            .Where(p => p != null)
+            .OrderByDescending(p => p.isAlive) // El vivo primero
+            .ThenByDescending(p => p.deathOrder)
+            .ToList();
+
+        for (int i = 0; i < rankedList.Count; i++)
         {
-            if (player == null) continue;
+            var p = rankedList[i];
+            int rankedPosition = i + 1;
+
+            int customPoints = isRanked
+                ? GetRankedPointsByPosition(rankedPosition)
+                : PlayerInfo.CalculatePoints(p.kills, p.bulletsReloaded, p.bulletsFired, p.damageDealt, p.timesCovered);
 
             players.Add(new PlayerInfo(
-                player.playerName,
-                player.kills,
-                player.bulletsReloaded,
-                player.bulletsFired,
-                player.damageDealt,
-                player.timesCovered,
+                p.playerName,
+                p.kills,
+                p.bulletsReloaded,
+                p.bulletsFired,
+                p.damageDealt,
+                p.timesCovered,
+                customPoints,
                 false,
-                player.deathOrder,
-                player.isAlive
+                p.deathOrder,
+                p.isAlive
             ));
         }
 
-        Debug.Log($"[GameStatistic] Inicializado con {players.Count} jugadores (orden total GameManager).");
+        Debug.Log($"[GameStatistic] Inicializado con {players.Count} jugadores.");
     }
-
 
     [Server]
     public void UpdatePlayerStats(PlayerController player, bool disconnected = false)
@@ -94,6 +118,7 @@ public class GameStatistic : NetworkBehaviour
             if (players[i].playerName == player.playerName)
             {
                 int updatedDeathOrder = player.deathOrder;
+                int customPoints = PlayerInfo.CalculatePoints(player.kills, player.bulletsReloaded, player.bulletsFired, player.damageDealt, player.timesCovered);
 
                 players[i] = new PlayerInfo(
                     player.playerName,
@@ -102,6 +127,7 @@ public class GameStatistic : NetworkBehaviour
                     player.bulletsFired,
                     player.damageDealt,
                     player.timesCovered,
+                    customPoints,
                     disconnected,
                     updatedDeathOrder
                 );
@@ -109,8 +135,8 @@ public class GameStatistic : NetworkBehaviour
             }
         }
 
-        // Si no estaba, lo agregamos
         int deathOrder = player.deathOrder;
+        int points = PlayerInfo.CalculatePoints(player.kills, player.bulletsReloaded, player.bulletsFired, player.damageDealt, player.timesCovered);
         players.Add(new PlayerInfo(
             player.playerName,
             player.kills,
@@ -118,6 +144,7 @@ public class GameStatistic : NetworkBehaviour
             player.bulletsFired,
             player.damageDealt,
             player.timesCovered,
+            points,
             disconnected,
             deathOrder
         ));
@@ -134,7 +161,6 @@ public class GameStatistic : NetworkBehaviour
     {
         Debug.Log("[GameStatistic] Mostrando Leaderboard desde el servidor...");
 
-        // Usamos el orden actual inverso de la lista (ya fue ordenada desde GameManager)
         List<PlayerInfo> copy = players.OrderByDescending(p => p.deathOrder).ToList();
 
         Debug.Log("[GameStatistics] === ORDEN FINAL PARA LEADERBOARD ===");
@@ -181,5 +207,4 @@ public class GameStatistic : NetworkBehaviour
             }
         }
     }
-
 }

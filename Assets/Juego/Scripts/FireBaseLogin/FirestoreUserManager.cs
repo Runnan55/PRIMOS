@@ -4,6 +4,7 @@ using UnityEngine.Networking;
 using TMPro;
 using Mirror;
 
+
 public class FirestoreUserManager : MonoBehaviour
 {
     [Header("Firebase Project ID")]
@@ -54,7 +55,8 @@ public class FirestoreUserManager : MonoBehaviour
             {
                 uid = new FirestoreString { stringValue = uid },
                 email = new FirestoreString { stringValue = email },
-                nickname = new FirestoreString { stringValue = nickname }
+                nickname = new FirestoreString { stringValue = nickname },
+                rankedPoints = new FirestoreInteger { integerValue = "0" }
             }
         });
 
@@ -111,7 +113,9 @@ public class FirestoreUserManager : MonoBehaviour
         public FirestoreString uid;
         public FirestoreString email;
         public FirestoreString nickname;
+        public FirestoreInteger rankedPoints;
     }
+    [System.Serializable] public class FirestoreInteger { public string integerValue; }
     [System.Serializable] public class FirestoreString { public string stringValue; }
     [System.Serializable] public class FirestoreDocument { public FirestoreUserFields fields; }
 }

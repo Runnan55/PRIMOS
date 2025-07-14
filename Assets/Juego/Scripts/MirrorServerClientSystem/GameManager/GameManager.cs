@@ -92,9 +92,6 @@ public class GameManager : NetworkBehaviour
 
     [Header("Talisman-Tiki")]
     [SerializeField] private GameObject talismanIconPrefab;
-    private GameObject talismanIconInstance;
-    [SerializeField] private Vector3 talismanOffset = new Vector3(0, 1.5f, 0);
-    [SerializeField] private float talismanMoveDuration = 0.75f;
 
     private PlayerController talismanHolder;
     [SyncVar] private uint talismanHolderNetId;
@@ -1152,11 +1149,15 @@ public class GameManager : NetworkBehaviour
         MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
         if (match != null && match.mode == "Ranked")
         {
-            foreach (var p in players)
+            int totalPlayers = leaderboardPlayers.Count;
+
+            foreach (var p in leaderboardPlayers)
             {
-                if (!p.isBot && p.kills > 0 && !string.IsNullOrEmpty(p.playerId))
+                if (!p.isBot && !string.IsNullOrEmpty(p.playerId))
                 {
-                    LeaderboardRankedUpdater.Instance?.AddKillsToFirestore(p.playerId, p.kills);
+                    int position = p.deathOrder;
+                    int pointsToAdd = GameStatistic.GetRankedPointsByPosition(position);
+                    LeaderboardRankedUpdater.Instance?.AddPointsToFirestore(p.playerId, pointsToAdd);
                 }
             }
         }
