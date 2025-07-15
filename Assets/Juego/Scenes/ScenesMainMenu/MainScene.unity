@@ -151,6 +151,9 @@ Transform:
   m_Children:
   - {fileID: 317578409}
   - {fileID: 624548852}
+  - {fileID: 604412606}
+  - {fileID: 186979933}
+  - {fileID: 1958374330}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4020566
@@ -746,7 +749,6 @@ GameObject:
   m_Component:
   - component: {fileID: 186979933}
   - component: {fileID: 186979932}
-  - component: {fileID: 186979935}
   - component: {fileID: 186979934}
   m_Layer: 0
   m_Name: MainLobbyUI
@@ -799,12 +801,12 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 186979931}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -0.64808553, y: 1.7280442, z: -35}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 4020565}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &186979934
 MonoBehaviour:
@@ -820,20 +822,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   nicknameInput: {fileID: 1052629268}
   feedbackText: 
-  firestoreUpdater: {fileID: 186979935}
---- !u!114 &186979935
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 186979931}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 51bfbaf55fedecc43b2ae89a9bf93319, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  firebaseProjectId: primosminigameshoot
 --- !u!1 &232376027
 GameObject:
   m_ObjectHideFlags: 0
@@ -2127,6 +2115,37 @@ Transform:
   - {fileID: 153314749}
   m_Father: {fileID: 374457235}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &604412605
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 604412606}
+  m_Layer: 0
+  m_Name: ==========MANAGERS==========
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &604412606
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 604412605}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 245.91069, y: 290.6508, z: 37.265057}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4020565}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &624548849
 GameObject:
   m_ObjectHideFlags: 0
@@ -2400,15 +2419,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeHourEnd
-      value: 15
+      value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeHourStart
-      value: 13
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeMinuteEnd
-      value: 59
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeMinuteStart
@@ -7238,12 +7257,12 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1958374328}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 10.852373}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 4020565}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -8428,6 +8447,4 @@ SceneRoots:
   - {fileID: 1182540632}
   - {fileID: 1219371587}
   - {fileID: 8431157}
-  - {fileID: 186979933}
-  - {fileID: 1958374330}
   - {fileID: 673939495}

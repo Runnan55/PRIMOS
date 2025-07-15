@@ -519,6 +519,32 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
 
     #endregion
+
+    #region FirestoreUserUpdater Ranked
+
+    [TargetRpc]
+    public void TargetUpdateRankedPoints(NetworkConnection target, int points)
+    {
+        var updater = GetComponent<FirestoreUserUpdater>();
+
+        if (updater == null)
+        {
+            Debug.LogError("[Firestore] FirestoreUserUpdater NO encontrado en este CustomRoomPlayer.");
+            return;
+        }
+        else
+        {
+            Debug.Log("[Firestore] FirestoreUserUpdater encontrado correctamente.");
+        }
+
+        var data = new Dictionary<string, object> {
+            { "rankedPoints", points }
+        };
+
+        updater.UpdateUserData(data, result => Debug.Log($"[Firestore] Resultado de subida: {result}"));
+    }
+
+    #endregion
 }
 
 public class PlayerDataForLobby
