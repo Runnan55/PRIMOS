@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 using TMPro;
 using Mirror;
-
+using System;
 
 public class FirestoreUserManager : MonoBehaviour
 {
@@ -105,6 +105,56 @@ public class FirestoreUserManager : MonoBehaviour
             }
         }
     }
+
+    public static IEnumerator IsEmailAllowed(string email, string idToken, Action<bool> callback)
+    {
+        string projectId = "primosminigameshoot";
+        string url = $"https://firestore.googleapis.com/v1/projects/{projectId}/databases/(default)/documents:runQuery";
+
+        string jsonQuery = $@"
+    {{
+      ""structuredQuery"": {{
+        ""from"": [{{ ""collectionId"": ""allowedEmails"" }}],
+        ""where"": {{
+          ""compositeFilter"": {{
+            ""op"": ""AND"",
+            ""filters"": [
+              {{
+                ""fieldFilter"": {{
+                  ""field"": {{ ""fieldPath"": ""email"" }},
+                  ""op"": ""EQUAL"",
+                  ""value"": {{ ""stringValue"": ""{email.ToLower()}"" }}
+                }}
+              }},
+              {{
+                ""fieldFilter"": {{
+                  ""field"": {{ ""fieldPath"": ""enabled"" }},
+                  ""op"": ""EQUAL"",
+                  ""value"": {{ ""booleanValue"": true }}
+                }}
+              }}
+            ]
+          }}
+        }},
+        ""limit"": 1
+      }}
+    }}";
+
+        UnityWebRequest request = new UnityWebRequest(url, "POST");
+        byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonQuery);
+        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.SetRequestHeader("Authorization", "Bearer " + idToken);
+
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success && request.downloadHandler.text.Contains("document"))
+            callback(true);
+        else
+            callback(false);
+    }
+
 
     [System.Serializable] public class FirestoreUser { public FirestoreUserFields fields; }
     [System.Serializable]

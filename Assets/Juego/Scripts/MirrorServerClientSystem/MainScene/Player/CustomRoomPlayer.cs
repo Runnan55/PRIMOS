@@ -525,6 +525,8 @@ public class CustomRoomPlayer : NetworkBehaviour
     [TargetRpc]
     public void TargetUpdateRankedPoints(NetworkConnection target, int points)
     {
+        if (!isLocalPlayer) return;
+
         var updater = GetComponent<FirestoreUserUpdater>();
 
         if (updater == null)

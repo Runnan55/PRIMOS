@@ -1157,7 +1157,6 @@ public class GameManager : NetworkBehaviour
                 {
                     int position = p.deathOrder;
                     int pointsToAdd = GameStatistic.GetRankedPointsByPosition(position);
-                    //LeaderboardRankedUpdater.Instance?.AddPointsToFirestore(p.playerId, pointsToAdd);
 
                     if (p.ownerRoomPlayer != null)
                     {

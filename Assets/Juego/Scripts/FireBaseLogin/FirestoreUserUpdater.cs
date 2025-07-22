@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Networking;
 using SimpleJSON;
 using System.Linq;
+using System;
 //using UnityEditor.ShaderGraph.Serialization;
 
 public class FirestoreUserUpdater : MonoBehaviour
@@ -26,9 +27,6 @@ public class FirestoreUserUpdater : MonoBehaviour
 
     public void UpdateUserData(Dictionary<string, object> fieldsToUpdate, System.Action<string> callback = null)
     {
-        /*string idToken = WebGLStorage.LoadString("jwt_token");
-        string uid = WebGLStorage.LoadString("local_id");*/
-
         string idToken = cachedToken;
         string uid = cachedUID;
 
@@ -43,25 +41,44 @@ public class FirestoreUserUpdater : MonoBehaviour
 
     private IEnumerator SendPatchToFirestore(string idToken, string uid, Dictionary<string, object> fields, System.Action<string> callback)
     {
+        // Si vamos a acumular puntos, hacemos una petición previa
+        if (fields.ContainsKey("rankedPoints"))
+        {
+            string getUrl = $"https://firestore.googleapis.com/v1/projects/{firebaseProjectId}/databases/(default)/documents/users/{uid}";
+
+            UnityWebRequest getRequest = UnityWebRequest.Get(getUrl);
+            getRequest.SetRequestHeader("Authorization", "Bearer " + idToken);
+            yield return getRequest.SendWebRequest();
+
+            if (getRequest.result == UnityWebRequest.Result.Success)
+            {
+                var json = JSON.Parse(getRequest.downloadHandler.text);
+                int current = json["fields"]["rankedPoints"]?["integerValue"].AsInt ?? 0;
+                int toAdd = fields["rankedPoints"] is int i ? i : int.Parse(fields["rankedPoints"].ToString());
+                fields["rankedPoints"] = current + toAdd;
+            }
+            else
+            {
+                Debug.LogWarning("[Firestore] No se pudo obtener rankedPoints actuales, se usará el valor sin sumar.");
+            }
+        }
+
+        // Armado del updateMask
         string updateMask = string.Join("&", fields.Keys.Select(k => $"updateMask.fieldPaths={k}"));
         string url = $"https://firestore.googleapis.com/v1/projects/{firebaseProjectId}/databases/(default)/documents/users/{uid}?{updateMask}";
 
-        // Construir JSON con SimpleJSON
+        // Construcción del JSON
         var root = new JSONObject();
         var fieldsJson = new JSONObject();
 
         foreach (var kvp in fields)
         {
             var field = new JSONObject();
-
-            if (kvp.Value is int || kvp.Value is long)
-            {
+            if (kvp.Value is int or long)
                 field["integerValue"] = kvp.Value.ToString();
-            }
             else
-            {
                 field["stringValue"] = kvp.Value.ToString();
-            }
+
             fieldsJson[kvp.Key] = field;
         }
 
@@ -86,4 +103,5 @@ public class FirestoreUserUpdater : MonoBehaviour
             callback?.Invoke("Datos guardados correctamente.");
         }
     }
+
 }

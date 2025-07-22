@@ -84,12 +84,6 @@ public class AuthManager : MonoBehaviour
             return;
         }
 
-        if (!allowedEmailManager.IsEmailAllowed(email))
-        {
-            feedbackText.text = "Correo inválido";
-            return;
-        }
-
         StartCoroutine(SendPasswordResetEmail(email));
     }
 
@@ -163,10 +157,9 @@ public class AuthManager : MonoBehaviour
             return;
         }
 
+        // Email está habilitado, continuar con login
         StartCoroutine(LoginUser(email, password));
     }
-
-    public AllowedEmailManager allowedEmailManager; // Asignar en inspector o buscar con GetComponent
 
     public void OnRegisterButtonPressed()
     {
@@ -185,13 +178,6 @@ public class AuthManager : MonoBehaviour
         if (password != passwordAgain)
         {
             passwordFeedbackText.text = "Password must be identical..";
-            return;
-        }
-
-        // Validar email en lista permitida
-        if (!allowedEmailManager.IsEmailAllowed(email))
-        {
-            passwordFeedbackText.text = "Email no autorizado para registro.";
             return;
         }
 
@@ -289,11 +275,26 @@ public class AuthManager : MonoBehaviour
             WebGLStorage.SaveString("local_id", loginResponse.localId);
             WebGLStorage.SaveString("email", loginResponse.email);
 
-            feedbackText.text = "Login exitoso. Bienvenido!";
-            loginPanel.SetActive(false);
-            registerPanel.SetActive(false);
+            // Verificar si el usuario está habilitado
 
-            StartCoroutine(ConnectToMirrorServerAfterDelay());
+            string jwtToken = loginResponse.idToken;
+
+            yield return StartCoroutine(FirestoreUserManager.IsEmailAllowed(loginResponse.email, jwtToken, isAllowed =>
+            {
+                if (!isAllowed)
+                {
+                    feedbackText.text = "Este correo no está habilitado para acceder.";
+                    return;
+                }
+
+                // Email habilitado -> conectar a Mirror o avanzar
+
+                feedbackText.text = "Login exitoso. Bienvenido!";
+                loginPanel.SetActive(false);
+                registerPanel.SetActive(false);
+
+                StartCoroutine(ConnectToMirrorServerAfterDelay());
+            }));
         }
     }
 
@@ -350,6 +351,18 @@ public class AuthManager : MonoBehaviour
     {
         string url = string.Format(SignUpUrl, firebaseWebAPIKey);
 
+        string jwtToken = WebGLStorage.LoadString("jwt_token");
+
+        // Verificar en Firestore si está permitido
+        yield return StartCoroutine(FirestoreUserManager.IsEmailAllowed(email, jwtToken, isAllowed =>
+        {
+            if (!isAllowed)
+            {
+                feedbackText.text = "Este correo no está habilitado para registrarse.";
+                return;
+            }
+        }));
+
         string jsonPayload = JsonUtility.ToJson(new LoginRequest
         {
             email = email,
@@ -380,6 +393,8 @@ public class AuthManager : MonoBehaviour
         }
     }
 
+
+    //Se utiliza para verificar si hay datos guardados previos en la página local, pero no los usamos ahora
     private void CheckForSavedSession()
     {
         string token = WebGLStorage.LoadString("jwt_token");

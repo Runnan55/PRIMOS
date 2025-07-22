@@ -1510,10 +1510,10 @@ public class PlayerController : NetworkBehaviour
     {
         base.OnStopServer();
 
-        /*if (GameManager.Instance != null)
-        {*/
-            GameManager./*Instance.*/PlayerDisconnected(this);
-        /*}*/
+        if (GameManager != null)
+        {
+           GameManager.PlayerDisconnected(this);
+        }
 
         GameStatistic stat = FindFirstObjectByType<GameStatistic>();
 
