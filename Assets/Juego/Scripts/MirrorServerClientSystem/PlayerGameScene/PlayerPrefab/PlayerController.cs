@@ -566,11 +566,14 @@ public class PlayerController : NetworkBehaviour
             Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             mousePosition.z = 0;
             crosshairInstance.transform.position = mousePosition;
+            Cursor.visible = false; // Ocultamos el cursor original
         }
 
         //Detectar clics para seleccionar enemigos o cancelar apuntado
         if (Input.GetMouseButtonDown(0))
         {
+            Cursor.visible = true; // Devolvemos el cursor original
+
             if (!isAiming)
             {
                 return; //Evita disparar si no se está apuntando
