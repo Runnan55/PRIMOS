@@ -1,101 +1,120 @@
 <!DOCTYPE html>
 <html lang="en-us">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
-  <title>{{{ PRODUCT_NAME }}}</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      overflow: hidden;
-    }
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes">
+    <title>PRIMOS</title>
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
 
-    #unity-canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: contain;
-      background: url("TemplateData/fondo.jpg") center / cover no-repeat;
-    }
+        #unity-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+            background: url("TemplateData/fondo.jpg") center / cover no-repeat;
+        }
 
-    body.position-custom #loading-bar,
-    body.position-custom #loading-text {
-      top: 90%;  
-    }
+        body.position-custom #loading-bar,
+        body.position-custom #loading-text {
+            top: 90%;
+        }
 
-    #loading-bar {
-      position: absolute;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: {{{ PROGRESS_WIDTH }}};
-      height: 40px;
-      background-color: #333;
-      border-radius: 10px;
-      overflow: hidden;
-      z-index: 10;
-    }
+        #loading-bar {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 512px;
+            height: 40px;
+            background-color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            z-index: 10;
+        }
 
-    #progress-bar {
-      height: 100%;
-      width: 0%;
-      background-color: {{{ PROGRESS_COLOR }}};
-      transition: width 0.3s ease;
-    }
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #b81414;
+            transition: width 0.3s ease;
+        }
 
-    #loading-text {
-      position: absolute;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: white;
-      font-family: Arial, sans-serif;
-      font-size: 18px;
-      z-index: 10;
-    }
-  </style>
+        #loading-text {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            z-index: 10;
+        }
+    </style>
 </head>
 
 <!-- 👇 Cambia aquí la posición: position-top | position-middle | position-bottom -->
 <body class="position-custom">
-  <div id="loading-bar"><div id="progress-bar"></div></div>
-  <div id="loading-text">{{{ LOADING_LABEL }}}</div>
-  <canvas id="unity-canvas" width={{{ WIDTH }}} height={{{ HEIGHT }}} tabindex="-1"></canvas>
+    <div id="loading-bar"><div id="progress-bar"></div></div>
+    <div id="loading-text">Loading...</div>
+    <canvas id="unity-canvas" width=1920 height=1080 tabindex="-1"></canvas>
 
-  <script src="Build/{{{ LOADER_FILENAME }}}"></script>
-  <script>
-    const canvas = document.querySelector("#unity-canvas");
-    const loadingBar = document.getElementById("loading-bar");
-    const progressBar = document.getElementById("progress-bar");
-    const loadingText = document.getElementById("loading-text");
+    <!-- Firebase SDK compatible -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
-    createUnityInstance(canvas, {
-      dataUrl: "Build/{{{ DATA_FILENAME }}}",
-      frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
-#if USE_THREADS
-      workerUrl: "Build/{{{ WORKER_FILENAME }}}",
-#endif
-#if USE_WASM
-      codeUrl: "Build/{{{ CODE_FILENAME }}}",
-#endif
-#if SYMBOLS_FILENAME
-      symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
-#endif
-      streamingAssetsUrl: "StreamingAssets",
-      companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
-      productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
-      productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
-    }, (progress) => {
-      loadingBar.style.display = "block";
-      loadingText.style.display = "block";
-      progressBar.style.width = (progress * 100) + "%";
-    }).then(() => {
-      loadingBar.style.display = "none";
-      loadingText.style.display = "none";
-    }).catch((message) => {
-      alert("Error cargando Unity WebGL: " + message);
-    });
-  </script>
+    <!-- Firebase Config desde account.primos.games -->
+    <!-- <script src="https://account.primos.games/api/config/firebase"></script> -->
+
+    <!-- Firebase Config embebido -->
+    <script>
+        window.FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBZ8_Vw37g_tFvIKwTDMcqnQTcEohLIQSo",
+            authDomain: "primosminigameshoot.firebaseapp.com",
+            projectId: "primosminigameshoot",
+            storageBucket: "primosminigameshoot.firebasestorage.app",
+            messagingSenderId: "255842930588",
+            appId: "1:255842930588:web:b54be6a038089966298259",
+            measurementId: "G-0RVPWXH87V"
+        };
+    </script>
+
+    <!-- Firebase Auth Bridge personalizado -->
+    <script src="firebase-auth-bridge.js"></script>
+
+    <!-- Unity loader -->
+    <script src="Build/PrimosWebGL.loader.js"></script>
+
+    <script>
+        const canvas = document.querySelector("#unity-canvas");
+        const loadingBar = document.getElementById("loading-bar");
+        const progressBar = document.getElementById("progress-bar");
+        const loadingText = document.getElementById("loading-text");
+
+        createUnityInstance(canvas, {
+            dataUrl: "Build/PrimosWebGL.data",
+            frameworkUrl: "Build/PrimosWebGL.framework.js",
+            codeUrl: "Build/PrimosWebGL.wasm",
+            streamingAssetsUrl: "StreamingAssets",
+            companyName: "DefaultCompany",
+            productName: "PRIMOS",
+            productVersion: "1.0",
+        }, (progress) => {
+            loadingBar.style.display = "block";
+            loadingText.style.display = "block";
+            progressBar.style.width = (progress * 100) + "%";
+        }).then((unityInstance) => {
+            window.unityInstance = unityInstance;
+            loadingBar.style.display = "none";
+            loadingText.style.display = "none";
+        }).catch((message) => {
+            alert("Error cargando Unity WebGL: " + message);
+        });
+    </script>
 </body>
 </html>

@@ -8,6 +8,7 @@ using System;
 using Unity.VisualScripting;
 using SimpleJSON;
 using UnityEngine.UI;
+using UnityEngine.Tilemaps;
 
 public class AuthManager : MonoBehaviour
 {
@@ -60,8 +61,9 @@ public class AuthManager : MonoBehaviour
     private void Start()
     {
 #if UNITY_WEBGL
-        //CheckForSavedSession();
-        Debug.Log("he comentado el checkforsavedsession porsilasmoscas sino no me permite abrir varias cuentas en el mismo navegador ");
+        Debug.Log("[AuthManager] WebGL activo. Esperando login desde Firebase Auth Bridge...");
+#else
+    ShowLoginPanel(); // En editor u otras plataformas
 #endif
     }
 
@@ -275,26 +277,10 @@ public class AuthManager : MonoBehaviour
             WebGLStorage.SaveString("local_id", loginResponse.localId);
             WebGLStorage.SaveString("email", loginResponse.email);
 
-            // Verificar si el usuario está habilitado
+            loginPanel.SetActive(false);
+            registerPanel.SetActive(false);
 
-            string jwtToken = loginResponse.idToken;
-
-            yield return StartCoroutine(FirestoreUserManager.IsEmailAllowed(loginResponse.email, jwtToken, isAllowed =>
-            {
-                if (!isAllowed)
-                {
-                    feedbackText.text = "Este correo no está habilitado para acceder.";
-                    return;
-                }
-
-                // Email habilitado -> conectar a Mirror o avanzar
-
-                feedbackText.text = "Login exitoso. Bienvenido!";
-                loginPanel.SetActive(false);
-                registerPanel.SetActive(false);
-
-                StartCoroutine(ConnectToMirrorServerAfterDelay());
-            }));
+            StartCoroutine(ConnectToMirrorServerAfterDelay());
         }
     }
 
@@ -352,16 +338,6 @@ public class AuthManager : MonoBehaviour
         string url = string.Format(SignUpUrl, firebaseWebAPIKey);
 
         string jwtToken = WebGLStorage.LoadString("jwt_token");
-
-        // Verificar en Firestore si está permitido
-        yield return StartCoroutine(FirestoreUserManager.IsEmailAllowed(email, jwtToken, isAllowed =>
-        {
-            if (!isAllowed)
-            {
-                feedbackText.text = "Este correo no está habilitado para registrarse.";
-                return;
-            }
-        }));
 
         string jsonPayload = JsonUtility.ToJson(new LoginRequest
         {
@@ -538,8 +514,82 @@ public class AuthManager : MonoBehaviour
         public string refresh_token;
         public string user_id;
     }
+
+    // ==== MÉTODOS DEL BRIDGE JAVASCRIPT ====
+
+    [System.Serializable]
+    public class BridgeUserData
+    {
+        public string uid;
+        public string email;
+        public bool emailVerified;
+        public string displayName;
+        public string photoURL;
+        public BridgeCustomClaims customClaims;
+    }
+
+    [System.Serializable]
+    public class BridgeCustomClaims
+    {
+        public string role;
+        public string walletAddress;
+        public bool hasNFT;
+        public long nftVerifiedAt;
+        public string gameUrl;
+    }
+
+    // Llamado desde JS cuando el login con customToken fue exitoso
+    public void onAuthSuccess(string userJson)
+    {
+        try
+        {
+            Debug.Log("[AuthManager] onAuthSuccess recibido desde JS: " + userJson);
+
+            BridgeUserData user = JsonUtility.FromJson<BridgeUserData>(userJson);
+
+            WebGLStorage.SaveString("local_id", user.uid);
+            WebGLStorage.SaveString("email", user.email);
+            WebGLStorage.SaveString("display_name", user.displayName ?? "");
+            WebGLStorage.SaveString("role", user.customClaims?.role ?? "user");
+
+            string idToken = WebGLStorage.LoadString("jwt_token");
+            if (string.IsNullOrEmpty(idToken))
+            {
+                Debug.LogError("[AuthManager] Error: token JWT vacío.");
+                ShowLoginPanel();
+                return;
+            }
+
+            Debug.Log("[AuthManager] Autenticación exitosa. Iniciando conexión con servidor...");
+
+            loginPanel.SetActive(false);
+            registerPanel.SetActive(false);
+
+            StartCoroutine(ConnectToMirrorServerAfterDelay());
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("[AuthManager] Error procesando onAuthSuccess: " + e.Message);
+            ShowLoginPanel();
+        }
+    }
+
+    // Llamado desde JS si ocurre error al autenticar
+    public void onAuthError(string errorJson)
+    {
+        Debug.LogWarning("[AuthManager] onAuthError recibido desde JS: " + errorJson);
+        ShowLoginPanel();
+        if (feedbackText != null) feedbackText.text = "Error de login: " + errorJson;
+    }
+
+    // Notificación de que el bridge JS ya está listo
+    public void onBridgeReady(string readyJson)
+    {
+        Debug.Log("[AuthManager] Bridge JS listo. readyJson = " + readyJson);
+    }
 }
 
 internal class SerializableAttribute : Attribute
 {
 }
+

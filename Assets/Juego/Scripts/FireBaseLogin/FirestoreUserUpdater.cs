@@ -27,7 +27,7 @@ public class FirestoreUserUpdater : MonoBehaviour
 
     public void UpdateUserData(Dictionary<string, object> fieldsToUpdate, System.Action<string> callback = null)
     {
-        string idToken = cachedToken;
+        string idToken = WebGLStorage.LoadString("jwt_token");//cachedToken;
         string uid = cachedUID;
 
         if (string.IsNullOrEmpty(idToken) || string.IsNullOrEmpty(uid))
