@@ -53,6 +53,18 @@ function initializeFirebase() {
   }
 }
 
+// Fuera de AuthBridge
+async function refreshAndStoreToken() {
+    try {
+        const token = await firebaseAuth.currentUser.getIdToken(true); // Fuerza refresco
+        localStorage.setItem("jwt_token", token);
+        console.log("[Bridge] Token refrescado y guardado en localStorage");
+    } catch (error) {
+        console.error("[Bridge] Error al refrescar y guardar el token:", error);
+    }
+}
+
+
 // Estado del bridge
 const AuthBridge = {
   isInitialized: false,
@@ -85,7 +97,10 @@ const AuthBridge = {
       const user = userCredential.user;
       
       // Obtener el ID token para futuras llamadas a la API
-      const idToken = await user.getIdToken();
+        const idToken = await user.getIdToken();
+        localStorage.setItem("jwt_token", idToken);
+        await refreshAndStoreToken(); // Refresca y guarda nuevamente para garantizar validez
+
       
       // Datos del usuario para Unity
       const userData = {
@@ -126,7 +141,7 @@ const AuthBridge = {
           message: error.message
         }
       };
-    }
+      }
   },
   
   // Obtener custom claims del ID token
