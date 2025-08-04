@@ -49,6 +49,10 @@ public class MainLobbyUI : MonoBehaviour
     public Button leaderboardBtn;
     public Button btnBackLeaderboard;
 
+    [Header("Ticket y Llaves")]
+    [SerializeField] private TMP_Text ticketText;
+    [SerializeField] private TMP_Text keyText;
+
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
         { "Casual", "LobbySceneCasual" },
@@ -75,6 +79,10 @@ public class MainLobbyUI : MonoBehaviour
 
         SetupLeaderboardButtons();
 
+        //Ticket y llaves
+        RequestTicketStatusFromServer();
+        StartCoroutine(ActualizarWalletPeriodicamente());
+
         playButton.interactable = false;
 
         if (userManager != null)
@@ -100,6 +108,7 @@ public class MainLobbyUI : MonoBehaviour
             else
                 OnRankedTimerRemaining();
         }
+
     }
 
     private IEnumerator OnNameEnteredDelayed()
@@ -195,6 +204,8 @@ public class MainLobbyUI : MonoBehaviour
 
         gameSelectionCanvas.SetActive(true);
         startMenuCanvas.SetActive(false);
+
+        CustomRoomPlayer.LocalInstance?.CmdRequestTicketAndKeyStatus();
 
         //Parte del sincronizador de Timer de Ranked
         //Asegura el estado correcto del botón Ranked apenas se entra
@@ -308,6 +319,32 @@ public class MainLobbyUI : MonoBehaviour
     {
         AudioManager.Instance.PlaySFX("Clic");
         leaderboardPanel.SetActive(false);
+    }
+
+    #endregion
+
+    #region Ticket
+
+    public void UpdateTicketAndKeyDisplay(int tickets, int keys)
+    {
+        ticketText.text = tickets.ToString();
+        keyText.text = keys.ToString();
+
+        rankedButton.interactable = tickets > 0;
+    }
+
+    public void RequestTicketStatusFromServer()
+    {
+        CustomRoomPlayer.LocalInstance?.CmdRequestTicketAndKeyStatus();
+    }
+
+    private IEnumerator ActualizarWalletPeriodicamente()
+    {
+        while (true)
+        {
+            RequestTicketStatusFromServer();
+            yield return new WaitForSeconds(5f);
+        }
     }
 
     #endregion

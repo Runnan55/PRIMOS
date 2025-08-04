@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Mirror;
 using UnityEngine;
@@ -21,6 +22,8 @@ public class PlayerAccountData
 
 public class AccountManager : NetworkBehaviour
 {
+    private Dictionary<NetworkConnectionToClient, FirebaseCredentials> firebaseTokens = new();
+
     public static AccountManager Instance { get; private set; }
 
     private Dictionary<NetworkConnectionToClient, PlayerAccountData> playerAccounts = new();
@@ -29,6 +32,20 @@ public class AccountManager : NetworkBehaviour
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+    }
+
+    private void OnEnable()
+    {
+        if (NetworkServer.active)
+        {
+            NetworkServer.RegisterHandler<FirebaseCredentialMessage>(OnFirebaseCredentialsReceived);
+        }
+    }
+
+    private void OnFirebaseCredentialsReceived(NetworkConnectionToClient conn, FirebaseCredentialMessage msg)
+    {
+        RegisterFirebaseCredentials(conn, msg.uid, msg.idToken);
+        Debug.Log("[AccountManager] Credenciales recibidas para jugador: " + msg.uid);
     }
 
     public void RegisterPlayer(NetworkConnectionToClient conn, string playerName, string playerId)
@@ -65,6 +82,46 @@ public class AccountManager : NetworkBehaviour
         }
             
     }
-    
+
+    public void RegisterFirebaseCredentials(NetworkConnectionToClient conn, string uid, string idToken)
+    {
+        firebaseTokens[conn] = new FirebaseCredentials(uid, idToken);
+        Debug.Log($"[AccountManager] Credenciales de Firebase recibidas para {uid}");
+        Debug.Log($"[AccountManager] Token recibido inicia con: {idToken.Substring(0, 25)}...");
+        Debug.Log($"[AccountManager] connId guardado: {conn.connectionId}");
+    }
+
+    public bool TryGetFirebaseCredentials(NetworkConnectionToClient conn, out FirebaseCredentials creds)
+    {
+        creds = null;
+        if (!firebaseTokens.TryGetValue(conn, out var stored)) return false;
+
+        var age = DateTime.UtcNow - stored.receivedAt;
+        if (age > TimeSpan.FromMinutes(50)) return false; // Token vencido
+
+        creds = stored;
+        return true;
+    }
 }
+
+public class FirebaseCredentials
+{
+    public string uid;
+    public string idToken;
+    public DateTime receivedAt;
+
+    public FirebaseCredentials(string uid, string token)
+    {
+        this.uid = uid;
+        this.idToken = token;
+        this.receivedAt = DateTime.UtcNow;
+    }
+}
+
+public struct FirebaseCredentialMessage : NetworkMessage
+{
+    public string uid;
+    public string idToken;
+}
+
 

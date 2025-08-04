@@ -5,30 +5,79 @@ using UnityEngine.Networking;
 using SimpleJSON;
 using System.Linq;
 using System;
-//using UnityEditor.ShaderGraph.Serialization;
+using Mirror;
 
 public class FirestoreUserUpdater : MonoBehaviour
 {
+    private static FirestoreUserUpdater instance;
+
+    private void Awake()
+    {
+        if (instance != null && instance != this)
+        {
+            Debug.LogWarning("[FirestoreUserUpdater] Ya existe una instancia, destruyendo duplicado.");
+            Destroy(this.gameObject);
+            return;
+        }
+
+        instance = this;
+        DontDestroyOnLoad(this.gameObject);
+        Debug.Log("[FirestoreUserUpdater] Instancia persistente registrada.");
+    }
+
     [Header("Firebase Project ID")]
     [SerializeField] private string firebaseProjectId = "primosminigameshoot";
     [SerializeField] private string cachedToken;
     [SerializeField] private string cachedUID;
 
+private Dictionary<NetworkConnectionToClient, FirebaseCredentials> credentialsMap = new();
+
+public void SetCredentialsFor(NetworkConnectionToClient conn, FirebaseCredentials creds)
+{
+    credentialsMap[conn] = creds;
+    Debug.Log($"[FirestoreUserUpdater] Credenciales almacenadas para {conn.identity?.netId} - UID: {creds.uid}");
+}
+
+public bool TryGetCredentials(NetworkConnectionToClient conn, out FirebaseCredentials creds)
+{
+    return credentialsMap.TryGetValue(conn, out creds);
+}
+
     private void Start()
     {
-        // Cargar una sola vez desde WebGLStorage
-        cachedToken = WebGLStorage.LoadString("jwt_token");
-        cachedUID = WebGLStorage.LoadString("local_id");
+        cachedToken = GetServerToken(out cachedUID);
 
         Debug.Log("[FirestoreUserUpdater] Token y UID cargados en Start:");
         Debug.Log($"  token = {cachedToken}");
         Debug.Log($"  uid = {cachedUID}");
     }
 
+    private string GetServerToken(out string uid)
+    {
+#if UNITY_SERVER
+        uid = null;
+        var conn = NetworkServer.connections.FirstOrDefault().Value;
+        if (AccountManager.Instance.TryGetFirebaseCredentials(conn, out var creds))
+        {
+            uid = creds.uid;
+            return creds.idToken;
+        }
+        return null;
+#else
+    uid = null;
+    return null;
+#endif
+    }
+
     public void UpdateUserData(Dictionary<string, object> fieldsToUpdate, System.Action<string> callback = null)
     {
-        string idToken = WebGLStorage.LoadString("jwt_token");//cachedToken;
-        string uid = cachedUID;
+#if UNITY_SERVER
+    string uid;
+    string idToken = GetServerToken(out uid);
+#else
+        string idToken = WebGLStorage.LoadString("jwt_token");
+        string uid = WebGLStorage.LoadString("local_id");
+#endif
 
         if (string.IsNullOrEmpty(idToken) || string.IsNullOrEmpty(uid))
         {
@@ -85,6 +134,7 @@ public class FirestoreUserUpdater : MonoBehaviour
         root["fields"] = fieldsJson;
         string jsonPayload = root.ToString();
 
+        Debug.Log($"[FirestoreUserUpdater] PATCH url: {url} — Payload: {jsonPayload}");
         UnityWebRequest request = new UnityWebRequest(url, "PATCH");
         byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonPayload);
         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
@@ -93,6 +143,7 @@ public class FirestoreUserUpdater : MonoBehaviour
         request.SetRequestHeader("Authorization", "Bearer " + idToken);
 
         yield return request.SendWebRequest();
+        Debug.Log($"[FirestoreUserUpdater] PATCH response: {request.responseCode} - {request.downloadHandler.text}");
 
         if (request.result != UnityWebRequest.Result.Success)
         {
@@ -104,4 +155,17 @@ public class FirestoreUserUpdater : MonoBehaviour
         }
     }
 
+#if UNITY_SERVER
+    public void UpdateUserDataFor(NetworkConnectionToClient conn, Dictionary<string, object> fieldsToUpdate, System.Action<string> callback = null)
+    {
+        if (!AccountManager.Instance.TryGetFirebaseCredentials(conn, out var creds))
+        {
+            Debug.LogWarning("[FirestoreUserUpdater] No se encontraron credenciales para esta conexión.");
+            callback?.Invoke("Sin credenciales.");
+            return;
+        }
+
+        StartCoroutine(SendPatchToFirestore(creds.idToken, creds.uid, fieldsToUpdate, callback));
+    }
+#endif
 }

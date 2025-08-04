@@ -4,6 +4,7 @@ using UnityEngine.Networking;
 using TMPro;
 using Mirror;
 using System;
+using System.Collections.Generic;
 
 public class FirestoreUserManager : MonoBehaviour
 {
@@ -105,6 +106,78 @@ public class FirestoreUserManager : MonoBehaviour
             }
         }
     }
+
+    #region Ticket y Llaves
+
+    public IEnumerator GetWalletData(string uid, string idToken, Action<bool, Dictionary<string, object>> callback)
+    {
+        Debug.Log($"[Firestore DEBUG] UID desde WebGLStorage: {uid}");
+        Debug.Log($"[Firestore DEBUG] Token inicia con: {idToken.Substring(0, 30)}"); // solo muestra los primeros caracteres por seguridad
+
+        // 1. Obtener el documento del usuario para extraer activeWallet
+        string userUrl = $"https://firestore.googleapis.com/v1/projects/{firebaseProjectId}/databases/(default)/documents/users/{uid}";
+
+        UnityWebRequest userRequest = UnityWebRequest.Get(userUrl);
+        userRequest.SetRequestHeader("Authorization", "Bearer " + idToken);
+        yield return userRequest.SendWebRequest();
+
+        if (userRequest.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogWarning($"[Firestore] Error al obtener user: {userRequest.error} - {userRequest.downloadHandler.text}");
+            callback(false, null);
+            yield break;
+        }
+
+        string userJson = userRequest.downloadHandler.text;
+        var userParsed = SimpleJSON.JSON.Parse(userJson);
+        string walletAddress = userParsed["fields"]["activeWallet"]?["stringValue"];
+        Debug.Log($"[Firestore DEBUG] Wallet extraída del user: {walletAddress}");
+
+        if (string.IsNullOrEmpty(walletAddress))
+        {
+            Debug.LogWarning("[Firestore] No se encontró campo 'activeWallet' en el documento del usuario.");
+            callback(false, null);
+            yield break;
+        }
+
+        // 2. Obtener el documento de la wallet usando el walletAddress
+        string walletUrl = $"https://firestore.googleapis.com/v1/projects/{firebaseProjectId}/databases/(default)/documents/wallets/{walletAddress}";
+        UnityWebRequest walletRequest = UnityWebRequest.Get(walletUrl);
+        walletRequest.SetRequestHeader("Authorization", "Bearer " + idToken);
+        yield return walletRequest.SendWebRequest();
+
+        if (walletRequest.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogWarning($"[Firestore] Error al obtener wallet: {walletRequest.error} - {walletRequest.downloadHandler.text}");
+            callback(false, null);
+            yield break;
+        }
+
+        try
+        {
+            var json = walletRequest.downloadHandler.text;
+            var parsed = SimpleJSON.JSON.Parse(json);
+
+            Dictionary<string, object> result = new Dictionary<string, object>();
+
+            // Extraer ticketsAvailable
+            var tickets = parsed["fields"]["ticketsAvailable"]["integerValue"];
+            result["ticketsAvailable"] = string.IsNullOrEmpty(tickets) ? 0 : int.Parse(tickets);
+
+            // Extraer llaves (gameBalance > keys > basic)
+            var basicKeys = parsed["fields"]["gameBalance"]["mapValue"]["fields"]["keys"]["mapValue"]["fields"]["basic"]["integerValue"];
+            result["llavesBasic"] = string.IsNullOrEmpty(basicKeys) ? 0 : int.Parse(basicKeys);
+
+            callback(true, result);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[Firestore] Excepción al parsear wallet: {ex.Message}");
+            callback(false, null);
+        }
+    }
+
+    #endregion
 
     [System.Serializable] public class FirestoreUser { public FirestoreUserFields fields; }
     [System.Serializable]

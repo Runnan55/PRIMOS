@@ -1158,10 +1158,36 @@ public class GameManager : NetworkBehaviour
                     int position = p.deathOrder;
                     int pointsToAdd = GameStatistic.GetRankedPointsByPosition(position);
 
+                    FirestoreUserUpdater updater = FindFirstObjectByType<FirestoreUserUpdater>();
+                    var identity = p.ownerRoomPlayer.GetComponent<NetworkIdentity>();
+                    var conn = identity.connectionToClient;
+
+                    if (conn == null || updater == null || !updater.TryGetCredentials(conn, out var creds))
+                    {
+                        Debug.LogWarning($"[GameManager] No se encontraron credenciales para {p.ownerRoomPlayer.playerName}");
+                        yield break;
+                    }
+
+                    // Si es el ganador humano, otorgar 1 llave básica
+                    if (position == totalPlayers)
+                    {
+                        StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(creds.uid, success =>
+                        {
+                            if (!success)
+                                Debug.LogWarning($"[GameManager] No se pudo otorgar llave a {p.ownerRoomPlayer.playerName}");
+                        }));
+                    }
+
+                    StartCoroutine(FirebaseServerClient.UpdateRankedPoints(creds.uid, pointsToAdd, success =>
+                    {
+                        if (!success)
+                            Debug.LogWarning($"[GameManager] No se pudo actualizar rankedPoints para {p.ownerRoomPlayer.playerName}");
+                    }));
+                    /*
                     if (p.ownerRoomPlayer != null)
                     {
                         p.ownerRoomPlayer.TargetUpdateRankedPoints(p.ownerRoomPlayer.connectionToClient, pointsToAdd);
-                    }
+                    }*/
                 }
             }
         }
@@ -1196,7 +1222,7 @@ public class GameManager : NetworkBehaviour
         Debug.Log($"[GameManager] Pausa: {(pauseState ? "Activada" : "Desactivada")}");
     }
 
-    #endregion
+#endregion
 
     #region SERVER
     [Server]

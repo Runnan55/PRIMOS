@@ -355,24 +355,40 @@ public class MatchHandler : NetworkBehaviour
 
             Debug.Log($"[Matchmaking] Jugador {player.playerName} agregado a la cola del modo {player.currentMode}. Total: {queue.Count}");
 
-            /*if (queue.Count >= MATCH_SIZE)
-            {
-                List<CustomRoomPlayer> playersForMatch = queue.Take(MATCH_SIZE).ToList();
-                queue.RemoveRange(0, MATCH_SIZE);
-                CreateAutoMatch(playersForMatch, player.currentMode);
-            }*/
-
             // --- NUEVO: iniciar partida inmediata si llegan a 6
             if (queue.Count == MATCH_SIZE)
             {
-                if (countdownCoroutines.ContainsKey(player.currentMode))
+                if (player.currentMode == "Ranked")
                 {
-                    StopCoroutine(countdownCoroutines[player.currentMode]);
-                    countdownCoroutines.Remove(player.currentMode);
+                    if (!AccountManager.Instance.TryGetFirebaseCredentials(player.connectionToClient, out var creds))
+                    {
+                        Debug.LogWarning($"[MatchHandler] No se encontraron credenciales para {player.playerName}");
+                        return;
+                    }
+
+                    // Consumir ticket justo antes de iniciar la partida
+                    player.StartCoroutine(FirebaseServerClient.TryConsumeTicket(creds.uid, success =>
+                    {
+                        FinalizeMatchStart(player.currentMode);
+                    }));
                 }
-                CreateMatchNow(player.currentMode);
+                else
+                {
+                    FinalizeMatchStart(player.currentMode);
+                }
             }
         }
+    }
+
+    private void FinalizeMatchStart(string mode)
+    {
+        if (countdownCoroutines.ContainsKey(mode))
+        {
+            StopCoroutine(countdownCoroutines[mode]);
+            countdownCoroutines.Remove(mode);
+        }
+
+        CreateMatchNow(mode);
     }
 
     [Server]

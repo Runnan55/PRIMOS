@@ -198,7 +198,7 @@ public class AuthManager : MonoBehaviour
         StartCoroutine(RegisterUser(email, password));
     }
 
-    private IEnumerator LoginUser(string email, string password)
+    public IEnumerator LoginUser(string email, string password)
     {
         string url = string.Format(LoginUrl, firebaseWebAPIKey);
 
@@ -277,12 +277,107 @@ public class AuthManager : MonoBehaviour
             WebGLStorage.SaveString("local_id", loginResponse.localId);
             WebGLStorage.SaveString("email", loginResponse.email);
 
+            if (NetworkClient.isConnected && NetworkClient.connection != null)
+            {
+                FirebaseCredentialMessage credsMsg = new FirebaseCredentialMessage
+                {
+                    uid = loginResponse.localId,
+                    idToken = loginResponse.idToken
+                };
+                NetworkClient.connection.Send(credsMsg);
+            }
+
             loginPanel.SetActive(false);
             registerPanel.SetActive(false);
 
             StartCoroutine(ConnectToMirrorServerAfterDelay());
         }
     }
+
+    // Parte 1: AuthManager.cs
+    // Agregar al final de AuthManager.cs una sección separada para el login y refresh del servidor
+
+    #region LoginHeadless y Refresh para Server
+
+    private string idToken;
+    private string refreshToken;
+    private string userId;
+
+    public IEnumerator LoginHeadlessForServer(string email, string password)
+    {
+        string url = string.Format(LoginUrl, firebaseWebAPIKey);
+
+        string jsonPayload = JsonUtility.ToJson(new LoginRequest
+        {
+            email = email,
+            password = password,
+            returnSecureToken = true
+        });
+
+        UnityWebRequest request = new UnityWebRequest(url, "POST");
+        byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonPayload);
+        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+        request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+
+        yield return request.SendWebRequest();
+
+        if (request.result != UnityWebRequest.Result.Success)
+        {
+            string errorJson = request.downloadHandler.text;
+            var parsedJson = JSON.Parse(errorJson);
+            string errorMessage = parsedJson?["error"]?["message"];
+
+            Debug.LogError($"[AuthManager] LoginHeadless FALLÓ: {errorMessage ?? errorJson}");
+        }
+        else
+        {
+            var response = JsonUtility.FromJson<FirebaseLoginResponse>(request.downloadHandler.text);
+            Debug.Log("[AuthManager] LoginHeadless exitoso.");
+            idToken = response.idToken;
+            refreshToken = response.refreshToken;
+            userId = response.localId;
+
+            Debug.Log("[AuthManager] UID recibido del servidor: " + response.localId);
+            FirebaseServerClient.Instance?.SetServerCredentials(response.idToken, response.localId);
+
+            StartCoroutine(RefreshTokenLoop());
+        }
+    }
+
+    private IEnumerator RefreshTokenLoop()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(3300f); // ~55 minutos
+
+            string url = "https://securetoken.googleapis.com/v1/token?key=" + firebaseWebAPIKey;
+
+            WWWForm form = new WWWForm();
+            form.AddField("grant_type", "refresh_token");
+            form.AddField("refresh_token", refreshToken);
+
+            UnityWebRequest request = UnityWebRequest.Post(url, form);
+            request.SetRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                var response = JSON.Parse(request.downloadHandler.text);
+                idToken = response["id_token"];
+                refreshToken = response["refresh_token"];
+                Debug.Log("[AuthManager] Token de servidor refrescado con éxito.");
+            }
+            else
+            {
+                Debug.LogError("[AuthManager] Error al refrescar token de servidor: " + request.downloadHandler.text);
+            }
+        }
+    }
+
+    public string GetServerIdToken() => idToken;
+    #endregion
 
     [Serializable]
     private class FirebaseErrorResponse
@@ -314,6 +409,21 @@ public class AuthManager : MonoBehaviour
         {
             timer += Time.deltaTime;
             yield return null;
+        }
+
+        if (NetworkClient.isConnected)
+        {
+            string uid = WebGLStorage.LoadString("local_id");
+            string token = WebGLStorage.LoadString("jwt_token");
+
+            FirebaseCredentialMessage credsMsg = new FirebaseCredentialMessage
+            {
+                uid = uid,
+                idToken = token
+            };
+
+            Debug.Log("Enviando credenciales al servidor: " + uid);
+            NetworkClient.connection.Send(credsMsg);
         }
 
         if (!NetworkClient.isConnected)
@@ -587,6 +697,45 @@ public class AuthManager : MonoBehaviour
     {
         Debug.Log("[AuthManager] Bridge JS listo. readyJson = " + readyJson);
     }
+
+    #region Ticket
+
+    public void CheckTicketAvailability(Action<bool> callback)
+    {
+        string uid = WebGLStorage.LoadString("local_id");
+        string idToken = WebGLStorage.LoadString("jwt_token");
+
+        CustomRoomPlayer.LocalInstance.StartCoroutine(
+            FirebaseServerClient.CheckTicketAvailable(uid, callback)
+        );
+    }
+
+    #endregion
+
+    #region Sincronizar llaves y tickets
+
+    public void FetchWalletData(Action<int, int> onDataReceived)
+    {
+        string uid = WebGLStorage.LoadString("local_id");
+        string idToken = WebGLStorage.LoadString("jwt_token");
+
+        StartCoroutine(FindFirstObjectByType<FirestoreUserManager>().GetWalletData(uid, idToken, (success, data) =>
+        {
+            if (success)
+            {
+                int tickets = (int)data["ticketsAvailable"];
+                int llaves = (int)data["llavesBasic"];
+                onDataReceived?.Invoke(tickets, llaves);
+            }
+            else
+            {
+                Debug.LogWarning("[AuthManager] Falló al obtener datos de wallet");
+                onDataReceived?.Invoke(0, 0);
+            }
+        }));
+    }
+
+    #endregion
 }
 
 internal class SerializableAttribute : Attribute

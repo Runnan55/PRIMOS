@@ -165,20 +165,48 @@ public class CustomRoomPlayer : NetworkBehaviour
     [Command]
     public void CmdRequestJoinLobbyScene(string mode)
     {
+        if (mode == "Ranked")
+        {
+            if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
+            {
+                string uid = creds.uid;
+            }
+            else
+            {
+                Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
+            }
+
+            StartCoroutine(FirebaseServerClient.CheckTicketAvailable(creds.uid, hasTicket =>
+            {
+                if (!hasTicket)
+                {
+                    TargetReturnToMainMenu(connectionToClient);
+                    return;
+                }
+
+                // Ahora sí: mover a escena Ranked
+                MoveToLobbyScene(mode);
+            }));
+
+            return; // No continuar por fuera del callback
+        }
+
+        // Si es modo Casual, pasa directo
+        MoveToLobbyScene(mode);
+    }
+
+    private void MoveToLobbyScene(string mode)
+    {
         string sceneName = mode == "Ranked" ? "LobbySceneRanked" : "LobbySceneCasual";
         Scene targetScene = SceneManager.GetSceneByName(sceneName);
 
         if (targetScene.IsValid())
         {
-            // Mover al jugador a la escena aditiva correspondiente en el servidor
             SceneManager.MoveGameObjectToScene(gameObject, targetScene);
             Debug.Log($"[SERVER] Jugador movido a escena: {sceneName}");
         }
 
-        // Guardar el modo actual en su SyncVar
         currentMode = mode;
-
-        // Refrescar lista tras entrar al lobby
         TargetRequestMatchList(connectionToClient);
     }
 
@@ -544,6 +572,105 @@ public class CustomRoomPlayer : NetworkBehaviour
         };
 
         updater.UpdateUserData(data, result => Debug.Log($"[Firestore] Resultado de subida: {result}"));
+    }
+
+    #endregion
+
+    #region Enviar Credenciales A Servidor
+
+    [Command]
+    public void CmdRequestTicketAndKeyStatus()
+    {
+        if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
+        {
+            string uid = creds.uid;
+        }
+        else
+        {
+            Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
+        }
+
+        StartCoroutine(FirebaseServerClient.FetchTicketAndKeyInfoFromWallet(creds.uid, (tickets, keys) =>
+        {
+            TargetReceiveWalletData(connectionToClient, tickets, keys);
+        }));
+    }
+
+    [Command]
+    public void CmdTryConsumeTicket()
+    {
+        if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
+        {
+            string uid = creds.uid;
+        }
+        else
+        {
+            Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
+        }
+
+        StartCoroutine(FirebaseServerClient.TryConsumeTicket(creds.uid, success =>
+        {
+            TargetReceiveTicketConsumedResult(connectionToClient, success);
+        }));
+    }
+
+    [Command]
+    public void CmdGrantBasicKeyToPlayer()
+    {
+        if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
+        {
+            string uid = creds.uid;
+        }
+        else
+        {
+            Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
+        }
+
+        StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(creds.uid, success =>
+        {
+            TargetReceiveKeyGrantedResult(connectionToClient, success);
+        }));
+    }
+
+    [Command]
+    public void CmdUpdateRankedPoints(int newPoints)
+    {
+        if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
+        {
+            string uid = creds.uid;
+        }
+        else
+        {
+            Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
+        }
+
+        StartCoroutine(FirebaseServerClient.UpdateRankedPoints(creds.uid, newPoints, success =>
+        {
+            Debug.Log("[Server] Resultado de actualizar rankedPoints: " + success);
+        }));
+    }
+
+    [TargetRpc]
+    public void TargetReceiveWalletData(NetworkConnection target, int tickets, int keys)
+    {
+        var mainUI = FindFirstObjectByType<MainLobbyUI>();
+        if (mainUI != null)
+        {
+            mainUI.UpdateTicketAndKeyDisplay(tickets, keys);
+        }
+    }
+
+    [TargetRpc]
+    public void TargetReceiveTicketConsumedResult(NetworkConnection target, bool success)
+    {
+        Debug.Log("[Client] Resultado al consumir ticket: " + success);
+        // Podés reaccionar activando Ranked u otra UI
+    }
+
+    [TargetRpc]
+    public void TargetReceiveKeyGrantedResult(NetworkConnection target, bool success)
+    {
+        Debug.Log("[Client] Resultado al otorgar llave: " + success);
     }
 
     #endregion
