@@ -114,7 +114,6 @@ GameObject:
   - component: {fileID: 7179653875528508705}
   - component: {fileID: 7865313804844963064}
   - component: {fileID: 8613665586783001034}
-  - component: {fileID: 1367775694649499341}
   m_Layer: 0
   m_Name: CustomRoomPlayer
   m_TagString: Untagged
@@ -163,6 +162,7 @@ MonoBehaviour:
   roomName: 
   isPrivateRoom: 0
   loadingCanvas: {fileID: 4499155682969397663}
+  firebaseUID: 
   linkedPlayerController: {fileID: 0}
 --- !u!114 &7865313804844963064
 MonoBehaviour:
@@ -194,19 +194,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   timerReachedZero: 0
---- !u!114 &1367775694649499341
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6960753788626952187}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 51bfbaf55fedecc43b2ae89a9bf93319, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  firebaseProjectId: primosminigameshoot
 --- !u!1 &9077769772070299883
 GameObject:
   m_ObjectHideFlags: 0

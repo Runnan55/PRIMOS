@@ -277,16 +277,6 @@ public class AuthManager : MonoBehaviour
             WebGLStorage.SaveString("local_id", loginResponse.localId);
             WebGLStorage.SaveString("email", loginResponse.email);
 
-            if (NetworkClient.isConnected && NetworkClient.connection != null)
-            {
-                FirebaseCredentialMessage credsMsg = new FirebaseCredentialMessage
-                {
-                    uid = loginResponse.localId,
-                    idToken = loginResponse.idToken
-                };
-                NetworkClient.connection.Send(credsMsg);
-            }
-
             loginPanel.SetActive(false);
             registerPanel.SetActive(false);
 
@@ -367,6 +357,13 @@ public class AuthManager : MonoBehaviour
                 var response = JSON.Parse(request.downloadHandler.text);
                 idToken = response["id_token"];
                 refreshToken = response["refresh_token"];
+
+                //Actualizamos también el token en FirebaseServerClient
+                if (FirebaseServerClient.Instance != null)
+                {
+                    FirebaseServerClient.Instance.SetServerCredentials(idToken, userId);
+                }
+
                 Debug.Log("[AuthManager] Token de servidor refrescado con éxito.");
             }
             else
@@ -411,20 +408,24 @@ public class AuthManager : MonoBehaviour
             yield return null;
         }
 
-        if (NetworkClient.isConnected)
+        // Esperar a que esté listo para AddPlayer
+        yield return new WaitUntil(() =>
+            NetworkClient.isConnected &&
+            NetworkClient.ready &&
+            NetworkClient.connection != null &&
+            NetworkClient.connection.identity == null
+        );
+
+        string uid = WebGLStorage.LoadString("local_id");
+        string token = WebGLStorage.LoadString("jwt_token");
+
+        FirebaseCredentialMessage credsMsg = new FirebaseCredentialMessage
         {
-            string uid = WebGLStorage.LoadString("local_id");
-            string token = WebGLStorage.LoadString("jwt_token");
+            uid = uid,
+        };
 
-            FirebaseCredentialMessage credsMsg = new FirebaseCredentialMessage
-            {
-                uid = uid,
-                idToken = token
-            };
-
-            Debug.Log("Enviando credenciales al servidor: " + uid);
-            NetworkClient.connection.Send(credsMsg);
-        }
+        Debug.Log("Enviando credenciales al servidor: " + uid);
+        NetworkClient.connection.Send(credsMsg);
 
         if (!NetworkClient.isConnected)
         {

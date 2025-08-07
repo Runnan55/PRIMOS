@@ -32,7 +32,7 @@ public class AccountManager : NetworkBehaviour
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
-    }
+    }/*
 
     private void OnEnable()
     {
@@ -40,14 +40,14 @@ public class AccountManager : NetworkBehaviour
         {
             NetworkServer.RegisterHandler<FirebaseCredentialMessage>(OnFirebaseCredentialsReceived);
         }
-    }
-
+    }*/
+    /*
     private void OnFirebaseCredentialsReceived(NetworkConnectionToClient conn, FirebaseCredentialMessage msg)
     {
-        RegisterFirebaseCredentials(conn, msg.uid, msg.idToken);
+        RegisterFirebaseCredentials(conn, msg.uid);
         Debug.Log("[AccountManager] Credenciales recibidas para jugador: " + msg.uid);
     }
-
+    */
     public void RegisterPlayer(NetworkConnectionToClient conn, string playerName, string playerId)
     {
         PlayerAccountData data = new PlayerAccountData(playerId, playerName);
@@ -82,12 +82,11 @@ public class AccountManager : NetworkBehaviour
         }
             
     }
-
-    public void RegisterFirebaseCredentials(NetworkConnectionToClient conn, string uid, string idToken)
+    
+    public void RegisterFirebaseCredentials(NetworkConnectionToClient conn, string uid)
     {
-        firebaseTokens[conn] = new FirebaseCredentials(uid, idToken);
+        firebaseTokens[conn] = new FirebaseCredentials(uid);
         Debug.Log($"[AccountManager] Credenciales de Firebase recibidas para {uid}");
-        Debug.Log($"[AccountManager] Token recibido inicia con: {idToken.Substring(0, 25)}...");
         Debug.Log($"[AccountManager] connId guardado: {conn.connectionId}");
     }
 
@@ -107,13 +106,11 @@ public class AccountManager : NetworkBehaviour
 public class FirebaseCredentials
 {
     public string uid;
-    public string idToken;
     public DateTime receivedAt;
 
-    public FirebaseCredentials(string uid, string token)
+    public FirebaseCredentials(string uid)
     {
         this.uid = uid;
-        this.idToken = token;
         this.receivedAt = DateTime.UtcNow;
     }
 }
@@ -121,7 +118,6 @@ public class FirebaseCredentials
 public struct FirebaseCredentialMessage : NetworkMessage
 {
     public string uid;
-    public string idToken;
 }
 
 

@@ -5,6 +5,7 @@ using UnityEngine.Networking;
 using SimpleJSON;
 using System;
 using Unity.VisualScripting.Antlr3.Runtime;
+using Mirror;
 
 public class FirebaseServerClient : MonoBehaviour
 {
@@ -54,9 +55,11 @@ public class FirebaseServerClient : MonoBehaviour
     }
 
     // Actualizar rankedPoints
-    public IEnumerator AddRankedPoints(string userId, int points)
+    public static IEnumerator AddRankedPoints(string userId, int points)
     {
         string url = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{userId}?updateMask.fieldPaths=rankedPoints";
+
+        var idToken = Instance.GetIdToken();
 
         // Esto sobrescribe el valor, no lo incrementa en Firestore. Alternativa: leer primero.
         string json = $"{{\"fields\":{{\"rankedPoints\":{{\"integerValue\":\"{points}\"}}}}}}";
@@ -257,22 +260,123 @@ public class FirebaseServerClient : MonoBehaviour
 
     public string GetIdToken() => idToken;
 
-    [ContextMenu("TEST: Sumar +1 rankedPoint al UID de admin")]
-    public void TestSumarPuntoManual()
+    #region Flujo_Nombre_ServerMirror_Firestore_Cliente
+
+    /*public void Lol(string uid, string newName)
     {
-        if (string.IsNullOrEmpty(idToken))
+        if (string.IsNullOrEmpty(uid) || string.IsNullOrEmpty(newName))
         {
-            Debug.LogWarning("[FirebaseServerClient] Token aún no disponible.");
+            Debug.LogWarning("[FirebaseServerClient] UID o nombre vacío. No se actualiza.");
             return;
         }
 
-        string testUid = "PON_TU_UID_AQUI"; // pon acá el UID real
-        StartCoroutine(UpdateRankedPoints(testUid, 1, success =>
+        StartCoroutine(UpdateNickname(uid, newName));
+    }*/
+
+    public static IEnumerator UpdateNickname(string uid, string newName)
+    {
+        var idToken = Instance.GetIdToken();
+
+        string url = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{uid}?updateMask.fieldPaths=nickname";
+
+        string json = $"{{\"fields\":{{\"nickname\":{{\"stringValue\":\"{newName}\"}}}}}}";
+
+        UnityWebRequest req = new UnityWebRequest(url, "PATCH");
+        byte[] body = System.Text.Encoding.UTF8.GetBytes(json);
+        req.uploadHandler = new UploadHandlerRaw(body);
+        req.downloadHandler = new DownloadHandlerBuffer();
+        req.SetRequestHeader("Content-Type", "application/json");
+        req.SetRequestHeader("Authorization", $"Bearer {idToken}");
+
+        yield return req.SendWebRequest();
+
+        if (req.result == UnityWebRequest.Result.Success)
         {
-            if (success)
-                Debug.Log("[FirebaseServerClient] ¡Punto sumado exitosamente!");
-            else
-                Debug.LogError("[FirebaseServerClient] Error al sumar punto.");
-        }));
+            Debug.Log($"[FirebaseServerClient] Nombre actualizado exitosamente en Firestore para UID {uid}: {newName}");
+        }
+        else
+        {
+            Debug.LogError($"[FirebaseServerClient] Error al actualizar nombre para UID {uid}: {req.downloadHandler.text}");
+        }
     }
+
+    /*public void GetNicknameFromFirestore(string uid, Action<string> callback)
+    {
+        StartCoroutine(WaitForTokenAndFetchNickname(uid, callback));
+    }
+
+    private IEnumerator GetNicknameFromFirestore(string uid, Action<string> callback)
+    {
+        const float retryDelay = 0.5f;
+        const float maxWaitTime = 10f;
+
+        float elapsed = 0f;
+
+        // Esperar hasta que el idToken esté disponible
+        while (string.IsNullOrEmpty(idToken))
+        {
+            Debug.Log("[FirebaseServerClient] idToken aún no disponible. Reintentando en 0.5s...");
+            yield return new WaitForSeconds(retryDelay);
+            elapsed += retryDelay;
+
+            if (elapsed >= maxWaitTime)
+            {
+                Debug.LogError("[FirebaseServerClient] Timeout: idToken no se generó en 10s. Abortando.");
+                callback?.Invoke(null);
+                yield break;
+            }
+        }
+
+        // Verificar que la instancia sigue viva
+        if (FirebaseServerClient.Instance == null)
+        {
+            Debug.LogError("[FirebaseServerClient] La instancia fue destruida inesperadamente.");
+            callback?.Invoke(null);
+            yield break;
+        }
+
+        // Ejecutar la petición con token listo
+        Debug.Log("[FirebaseServerClient] idToken disponible. Obteniendo nickname...");
+
+        var routine = GetNicknameCoroutine(uid, callback);
+        if (routine == null)
+        {
+            Debug.LogError("[FirebaseServerClient] Error: GetNicknameCoroutine devolvió null.");
+            callback?.Invoke(null);
+            yield break;
+        }
+
+        StartCoroutine(routine);
+    }*/
+
+    public static IEnumerator GetNicknameFromFirestore(string uid, Action<string> callback)
+    {
+        /*if (string.IsNullOrEmpty(idToken))
+        {
+            Debug.LogError("[FirebaseServerClient] idToken es null o vacío. No se puede consultar Firestore.");
+            callback?.Invoke(null);
+            yield break;
+        }*/
+
+        var idToken = Instance.GetIdToken();
+
+        string url = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{uid}";
+        UnityWebRequest req = UnityWebRequest.Get(url);
+        req.SetRequestHeader("Authorization", $"Bearer {idToken}");
+
+        yield return req.SendWebRequest();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError("[FirebaseServerClient] Error al obtener nickname: " + req.downloadHandler.text);
+            callback?.Invoke(null);
+            yield break;
+        }
+
+        var data = JSON.Parse(req.downloadHandler.text);
+        string nickname = data["fields"]["nickname"]?["stringValue"];
+        callback?.Invoke(nickname);
+    }
+
+    #endregion
 }

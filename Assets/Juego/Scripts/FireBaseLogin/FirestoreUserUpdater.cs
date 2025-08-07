@@ -8,7 +8,7 @@ using System;
 using Mirror;
 
 public class FirestoreUserUpdater : MonoBehaviour
-{
+{/*
     private static FirestoreUserUpdater instance;
 
     private void Awake()
@@ -27,7 +27,6 @@ public class FirestoreUserUpdater : MonoBehaviour
 
     [Header("Firebase Project ID")]
     [SerializeField] private string firebaseProjectId = "primosminigameshoot";
-    [SerializeField] private string cachedToken;
     [SerializeField] private string cachedUID;
 
 private Dictionary<NetworkConnectionToClient, FirebaseCredentials> credentialsMap = new();
@@ -45,10 +44,7 @@ public bool TryGetCredentials(NetworkConnectionToClient conn, out FirebaseCreden
 
     private void Start()
     {
-        cachedToken = GetServerToken(out cachedUID);
-
         Debug.Log("[FirestoreUserUpdater] Token y UID cargados en Start:");
-        Debug.Log($"  token = {cachedToken}");
         Debug.Log($"  uid = {cachedUID}");
     }
 
@@ -60,7 +56,6 @@ public bool TryGetCredentials(NetworkConnectionToClient conn, out FirebaseCreden
         if (AccountManager.Instance.TryGetFirebaseCredentials(conn, out var creds))
         {
             uid = creds.uid;
-            return creds.idToken;
         }
         return null;
 #else
@@ -85,10 +80,10 @@ public bool TryGetCredentials(NetworkConnectionToClient conn, out FirebaseCreden
             return;
         }
 
-        StartCoroutine(SendPatchToFirestore(idToken, uid, fieldsToUpdate, callback));
+        StartCoroutine(SendPatchToFirestore(uid, fieldsToUpdate, callback));
     }
 
-    private IEnumerator SendPatchToFirestore(string idToken, string uid, Dictionary<string, object> fields, System.Action<string> callback)
+    private IEnumerator SendPatchToFirestore(string uid, Dictionary<string, object> fields, System.Action<string> callback)
     {
         // Si vamos a acumular puntos, hacemos una petición previa
         if (fields.ContainsKey("rankedPoints"))
@@ -96,7 +91,7 @@ public bool TryGetCredentials(NetworkConnectionToClient conn, out FirebaseCreden
             string getUrl = $"https://firestore.googleapis.com/v1/projects/{firebaseProjectId}/databases/(default)/documents/users/{uid}";
 
             UnityWebRequest getRequest = UnityWebRequest.Get(getUrl);
-            getRequest.SetRequestHeader("Authorization", "Bearer " + idToken);
+            getRequest.SetRequestHeader("Authorization", "Bearer ");
             yield return getRequest.SendWebRequest();
 
             if (getRequest.result == UnityWebRequest.Result.Success)
@@ -140,7 +135,7 @@ public bool TryGetCredentials(NetworkConnectionToClient conn, out FirebaseCreden
         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
-        request.SetRequestHeader("Authorization", "Bearer " + idToken);
+        request.SetRequestHeader("Authorization", "Bearer ");
 
         yield return request.SendWebRequest();
         Debug.Log($"[FirestoreUserUpdater] PATCH response: {request.responseCode} - {request.downloadHandler.text}");
@@ -165,7 +160,7 @@ public bool TryGetCredentials(NetworkConnectionToClient conn, out FirebaseCreden
             return;
         }
 
-        StartCoroutine(SendPatchToFirestore(creds.idToken, creds.uid, fieldsToUpdate, callback));
-    }
-#endif
+        StartCoroutine(SendPatchToFirestore(creds.uid, fieldsToUpdate, callback));
+    }*
+#endif*/
 }

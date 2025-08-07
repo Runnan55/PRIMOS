@@ -21,8 +21,11 @@ public class CustomNetworkManager : NetworkManager
         base.OnStartServer();
 
         StartCoroutine (LoadLobbyScenesWithDelay());
+        
+        // Registrar el handler que registra al usuario en el servidor Mirror y le crea un CustomRoomPlayer
+        NetworkServer.RegisterHandler<FirebaseCredentialMessage>(OnFirebaseCredentialsReceived);
 
-        // REGISTRAR EL HANDLER DEL MENSAJE
+        // Registrar el handler que registra al nombre del usuario y lo actualiza cada ves que se llama desde NicknameUI
         NetworkServer.RegisterHandler<NameMessage>(OnReceiveNameMessage);
 
         //Registrar el mensaje de tiempo
@@ -52,16 +55,11 @@ public class CustomNetworkManager : NetworkManager
         SceneManager.LoadSceneAsync("LobbySceneRanked", LoadSceneMode.Additive);
     }
 
-    public override void OnServerConnect(NetworkConnectionToClient conn)
+    public override void OnServerAddPlayer(NetworkConnectionToClient conn)
     {
-        base.OnServerConnect(conn);
-
-        if (conn.identity == null)
-        {
-            GameObject playerObj = Instantiate(roomPlayerPrefab);
-            NetworkServer.AddPlayerForConnection(conn, playerObj);
-            Debug.Log("[SERVER] CustomRoomPlayer asignado automáticamente en OnServerConnect");
-        }
+        GameObject playerObj = Instantiate(roomPlayerPrefab);
+        NetworkServer.AddPlayerForConnection(conn, playerObj);
+        Debug.Log("[SERVER] CustomRoomPlayer asignado en OnServerAddPlayer");
     }
 
     public void SendPlayerToModeScene(NetworkConnectionToClient conn, string sceneName)
@@ -69,34 +67,42 @@ public class CustomNetworkManager : NetworkManager
         ServerChangeScene(sceneName);
     }
 
-    public void OnClientSendName(NetworkConnectionToClient conn, string playerName)
+    public void OnClientSendName(NetworkConnectionToClient conn, string playerNameFromClient)
     {
-        //Sí el jugador ya tiene un CustomRoomPlayer asignado
-        if (conn.identity != null)
+        if (conn.identity == null) return;
+
+        var roomPlayer = conn.identity.GetComponent<CustomRoomPlayer>();
+        if (roomPlayer == null) return;
+
+        if (AccountManager.Instance.TryGetFirebaseCredentials(conn, out var creds))
         {
-            var existingRoomPlayer = conn.identity.GetComponent<CustomRoomPlayer>();
-
-            if (existingRoomPlayer !=null)
-            {
-                existingRoomPlayer.playerName = playerName;
-
-                if (!AccountManager.Instance.HasDataFor(conn))
-                {
-                    string playerId = System.Guid.NewGuid().ToString();
-                    AccountManager.Instance.RegisterPlayer(conn, playerName, playerId);
-                    existingRoomPlayer.playerId = playerId;
-                }
-                else
-                {
-                    // Solo Actualizar el nombre en AccountManager si ya está registrado
-                    AccountManager.Instance.UpdatePlayerName(conn, playerName);
-                }
-
-                Debug.Log($"[SERVER] Se actualizó el nombre del jugador existente a: {playerName}");
-                return;
-            }
+            string uid = creds.uid;
         }
+
+        if (string.IsNullOrEmpty(creds.uid))
+        {
+            Debug.LogWarning("[CustomNetworkManager] UID vacío, no se puede asignar nombre.");
+            return;
+        }
+
+        // Intentar obtener nombre desde Firestore
+        StartCoroutine(FirebaseServerClient.GetNicknameFromFirestore(creds.uid, (nicknameInFirestore) =>
+        {
+            string finalName = !string.IsNullOrEmpty(nicknameInFirestore) ? nicknameInFirestore : playerNameFromClient;
+
+            roomPlayer.playerName = finalName;
+            AccountManager.Instance.UpdatePlayerName(conn, finalName);
+
+            Debug.Log($"[SERVER] Nombre asignado al jugador con UID {creds.uid}: {finalName}");
+
+            // Si no había nombre en Firestore, lo guardamos
+            if (string.IsNullOrEmpty(nicknameInFirestore))
+            {
+                StartCoroutine(FirebaseServerClient.UpdateNickname(creds.uid, finalName));
+            }
+        }));
     }
+
 
     public override void OnServerDisconnect(NetworkConnectionToClient conn)
     {
@@ -121,4 +127,26 @@ public class CustomNetworkManager : NetworkManager
     {
         OnClientSendName(conn, msg.playerName);
     }
+
+    private void OnFirebaseCredentialsReceived(NetworkConnectionToClient conn, FirebaseCredentialMessage msg)
+    {
+        Debug.Log($"[SERVER] FirebaseCredentialMessage recibido: UID = {msg.uid}");
+
+        if (conn.identity != null)
+        {
+            Debug.LogWarning($"[SERVER] La conexión {conn.connectionId} ya tiene un jugador asignado.");
+            return;
+        }
+
+        GameObject playerObj = Instantiate(roomPlayerPrefab);
+        CustomRoomPlayer crp = playerObj.GetComponent<CustomRoomPlayer>();
+        AccountManager.Instance.RegisterFirebaseCredentials(conn, msg.uid);
+
+        crp.firebaseUID = msg.uid;
+        crp.playerName = "Desconocido"; // Lo puedes actualizar luego con otro mensaje si quieres
+
+        NetworkServer.AddPlayerForConnection(conn, playerObj);
+        Debug.Log($"[SERVER] Jugador instanciado con UID {msg.uid}");
+    }
+
 }

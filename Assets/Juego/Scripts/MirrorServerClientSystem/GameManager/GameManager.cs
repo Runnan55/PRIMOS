@@ -1158,27 +1158,28 @@ public class GameManager : NetworkBehaviour
                     int position = p.deathOrder;
                     int pointsToAdd = GameStatistic.GetRankedPointsByPosition(position);
 
-                    FirestoreUserUpdater updater = FindFirstObjectByType<FirestoreUserUpdater>();
+                    //FirestoreUserUpdater updater = FindFirstObjectByType<FirestoreUserUpdater>();
+                    string uid = p.ownerRoomPlayer.firebaseUID;
                     var identity = p.ownerRoomPlayer.GetComponent<NetworkIdentity>();
                     var conn = identity.connectionToClient;
 
-                    if (conn == null || updater == null || !updater.TryGetCredentials(conn, out var creds))
+                    /*if (conn == null || updater == null || !updater.TryGetCredentials(conn, out var creds))
                     {
                         Debug.LogWarning($"[GameManager] No se encontraron credenciales para {p.ownerRoomPlayer.playerName}");
                         yield break;
-                    }
+                    }*/
 
                     // Si es el ganador humano, otorgar 1 llave básica
                     if (position == totalPlayers)
                     {
-                        StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(creds.uid, success =>
+                        StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(uid, success =>
                         {
                             if (!success)
                                 Debug.LogWarning($"[GameManager] No se pudo otorgar llave a {p.ownerRoomPlayer.playerName}");
                         }));
                     }
 
-                    StartCoroutine(FirebaseServerClient.UpdateRankedPoints(creds.uid, pointsToAdd, success =>
+                    StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, pointsToAdd, success =>
                     {
                         if (!success)
                             Debug.LogWarning($"[GameManager] No se pudo actualizar rankedPoints para {p.ownerRoomPlayer.playerName}");

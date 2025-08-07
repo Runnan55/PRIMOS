@@ -80,16 +80,21 @@ public class MainLobbyUI : MonoBehaviour
         SetupLeaderboardButtons();
 
         //Ticket y llaves
-        RequestTicketStatusFromServer();
-        StartCoroutine(ActualizarWalletPeriodicamente());
+        //RequestTicketStatusFromServer();
+        StartCoroutine(RequestTicketStatusFromServerPeriodically());
 
         playButton.interactable = false;
 
-        if (userManager != null)
+        /*if (userManager != null)
         {
             userManager.LoadUser(); // Esto carga el nickname de Firebase
 
             StartCoroutine(OnNameEnteredDelayed()); // Esto actualiza el playerName en el server de Mirror, sino aparece en blanco hasta que actualizemos
+        }*/
+
+        if (CustomRoomPlayer.LocalInstance != null)
+        {
+            CustomRoomPlayer.LocalInstance.CmdRequestNicknameFromFirestore();
         }
 
         nameInputField.onValueChanged.AddListener(OnNameChangedLive);
@@ -333,16 +338,17 @@ public class MainLobbyUI : MonoBehaviour
         rankedButton.interactable = tickets > 0;
     }
 
-    public void RequestTicketStatusFromServer()
+    /*public void RequestTicketStatusFromServer()
     {
         CustomRoomPlayer.LocalInstance?.CmdRequestTicketAndKeyStatus();
-    }
+    }*/
 
-    private IEnumerator ActualizarWalletPeriodicamente()
+    private IEnumerator RequestTicketStatusFromServerPeriodically()
     {
+        CustomRoomPlayer.LocalInstance?.CmdRequestTicketAndKeyStatus();
+
         while (true)
         {
-            RequestTicketStatusFromServer();
             yield return new WaitForSeconds(5f);
         }
     }
