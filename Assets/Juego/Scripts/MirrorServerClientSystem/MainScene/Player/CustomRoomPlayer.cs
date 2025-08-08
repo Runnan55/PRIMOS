@@ -36,6 +36,10 @@ public class CustomRoomPlayer : NetworkBehaviour
     //Información relevante para Firebase
     [SyncVar] public string firebaseUID;
 
+    [Header("Ticket y Llaves sincronizados")]
+
+    [SyncVar] public int syncedTickets;
+    [SyncVar] public int syncedKeys;
 
     #region ConectWithClient
 
@@ -170,32 +174,75 @@ public class CustomRoomPlayer : NetworkBehaviour
     {
         if (mode == "Ranked")
         {
+            if (syncedTickets <= 0)
+            {
+                Debug.LogWarning("[CustomRoomPlayer] Sin tickets locales. Rechazando entrada.");
+                TargetReturnToMainMenu(connectionToClient);
+                return;
+            }
+
+            // Permitir entrada inmediata
+            MoveToLobbyScene(mode);
+
+            // Validación remota (seguridad fuerte)
             if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
             {
                 string uid = creds.uid;
+
+                StartCoroutine(FirebaseServerClient.CheckTicketAvailable(uid, hasTicket =>
+                {
+                    if (!hasTicket)
+                    {
+                        Debug.LogWarning("[CustomRoomPlayer] Ticket desincronizado. Expulsando.");
+                        TargetReturnToMainMenu(connectionToClient);
+                    }
+                }));
+
+                //StartCoroutine(DelayedTicketValidation(uid, connectionToClient));
+            }
+        }
+        // Si es modo casual pasa directo
+        else
+        {
+            MoveToLobbyScene(mode);
+        }
+    }
+    /*
+    private IEnumerator DelayedTicketValidation(string uid, NetworkConnectionToClient conn)
+    {
+        float timeout = 3f;
+        float elapsed = 0f;
+
+        // Espera activa para asegurar que la sincronización haya ocurrido
+        while ((syncedTickets <= 0 || !AccountManager.Instance.HasDataFor(conn)) && elapsed < timeout)
+        {
+            yield return new WaitForSeconds(0.1f);
+            elapsed += 0.1f;
+        }
+
+        Debug.Log($"[CustomRoomPlayer] Tickets tras espera: {syncedTickets} para UID: {uid}");
+
+        yield return FirebaseServerClient.CheckTicketAvailable(uid, hasTicket =>
+        {
+            if (!hasTicket)
+            {
+                Debug.LogWarning($"[CustomRoomPlayer] Ticket desincronizado. Expulsando al UID: {uid} (syncedTickets local = {syncedTickets})");
+                TargetReturnToMainMenu(conn);
             }
             else
             {
-                Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
+                Debug.Log($"[CustomRoomPlayer] Ticket confirmado remotamente para UID: {uid}");
             }
+        });
+    }*/
 
-            StartCoroutine(FirebaseServerClient.CheckTicketAvailable(creds.uid, hasTicket =>
-            {
-                if (!hasTicket)
-                {
-                    TargetReturnToMainMenu(connectionToClient);
-                    return;
-                }
 
-                // Ahora sí: mover a escena Ranked
-                MoveToLobbyScene(mode);
-            }));
-
-            return; // No continuar por fuera del callback
-        }
-
-        // Si es modo Casual, pasa directo
-        MoveToLobbyScene(mode);
+    [Command]
+    public void CmdSyncWalletFromClient(int tickets, int keys)
+    {
+        syncedTickets = tickets;
+        syncedKeys = keys;
+        Debug.Log($"[CustomRoomPlayer] Wallet sync recibida: tickets={tickets}, keys={keys}");
     }
 
     private void MoveToLobbyScene(string mode)
@@ -551,34 +598,6 @@ public class CustomRoomPlayer : NetworkBehaviour
 
     #endregion
 
-    #region FirestoreUserUpdater Ranked
-
-    /*[TargetRpc]
-    public void TargetUpdateRankedPoints(NetworkConnection target, int points)
-    {
-        if (!isLocalPlayer) return;
-
-        var updater = GetComponent<FirestoreUserUpdater>();
-
-        if (updater == null)
-        {
-            Debug.LogError("[Firestore] FirestoreUserUpdater NO encontrado en este CustomRoomPlayer.");
-            return;
-        }
-        else
-        {
-            Debug.Log("[Firestore] FirestoreUserUpdater encontrado correctamente.");
-        }
-
-        var data = new Dictionary<string, object> {
-            { "rankedPoints", points }
-        };
-
-        updater.UpdateRankedData(data, result => Debug.Log($"[Firestore] Resultado de subida: {result}"));
-    }*/
-
-    #endregion
-
     #region Enviar Credenciales A Servidor
 
     [Command]
@@ -595,6 +614,9 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         StartCoroutine(FirebaseServerClient.FetchTicketAndKeyInfoFromWallet(creds.uid, (tickets, keys) =>
         {
+            syncedTickets = tickets;
+            syncedKeys = keys;
+
             TargetReceiveWalletData(connectionToClient, tickets, keys);
         }));
     }
@@ -732,7 +754,6 @@ public class CustomRoomPlayer : NetworkBehaviour
             nicknameUI.nicknameInput.text = nickname;
         }
     }
-
 
     #endregion
 }

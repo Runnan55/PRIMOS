@@ -18,6 +18,15 @@ public class FirebaseServerClient : MonoBehaviour
     private static string idToken;
     private static string adminUid;
 
+    private const string FirebaseProjectId = "primosminigameshoot";
+
+    public string GetIdToken() => idToken;
+
+    private static string GetUserUrl(string uid) => $"https://firestore.googleapis.com/v1/projects/{FirebaseProjectId}/databases/(default)/documents/users/{uid}";
+
+    private static string GetWalletUrl(string walletAddress) => $"https://firestore.googleapis.com/v1/projects/{FirebaseProjectId}/databases/(default)/documents/wallets/{walletAddress}";
+
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -55,9 +64,9 @@ public class FirebaseServerClient : MonoBehaviour
     }
 
     // Actualizar rankedPoints
-    public static IEnumerator AddRankedPoints(string userId, int points)
+    public static IEnumerator AddRankedPoints(string uid, int points)
     {
-        string url = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{userId}?updateMask.fieldPaths=rankedPoints";
+        string url = GetUserUrl(uid) + "?updateMask.fieldPaths=rankedPoints";
 
         var idToken = Instance.GetIdToken();
 
@@ -74,39 +83,63 @@ public class FirebaseServerClient : MonoBehaviour
         yield return req.SendWebRequest();
 
         if (req.result == UnityWebRequest.Result.Success)
-            Debug.Log($"[FirebaseServerClient] Puntos de {userId} actualizados.");
+            Debug.Log($"[FirebaseServerClient] Puntos de {uid} actualizados.");
         else
             Debug.LogError("[FirebaseServerClient] Error actualizando puntos: " + req.downloadHandler.text);
     }
 
     public static IEnumerator TryConsumeTicket(string uid, Action<bool> callback)
     {
-        string url = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{uid}";
-
         var idToken = Instance.GetIdToken();
 
-        UnityWebRequest getRequest = UnityWebRequest.Get(url);
-        getRequest.SetRequestHeader("Authorization", $"Bearer {idToken}");
-        yield return getRequest.SendWebRequest();
+        // Paso 1: Obtener walletAddress desde users/{uid}
+        string userUrl = GetUserUrl(uid);
+        UnityWebRequest getUser = UnityWebRequest.Get(userUrl);
+        getUser.SetRequestHeader("Authorization", $"Bearer {idToken}");
+        yield return getUser.SendWebRequest();
 
-        if (getRequest.result != UnityWebRequest.Result.Success)
+        if (getUser.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogWarning("[Firebase] Error obteniendo doc: " + getRequest.downloadHandler.text);
+            Debug.LogError("[Firebase] Error al obtener documento del usuario: " + getUser.downloadHandler.text);
             callback(false);
             yield break;
         }
 
-        var data = JSON.Parse(getRequest.downloadHandler.text);
-        int tickets = data["fields"]["gameBalance"]["mapValue"]["fields"]["ticketsAvailable"]["integerValue"].AsInt;
+        var userData = JSON.Parse(getUser.downloadHandler.text);
+        string walletAddress = userData["fields"]["walletAddress"]?["stringValue"];
+        if (string.IsNullOrEmpty(walletAddress))
+        {
+            Debug.LogError("[Firebase] walletAddress no encontrado para UID: " + uid);
+            callback(false);
+            yield break;
+        }
+
+        // Paso 2: Obtener y consumir tickets desde wallets/{walletAddress}
+        string walletUrl = GetWalletUrl(walletAddress);
+        UnityWebRequest getWallet = UnityWebRequest.Get(walletUrl);
+        getWallet.SetRequestHeader("Authorization", $"Bearer {idToken}");
+        yield return getWallet.SendWebRequest();
+
+        if (getWallet.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError("[Firebase] Error al obtener wallet: " + getWallet.downloadHandler.text);
+            callback(false);
+            yield break;
+        }
+
+        var walletData = JSON.Parse(getWallet.downloadHandler.text);
+        int tickets = walletData["fields"]["gameBalance"]["mapValue"]["fields"]["ticketsAvailable"]["integerValue"].AsInt;
 
         if (tickets <= 0)
         {
+            Debug.LogWarning("[Firebase] El jugador no tiene tickets disponibles.");
             callback(false);
             yield break;
         }
 
-        string patchJson = "{\"fields\":{\"tickets\":{\"integerValue\":\"" + (tickets - 1) + "\"}}}";
-        UnityWebRequest patch = new UnityWebRequest(url, "PATCH");
+        // PATCH: Restar uno
+        string patchJson = $"{{\"fields\":{{\"gameBalance\":{{\"mapValue\":{{\"fields\":{{\"ticketsAvailable\":{{\"integerValue\":\"{tickets - 1}\"}}}}}}}}}}}}";
+        UnityWebRequest patch = new UnityWebRequest(walletUrl, "PATCH");
         byte[] body = System.Text.Encoding.UTF8.GetBytes(patchJson);
         patch.uploadHandler = new UploadHandlerRaw(body);
         patch.downloadHandler = new DownloadHandlerBuffer();
@@ -115,29 +148,61 @@ public class FirebaseServerClient : MonoBehaviour
 
         yield return patch.SendWebRequest();
 
-        callback(patch.result == UnityWebRequest.Result.Success);
+        bool success = patch.result == UnityWebRequest.Result.Success;
+        Debug.Log(success
+            ? $"[Firebase] Ticket consumido correctamente. Nuevo total = {tickets - 1}"
+            : $"[Firebase] Error al consumir ticket: {patch.downloadHandler.text}");
+
+        callback(success);
     }
+
 
     public static IEnumerator CheckTicketAvailable(string uid, Action<bool> callback)
     {
-        string url = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{uid}";
-
         var idToken = Instance.GetIdToken();
 
-        UnityWebRequest request = UnityWebRequest.Get(url);
-        request.SetRequestHeader("Authorization", $"Bearer {idToken}");
+        // Paso 1: Obtener walletAddress desde users/{uid}
+        string userUrl = GetUserUrl(uid);
+        UnityWebRequest getUser = UnityWebRequest.Get(userUrl);
+        getUser.SetRequestHeader("Authorization", $"Bearer {idToken}");
 
-        yield return request.SendWebRequest();
+        yield return getUser.SendWebRequest();
 
-        if (request.result != UnityWebRequest.Result.Success)
+        if (getUser.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error verificando tickets: " + request.downloadHandler.text);
+            Debug.LogError("[Firebase] Error al obtener documento del usuario: " + getUser.downloadHandler.text);
             callback(false);
             yield break;
         }
 
-        var data = JSON.Parse(request.downloadHandler.text);
-        int tickets = data["fields"]["gameBalance"]["mapValue"]["fields"]["ticketsAvailable"]["integerValue"].AsInt;
+        var userData = JSON.Parse(getUser.downloadHandler.text);
+        string walletAddress = userData["fields"]["walletAddress"]?["stringValue"];
+        if (string.IsNullOrEmpty(walletAddress))
+        {
+            Debug.LogError("[Firebase] walletAddress no encontrado para UID: " + uid);
+            callback(false);
+            yield break;
+        }
+
+        // Paso 2: Obtener tickets desde wallets/{walletAddress}
+        string walletUrl = GetWalletUrl(walletAddress);
+        UnityWebRequest getWallet = UnityWebRequest.Get(walletUrl);
+        getWallet.SetRequestHeader("Authorization", $"Bearer {idToken}");
+
+        yield return getWallet.SendWebRequest();
+
+        if (getWallet.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError("[Firebase] Error al obtener wallet: " + getWallet.downloadHandler.text);
+            callback(false);
+            yield break;
+        }
+
+        var walletData = JSON.Parse(getWallet.downloadHandler.text);
+        int tickets = walletData["fields"]["gameBalance"]["mapValue"]["fields"]["ticketsAvailable"]["integerValue"].AsInt;
+
+        Debug.Log($"[Firebase] CheckTicketAvailable: Wallet {walletAddress}, tickets = {tickets}");
+
         callback(tickets > 0);
     }
 
@@ -146,7 +211,7 @@ public class FirebaseServerClient : MonoBehaviour
         var idToken = Instance.GetIdToken();
 
         // Paso 1: Obtener walletAddress desde users
-        string userUrl = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{uid}";
+        string userUrl = GetUserUrl(uid);
         UnityWebRequest getUser = UnityWebRequest.Get(userUrl);
         getUser.SetRequestHeader("Authorization", $"Bearer {idToken}");
 
@@ -169,7 +234,7 @@ public class FirebaseServerClient : MonoBehaviour
         }
 
         //Paso 2: Obtener tickets y keys desde wallets
-        string walletUrl = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/wallets/{walletAddress}";
+        string walletUrl = GetWalletUrl(walletAddress);
         UnityWebRequest getWallet = UnityWebRequest.Get(walletUrl);
         getWallet.SetRequestHeader("Authorization", $"Bearer {idToken}");
         yield return getWallet.SendWebRequest();
@@ -188,45 +253,75 @@ public class FirebaseServerClient : MonoBehaviour
         Debug.Log($"[Firebase] Tickets: {tickets}, basicKeys: {basicKeys} para wallet: {walletAddress}");
 
         callback(tickets, basicKeys);
+
     }
 
     public static IEnumerator GrantKeyToPlayer(string uid, Action<bool> callback)
     {
-        string url = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{uid}";
-
         var idToken = Instance.GetIdToken();
 
-        UnityWebRequest getReq = UnityWebRequest.Get(url);
-        getReq.SetRequestHeader("Authorization", $"Bearer {idToken}");
+        // Paso 1: Obtener walletAddress desde users/{uid}
+        string userUrl = GetUserUrl(uid);
+        UnityWebRequest getUser = UnityWebRequest.Get(userUrl);
+        getUser.SetRequestHeader("Authorization", $"Bearer {idToken}");
+        yield return getUser.SendWebRequest();
 
-        yield return getReq.SendWebRequest();
-
-        if (getReq.result != UnityWebRequest.Result.Success)
+        if (getUser.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error obteniendo llaves: " + getReq.downloadHandler.text);
+            Debug.LogError("[Firebase] Error obteniendo usuario: " + getUser.downloadHandler.text);
             callback(false);
             yield break;
         }
 
-        var data = JSON.Parse(getReq.downloadHandler.text);
-        int currentbasicKeys = data["fields"]["gameBalance"]["mapValue"]["fields"]["keys"]["mapValue"]["fields"]["basic"]["integerValue"].AsInt;
+        var userData = JSON.Parse(getUser.downloadHandler.text);
+        string walletAddress = userData["fields"]["walletAddress"]?["stringValue"];
+        if (string.IsNullOrEmpty(walletAddress))
+        {
+            Debug.LogError("[Firebase] walletAddress no encontrado para UID: " + uid);
+            callback(false);
+            yield break;
+        }
 
-        string json = $"{{\"fields\":{{\"gameBalance\":{{\"mapValue\":{{\"fields\":{{\"keys\":{{\"mapValue\":{{\"fields\":{{\"basic\":{{\"integerValue\":\"{currentbasicKeys + 1}\"}}}}}}}}}}}}}}}}";
+        // Paso 2: Obtener current basic keys
+        string walletUrl = GetWalletUrl(walletAddress);
+        UnityWebRequest getWallet = UnityWebRequest.Get(walletUrl);
+        getWallet.SetRequestHeader("Authorization", $"Bearer {idToken}");
+        yield return getWallet.SendWebRequest();
 
-        UnityWebRequest patch = new UnityWebRequest(url, "PATCH");
-        byte[] body = System.Text.Encoding.UTF8.GetBytes(json);
+        if (getWallet.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError("[Firebase] Error obteniendo wallet: " + getWallet.downloadHandler.text);
+            callback(false);
+            yield break;
+        }
+
+        var walletData = JSON.Parse(getWallet.downloadHandler.text);
+        int currentBasicKeys = walletData["fields"]["gameBalance"]["mapValue"]["fields"]["keys"]["mapValue"]["fields"]["basic"]["integerValue"].AsInt;
+
+        // PATCH: Sumar una llave básica
+        string patchJson = $@"{{ ""fields"": {{ ""gameBalance"": {{ ""mapValue"": {{ ""fields"": {{ ""keys"": {{ ""mapValue"": {{ ""fields"": {{ ""basic"": {{ ""integerValue"": ""{currentBasicKeys + 1}"" }}}}}}}}}}}}}}}}}}";
+
+        UnityWebRequest patch = new UnityWebRequest(walletUrl, "PATCH");
+        byte[] body = System.Text.Encoding.UTF8.GetBytes(patchJson);
         patch.uploadHandler = new UploadHandlerRaw(body);
         patch.downloadHandler = new DownloadHandlerBuffer();
         patch.SetRequestHeader("Content-Type", "application/json");
         patch.SetRequestHeader("Authorization", $"Bearer {idToken}");
 
         yield return patch.SendWebRequest();
-        callback(patch.result == UnityWebRequest.Result.Success);
+
+        bool success = patch.result == UnityWebRequest.Result.Success;
+        Debug.Log(success
+            ? $"[Firebase] Llave básica otorgada correctamente. Nuevo total = {currentBasicKeys + 1}"
+            : $"[Firebase] Error al otorgar llave: {patch.downloadHandler.text}");
+
+        callback(success);
     }
+
 
     public static IEnumerator UpdateRankedPoints(string uid, int pointsToAdd, Action<bool> callback)
     {
-        string url = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{uid}";
+        string url = GetUserUrl(uid);
 
         var idToken = Instance.GetIdToken();
 
@@ -258,9 +353,7 @@ public class FirebaseServerClient : MonoBehaviour
         callback(patch.result == UnityWebRequest.Result.Success);
     }
 
-    public string GetIdToken() => idToken;
-
-    #region Flujo_Nombre_ServerMirror_Firestore_Cliente
+ #region Flujo_Nombre_ServerMirror_Firestore_Cliente
 
     /*public void Lol(string uid, string newName)
     {
@@ -277,7 +370,7 @@ public class FirebaseServerClient : MonoBehaviour
     {
         var idToken = Instance.GetIdToken();
 
-        string url = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{uid}?updateMask.fieldPaths=nickname";
+        string url = GetUserUrl(uid) + "?updateMask.fieldPaths=nickname";
 
         string json = $"{{\"fields\":{{\"nickname\":{{\"stringValue\":\"{newName}\"}}}}}}";
 
@@ -300,67 +393,11 @@ public class FirebaseServerClient : MonoBehaviour
         }
     }
 
-    /*public void GetNicknameFromFirestore(string uid, Action<string> callback)
-    {
-        StartCoroutine(WaitForTokenAndFetchNickname(uid, callback));
-    }
-
-    private IEnumerator GetNicknameFromFirestore(string uid, Action<string> callback)
-    {
-        const float retryDelay = 0.5f;
-        const float maxWaitTime = 10f;
-
-        float elapsed = 0f;
-
-        // Esperar hasta que el idToken esté disponible
-        while (string.IsNullOrEmpty(idToken))
-        {
-            Debug.Log("[FirebaseServerClient] idToken aún no disponible. Reintentando en 0.5s...");
-            yield return new WaitForSeconds(retryDelay);
-            elapsed += retryDelay;
-
-            if (elapsed >= maxWaitTime)
-            {
-                Debug.LogError("[FirebaseServerClient] Timeout: idToken no se generó en 10s. Abortando.");
-                callback?.Invoke(null);
-                yield break;
-            }
-        }
-
-        // Verificar que la instancia sigue viva
-        if (FirebaseServerClient.Instance == null)
-        {
-            Debug.LogError("[FirebaseServerClient] La instancia fue destruida inesperadamente.");
-            callback?.Invoke(null);
-            yield break;
-        }
-
-        // Ejecutar la petición con token listo
-        Debug.Log("[FirebaseServerClient] idToken disponible. Obteniendo nickname...");
-
-        var routine = GetNicknameCoroutine(uid, callback);
-        if (routine == null)
-        {
-            Debug.LogError("[FirebaseServerClient] Error: GetNicknameCoroutine devolvió null.");
-            callback?.Invoke(null);
-            yield break;
-        }
-
-        StartCoroutine(routine);
-    }*/
-
     public static IEnumerator GetNicknameFromFirestore(string uid, Action<string> callback)
     {
-        /*if (string.IsNullOrEmpty(idToken))
-        {
-            Debug.LogError("[FirebaseServerClient] idToken es null o vacío. No se puede consultar Firestore.");
-            callback?.Invoke(null);
-            yield break;
-        }*/
-
         var idToken = Instance.GetIdToken();
 
-        string url = $"https://firestore.googleapis.com/v1/projects/primosminigameshoot/databases/(default)/documents/users/{uid}";
+        string url = GetUserUrl(uid);
         UnityWebRequest req = UnityWebRequest.Get(url);
         req.SetRequestHeader("Authorization", $"Bearer {idToken}");
 

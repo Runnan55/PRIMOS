@@ -40,9 +40,12 @@ public class MainLobbyUI : MonoBehaviour
     [Header("Timer para Ranked")]
     public GameObject missingTime;
     public GameObject timeRemainingForPlay;
+    public GameObject youDontHaveTicket;
 
     public TMP_Text countdownText;
     public TMP_Text rankedRemainingText;
+
+    private bool isRankedTimeAvailable = false;
 
     [Header("Leaderboard UI")]
     public GameObject leaderboardPanel;
@@ -52,6 +55,7 @@ public class MainLobbyUI : MonoBehaviour
     [Header("Ticket y Llaves")]
     [SerializeField] private TMP_Text ticketText;
     [SerializeField] private TMP_Text keyText;
+    private int currentTickets = 0;
 
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
@@ -79,10 +83,6 @@ public class MainLobbyUI : MonoBehaviour
 
         SetupLeaderboardButtons();
 
-        //Ticket y llaves
-        //RequestTicketStatusFromServer();
-        StartCoroutine(RequestTicketStatusFromServerPeriodically());
-
         playButton.interactable = false;
 
         /*if (userManager != null)
@@ -92,10 +92,7 @@ public class MainLobbyUI : MonoBehaviour
             StartCoroutine(OnNameEnteredDelayed()); // Esto actualiza el playerName en el server de Mirror, sino aparece en blanco hasta que actualizemos
         }*/
 
-        if (CustomRoomPlayer.LocalInstance != null)
-        {
-            CustomRoomPlayer.LocalInstance.CmdRequestNicknameFromFirestore();
-        }
+        StartCoroutine(WaitAndRequestPlayerData());
 
         nameInputField.onValueChanged.AddListener(OnNameChangedLive);
 
@@ -109,21 +106,36 @@ public class MainLobbyUI : MonoBehaviour
         if (timer != null)
         {
             if (timer.timerReachedZero)
-                OnRankedTimerFinished();
+                OnRankedTimeForPlay();
             else
-                OnRankedTimerRemaining();
+                OnRankedTimerFinished();
         }
 
     }
 
-    private IEnumerator OnNameEnteredDelayed()
+    private IEnumerator WaitAndRequestPlayerData()
     {
-        yield return new WaitForSeconds(0.2f);
+        float timeout = 5f;
+        float elapsed = 0f;
 
-        string name = nameInputField.text.Trim();
-        if (!string.IsNullOrWhiteSpace(name))
+        while ((CustomRoomPlayer.LocalInstance == null || !CustomRoomPlayer.LocalInstance.isLocalPlayer) && elapsed < timeout)
         {
-            OnNameEntered(name);
+            yield return null; // Espera un frame
+            elapsed += Time.deltaTime;
+        }
+
+        if (CustomRoomPlayer.LocalInstance != null && CustomRoomPlayer.LocalInstance.isLocalPlayer)
+        {
+            Debug.Log("[MainLobbyUI] CustomRoomPlayer listo, solicitando nickname y wallet.");
+            CustomRoomPlayer.LocalInstance.CmdRequestNicknameFromFirestore();
+            CustomRoomPlayer.LocalInstance.CmdRequestTicketAndKeyStatus();
+            //Ticket y llaves
+            //RequestTicketStatusFromServer();
+            StartCoroutine(RequestTicketStatusFromServerPeriodically());
+        }
+        else
+        {
+            Debug.LogWarning("[MainLobbyUI] No se encontró un CustomRoomPlayer válido tras 5s.");
         }
     }
 
@@ -220,9 +232,9 @@ public class MainLobbyUI : MonoBehaviour
             countdown.RequestTimeFromServer();
 
             if (countdown.timerReachedZero == true)
-                OnRankedTimerFinished();
+                OnRankedTimeForPlay();
             else
-                OnRankedTimerRemaining();
+                OnRankedTimerFinished();
         }
     }
 
@@ -267,28 +279,32 @@ public class MainLobbyUI : MonoBehaviour
 
     #region Timer para Ranked
 
-    public void OnRankedTimerFinished()
+    public void OnRankedTimeForPlay()
     {
-        if (rankedButton != null)
+        /*if (rankedButton != null)
             rankedButton.interactable = true;
 
         if (missingTime != null)
             missingTime.SetActive(false);
 
         if (timeRemainingForPlay != null)
-            timeRemainingForPlay.SetActive(true);
+            timeRemainingForPlay.SetActive(true);*/
+        isRankedTimeAvailable = true;
+        UpdateRankedButtonState();
     }
 
-    public void OnRankedTimerRemaining()
+    public void OnRankedTimerFinished()
     {
-        if (rankedButton != null)
+        /*if (rankedButton != null)
             rankedButton.interactable = false;
 
         if (missingTime != null)
             missingTime.SetActive(true);
 
         if (timeRemainingForPlay != null)
-            timeRemainingForPlay.SetActive(false);
+            timeRemainingForPlay.SetActive(false);*/
+        isRankedTimeAvailable = false;
+        UpdateRankedButtonState();
     }
 
     public void UpdateCountdownToEvent(TimeSpan remaining)
@@ -301,6 +317,32 @@ public class MainLobbyUI : MonoBehaviour
     {
         if (rankedRemainingText != null)
             rankedRemainingText.text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+    }
+
+    private void UpdateRankedButtonState()
+    {
+        missingTime.SetActive(false);
+        timeRemainingForPlay.SetActive(false);
+        youDontHaveTicket.SetActive(false);
+        rankedButton.interactable = false;
+
+        if (currentTickets > 0)
+        {
+            if (isRankedTimeAvailable == true)
+            {
+                timeRemainingForPlay.SetActive(true);
+                rankedButton.interactable = true;
+            }
+            else if (isRankedTimeAvailable == false)
+            {
+                missingTime.SetActive(true);
+            }
+        }
+        else
+        {
+            youDontHaveTicket.SetActive(true);
+        }
+        
     }
 
     #endregion
@@ -332,10 +374,12 @@ public class MainLobbyUI : MonoBehaviour
 
     public void UpdateTicketAndKeyDisplay(int tickets, int keys)
     {
+        currentTickets = tickets;
+
         ticketText.text = tickets.ToString();
         keyText.text = keys.ToString();
 
-        rankedButton.interactable = tickets > 0;
+        UpdateRankedButtonState();
     }
 
     /*public void RequestTicketStatusFromServer()

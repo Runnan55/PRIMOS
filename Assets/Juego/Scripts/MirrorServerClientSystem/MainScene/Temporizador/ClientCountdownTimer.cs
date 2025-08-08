@@ -32,13 +32,13 @@ public class ClientCountdownTimer : MonoBehaviour
             if (remaining.TotalSeconds > 0)
             {
                 timerReachedZero = false;
-                lobbyUI.OnRankedTimerFinished();
+                lobbyUI.OnRankedTimeForPlay();
                 lobbyUI.UpdateRankedRemainingTime(remaining); // <<< NUEVO
             }
             else
             {
                 timerReachedZero = true;
-                lobbyUI.OnRankedTimerRemaining(); // evento terminó
+                lobbyUI.OnRankedTimerFinished(); // evento terminó
             }
         }
         else
@@ -46,13 +46,13 @@ public class ClientCountdownTimer : MonoBehaviour
             if (remaining.TotalSeconds > 0)
             {
                 timerReachedZero = false;
-                lobbyUI.OnRankedTimerRemaining();
+                lobbyUI.OnRankedTimerFinished();
                 lobbyUI.UpdateCountdownToEvent(remaining); // <<< NUEVO
             }
             else
             {
                 timerReachedZero = true;
-                lobbyUI.OnRankedTimerFinished(); // evento acaba de comenzar
+                lobbyUI.OnRankedTimeForPlay(); // evento acaba de comenzar
             }
         }
     }
