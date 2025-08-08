@@ -15,8 +15,8 @@ public class FirebaseServerClient : MonoBehaviour
     [SerializeField] private string adminEmail = "PrimosMinigameShoot@gmail.com";
     [SerializeField] private string adminPassword = "Proyectoprimos@1234";
 
-    private string idToken;
-    private string adminUid;
+    private static string idToken;
+    private static string adminUid;
 
     private void Awake()
     {
@@ -46,7 +46,7 @@ public class FirebaseServerClient : MonoBehaviour
         }
     }
 
-    public void SetServerCredentials(string token, string uid)
+    public static void SetServerCredentials(string token, string uid)
     {
         idToken = token;
         adminUid = uid;

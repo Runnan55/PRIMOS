@@ -329,7 +329,7 @@ public class AuthManager : MonoBehaviour
             userId = response.localId;
 
             Debug.Log("[AuthManager] UID recibido del servidor: " + response.localId);
-            FirebaseServerClient.Instance?.SetServerCredentials(response.idToken, response.localId);
+            FirebaseServerClient.SetServerCredentials(response.idToken, response.localId);
 
             StartCoroutine(RefreshTokenLoop());
         }
@@ -339,7 +339,7 @@ public class AuthManager : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(3300f); // ~55 minutos
+            yield return new WaitForSeconds(3000f); // ~55 minutos
 
             string url = "https://securetoken.googleapis.com/v1/token?key=" + firebaseWebAPIKey;
 
@@ -359,11 +359,7 @@ public class AuthManager : MonoBehaviour
                 refreshToken = response["refresh_token"];
 
                 //Actualizamos también el token en FirebaseServerClient
-                if (FirebaseServerClient.Instance != null)
-                {
-                    FirebaseServerClient.Instance.SetServerCredentials(idToken, userId);
-                }
-
+                FirebaseServerClient.SetServerCredentials(idToken, userId);
                 Debug.Log("[AuthManager] Token de servidor refrescado con éxito.");
             }
             else
