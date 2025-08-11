@@ -85,14 +85,8 @@ public class MainLobbyUI : MonoBehaviour
 
         playButton.interactable = false;
 
-        /*if (userManager != null)
-        {
-            userManager.LoadUser(); // Esto carga el nickname de Firebase
-
-            StartCoroutine(OnNameEnteredDelayed()); // Esto actualiza el playerName en el server de Mirror, sino aparece en blanco hasta que actualizemos
-        }*/
-
-        StartCoroutine(WaitAndRequestPlayerData());
+        // Llamar a actualizar los Keys y Tickets desde Server-Firebase
+        StartCoroutine(AutoRefreshWalletData());
 
         nameInputField.onValueChanged.AddListener(OnNameChangedLive);
 
@@ -111,6 +105,17 @@ public class MainLobbyUI : MonoBehaviour
                 OnRankedTimerFinished();
         }
 
+    }
+
+    private IEnumerator AutoRefreshWalletData()
+    {
+        StartCoroutine(WaitAndRequestPlayerData());
+        
+        while (true)
+        {
+            yield return new WaitForSeconds(5f);
+            CustomRoomPlayer.LocalInstance.CmdRequestTicketAndKeyStatus();
+        }
     }
 
     private IEnumerator WaitAndRequestPlayerData()

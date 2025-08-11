@@ -5,10 +5,17 @@ using TMPro;
 using System.Runtime.InteropServices;
 using Mirror;
 using System;
-using Unity.VisualScripting;
 using SimpleJSON;
 using UnityEngine.UI;
-using UnityEngine.Tilemaps;
+
+[Serializable]
+public class JsLoginPayload
+{
+    public string uid;
+    public string email;
+    public string idToken;
+    public string refreshToken;
+}
 
 public class AuthManager : MonoBehaviour
 {
@@ -38,6 +45,8 @@ public class AuthManager : MonoBehaviour
 
     public static AuthManager Instance { get; private set; }
 
+    private Coroutine refreshRoutine;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -60,11 +69,65 @@ public class AuthManager : MonoBehaviour
 
     private void Start()
     {
-#if UNITY_WEBGL
-        Debug.Log("[AuthManager] WebGL activo. Esperando login desde Firebase Auth Bridge...");
+#if UNITY_WEBGL && !UNITY_EDITOR
+    string savedToken   = WebGLStorage.LoadString("jwt_token");
+    string savedRefresh = WebGLStorage.LoadString("refresh_token");
+    string savedUid     = WebGLStorage.LoadString("local_id");
 #else
-    ShowLoginPanel(); // En editor u otras plataformas
+        string savedToken = PlayerPrefs.GetString("firebase_idToken", "");
+        string savedRefresh = PlayerPrefs.GetString("firebase_refreshToken", "");
+        string savedUid = PlayerPrefs.GetString("firebase_userId", "");
 #endif
+
+        if (!string.IsNullOrEmpty(savedToken) &&
+            !string.IsNullOrEmpty(savedRefresh) &&
+            !string.IsNullOrEmpty(savedUid))
+        {
+            Debug.Log("[AuthManager] Token encontrado, iniciando login silencioso...");
+            idToken = savedToken;
+            refreshToken = savedRefresh;
+            userId = savedUid;
+
+            FirebaseServerClient.SetServerCredentials(idToken, userId);
+
+            if (refreshRoutine != null) StopCoroutine(refreshRoutine);
+            refreshRoutine = StartCoroutine(RefreshTokenLoop());
+
+            loginPanel.SetActive(false);
+            registerPanel.SetActive(false);
+            StartCoroutine(ConnectToMirrorServerAfterDelay());
+        }
+        else
+        {
+            Debug.LogWarning("[AuthManager] No se encontró token guardado, se requeriría login manual.");
+            ShowLoginPanel();
+        }
+    }
+
+    public void OnFirebaseLoginSuccess(string json)
+    {
+        var p = JsonUtility.FromJson<JsLoginPayload>(json);
+
+        // Guardar persistente
+        WebGLStorage.SaveString("jwt_token", p.idToken);
+        WebGLStorage.SaveString("refresh_token", p.refreshToken);
+        WebGLStorage.SaveString("local_id", p.uid);
+        WebGLStorage.SaveString("email", p.email);
+
+        // Actualizar estado interno
+        idToken = p.idToken;
+        refreshToken = p.refreshToken;
+        userId = p.uid;
+
+        FirebaseServerClient.SetServerCredentials(idToken, userId);
+
+        if (refreshRoutine != null) StopCoroutine(refreshRoutine);
+        refreshRoutine = StartCoroutine(RefreshTokenLoop());
+
+        // Continuar flujo normal (oculta UI y conecta)
+        loginPanel.SetActive(false);
+        registerPanel.SetActive(false);
+        StartCoroutine(ConnectToMirrorServerAfterDelay());
     }
 
     #region Recover Password
@@ -277,6 +340,15 @@ public class AuthManager : MonoBehaviour
             WebGLStorage.SaveString("local_id", loginResponse.localId);
             WebGLStorage.SaveString("email", loginResponse.email);
 
+            idToken = loginResponse.idToken;
+            refreshToken = loginResponse.refreshToken;
+            userId = loginResponse.localId;
+
+            FirebaseServerClient.SetServerCredentials(idToken, userId);
+
+            if (refreshRoutine != null) StopCoroutine(refreshRoutine);
+            refreshRoutine = StartCoroutine(RefreshTokenLoop());
+
             loginPanel.SetActive(false);
             registerPanel.SetActive(false);
 
@@ -339,7 +411,7 @@ public class AuthManager : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(3000f); // ~55 minutos
+            yield return new WaitForSeconds(3300f); // ~55 min
 
             string url = "https://securetoken.googleapis.com/v1/token?key=" + firebaseWebAPIKey;
 
@@ -358,13 +430,20 @@ public class AuthManager : MonoBehaviour
                 idToken = response["id_token"];
                 refreshToken = response["refresh_token"];
 
-                //Actualizamos también el token en FirebaseServerClient
+#if UNITY_WEBGL && !UNITY_EDITOR
+                WebGLStorage.SaveString("jwt_token", idToken);
+                WebGLStorage.SaveString("refresh_token", refreshToken);
+#else
+                PlayerPrefs.SetString("firebase_idToken", idToken);
+                PlayerPrefs.SetString("firebase_refreshToken", refreshToken);
+#endif
+
                 FirebaseServerClient.SetServerCredentials(idToken, userId);
-                Debug.Log("[AuthManager] Token de servidor refrescado con éxito.");
+                Debug.Log("[AuthManager] Token refrescado correctamente.");
             }
             else
             {
-                Debug.LogError("[AuthManager] Error al refrescar token de servidor: " + request.downloadHandler.text);
+                Debug.LogError("[AuthManager] Error al refrescar token: " + request.downloadHandler.text);
             }
         }
     }
@@ -413,7 +492,7 @@ public class AuthManager : MonoBehaviour
         );
 
         string uid = WebGLStorage.LoadString("local_id");
-        string token = WebGLStorage.LoadString("jwt_token");
+        //string token = WebGLStorage.LoadString("jwt_token");
 
         FirebaseCredentialMessage credsMsg = new FirebaseCredentialMessage
         {
@@ -475,23 +554,7 @@ public class AuthManager : MonoBehaviour
             ShowLoginPanel();
         }
     }
-
-
-    //Se utiliza para verificar si hay datos guardados previos en la página local, pero no los usamos ahora
-    private void CheckForSavedSession()
-    {
-        string token = WebGLStorage.LoadString("jwt_token");
-
-        if (!string.IsNullOrEmpty(token))
-        {
-            StartCoroutine(VerifySavedToken(token));
-        }
-        else
-        {
-            ShowLoginPanel();
-        }
-    }
-
+    /*
     private IEnumerator VerifySavedToken(string idToken)
     {
         string url = "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" + firebaseWebAPIKey;
@@ -533,7 +596,7 @@ public class AuthManager : MonoBehaviour
             feedbackText.text = "Sesión restaurada.";
         }
     }
-
+    *//*
     private IEnumerator RefreshIdToken(string refreshToken)
     {
         string url = "https://securetoken.googleapis.com/v1/token?key=" + firebaseWebAPIKey;
@@ -568,7 +631,7 @@ public class AuthManager : MonoBehaviour
             registerPanel.SetActive(false);
             feedbackText.text = "Sesión restaurada.";
         }
-    }
+    }*/
 
     private bool isLoggingOut = false;
 
@@ -577,8 +640,19 @@ public class AuthManager : MonoBehaviour
         if (isLoggingOut) return;
         isLoggingOut = true;
 
+        if (refreshRoutine != null) { StopCoroutine(refreshRoutine); refreshRoutine = null; }
+
+        // Limpiar almacenamiento
         WebGLStorage.DeleteKey("jwt_token");
         WebGLStorage.DeleteKey("refresh_token");
+        WebGLStorage.DeleteKey("local_id");
+        WebGLStorage.DeleteKey("email");
+
+        // Limpiar estado interno
+        idToken = null;
+        refreshToken = null;
+        userId = null;
+
         StartCoroutine(DelayerShowLoginPanel());
         feedbackText.text = "Sesión cerrada.";
     }
@@ -644,7 +718,7 @@ public class AuthManager : MonoBehaviour
         public long nftVerifiedAt;
         public string gameUrl;
     }
-
+    /*
     // Llamado desde JS cuando el login con customToken fue exitoso
     public void onAuthSuccess(string userJson)
     {
@@ -679,21 +753,21 @@ public class AuthManager : MonoBehaviour
             Debug.LogError("[AuthManager] Error procesando onAuthSuccess: " + e.Message);
             ShowLoginPanel();
         }
-    }
-
+    }*/
+    /*
     // Llamado desde JS si ocurre error al autenticar
     public void onAuthError(string errorJson)
     {
         Debug.LogWarning("[AuthManager] onAuthError recibido desde JS: " + errorJson);
         ShowLoginPanel();
         if (feedbackText != null) feedbackText.text = "Error de login: " + errorJson;
-    }
-
+    }*/
+    /*
     // Notificación de que el bridge JS ya está listo
     public void onBridgeReady(string readyJson)
     {
         Debug.Log("[AuthManager] Bridge JS listo. readyJson = " + readyJson);
-    }
+    }*/
 
     #region Ticket
 
