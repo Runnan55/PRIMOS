@@ -114,6 +114,7 @@ GameObject:
   - component: {fileID: 7179653875528508705}
   - component: {fileID: 7865313804844963064}
   - component: {fileID: 8613665586783001034}
+  - component: {fileID: 331183230961154185}
   m_Layer: 0
   m_Name: CustomRoomPlayer
   m_TagString: Untagged
@@ -163,6 +164,8 @@ MonoBehaviour:
   isPrivateRoom: 0
   loadingCanvas: {fileID: 4499155682969397663}
   firebaseUID: 
+  syncedTickets: 0
+  syncedKeys: 0
   linkedPlayerController: {fileID: 0}
 --- !u!114 &7865313804844963064
 MonoBehaviour:
@@ -194,6 +197,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   timerReachedZero: 0
+--- !u!114 &331183230961154185
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6960753788626952187}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4db0d0b71f0165448854504507521ec9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+  debounceSeconds: 1
 --- !u!1 &9077769772070299883
 GameObject:
   m_ObjectHideFlags: 0

@@ -25,7 +25,7 @@ public class FirebaseServerClient : MonoBehaviour
     private static string GetUserUrl(string uid) => $"https://firestore.googleapis.com/v1/projects/{FirebaseProjectId}/databases/(default)/documents/users/{uid}";
 
     private static string GetWalletUrl(string walletAddress) => $"https://firestore.googleapis.com/v1/projects/{FirebaseProjectId}/databases/(default)/documents/wallets/{walletAddress}";
-
+    private static string GetUsersCollectionUrl(int pageSize = 1000)  => $"https://firestore.googleapis.com/v1/projects/{FirebaseProjectId}/databases/(default)/documents/users?pageSize={pageSize}";
 
     private void Awake()
     {
@@ -353,18 +353,106 @@ public class FirebaseServerClient : MonoBehaviour
         callback(patch.result == UnityWebRequest.Result.Success);
     }
 
- #region Flujo_Nombre_ServerMirror_Firestore_Cliente
+    #region LeaderboardRankedPoint
 
-    /*public void Lol(string uid, string newName)
+    
+
+    // Garantiza que el documento users/{uid} tenga rankedPoints; si falta, lo crea a 0.
+    public static IEnumerator EnsureRankedPointsField(string uid, Action<int> callback)
     {
-        if (string.IsNullOrEmpty(uid) || string.IsNullOrEmpty(newName))
+        var idToken = Instance.GetIdToken();
+        string userUrl = GetUserUrl(uid);
+
+        var getReq = UnityWebRequest.Get(userUrl);
+        getReq.SetRequestHeader("Authorization", $"Bearer {idToken}");
+        yield return getReq.SendWebRequest();
+
+        if (getReq.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogWarning("[FirebaseServerClient] UID o nombre vacío. No se actualiza.");
-            return;
+            Debug.LogError("[Firebase] (EnsureRankedPoints) GET error: " + getReq.downloadHandler.text);
+            callback?.Invoke(0);
+            yield break;
         }
 
-        StartCoroutine(UpdateNickname(uid, newName));
-    }*/
+        var json = JSON.Parse(getReq.downloadHandler.text);
+        var rankedNode = json["fields"]?["rankedPoints"]?["integerValue"];
+        if (rankedNode != null && !string.IsNullOrEmpty(rankedNode))
+        {
+            callback?.Invoke(rankedNode.AsInt);
+            yield break;
+        }
+
+        string patchUrl = userUrl + "?updateMask.fieldPaths=rankedPoints";
+        var body = new JSONObject();
+        body["fields"] = new JSONObject();
+        body["fields"]["rankedPoints"] = new JSONObject();
+        body["fields"]["rankedPoints"]["integerValue"] = "0";
+
+        var patch = new UnityWebRequest(patchUrl, "PATCH");
+        var raw = System.Text.Encoding.UTF8.GetBytes(body.ToString());
+        patch.uploadHandler = new UploadHandlerRaw(raw);
+        patch.downloadHandler = new DownloadHandlerBuffer();
+        patch.SetRequestHeader("Content-Type", "application/json");
+        patch.SetRequestHeader("Authorization", $"Bearer {idToken}");
+        yield return patch.SendWebRequest();
+
+        if (patch.result != UnityWebRequest.Result.Success)
+            Debug.LogError("[Firebase] (EnsureRankedPoints) PATCH error: " + patch.downloadHandler.text);
+
+        callback?.Invoke(0);
+    }
+
+    // Devuelve un JSON string con el Top-100: [{ "name": "...", "points": 123 }, ...]
+    public static IEnumerator FetchTop100Leaderboard(string requesterUid, Action<string> onJsonReady)
+    {
+        // 1) Garantizar que el que solicita tenga rankedPoints
+        yield return EnsureRankedPointsField(requesterUid, _ => { });
+
+        // 2) Descargar users (page grande) y ordenar localmente por rankedPoints desc
+        var idToken = Instance.GetIdToken();
+        string url = GetUsersCollectionUrl(1000);
+        var req = UnityWebRequest.Get(url);
+        req.SetRequestHeader("Authorization", $"Bearer {idToken}");
+        yield return req.SendWebRequest();
+
+        var arr = new JSONArray();
+
+        if (req.result != UnityWebRequest.Result.Success)
+        {
+            Debug.LogError("[Firebase] Leaderboard GET error: " + req.downloadHandler.text);
+            onJsonReady?.Invoke(arr.ToString());
+            yield break;
+        }
+
+        var root = JSON.Parse(req.downloadHandler.text);
+        var docs = root["documents"]?.AsArray;
+        if (docs == null) { onJsonReady?.Invoke(arr.ToString()); yield break; }
+
+        var rows = new List<(string name, int points)>(docs.Count);
+        foreach (var d in docs)
+        {
+            var doc = d.Value;
+            string name = doc["fields"]?["nickname"]?["stringValue"] ?? "Unknown";
+            int points = doc["fields"]?["rankedPoints"]?["integerValue"].AsInt ?? 0;
+            rows.Add((name, points));
+        }
+        rows.Sort((a, b) => b.points.CompareTo(a.points));
+
+        int count = Math.Min(100, rows.Count);
+        for (int i = 0; i < count; i++)
+        {
+            var o = new JSONObject();
+            o["name"] = rows[i].name;
+            o["points"] = rows[i].points;
+            arr.Add(o);
+        }
+
+        onJsonReady?.Invoke(arr.ToString());
+    }
+
+    #endregion
+
+    #region Flujo_Nombre_ServerMirror_Firestore_Cliente
 
     public static IEnumerator UpdateNickname(string uid, string newName)
     {

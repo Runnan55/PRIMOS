@@ -47,9 +47,11 @@ public class GameManager : NetworkBehaviour
 
     [Header("Rondas")]
     private float currentDecisionTime;
-    [SerializeField] private float decisionTime = 10f; // Tiempo para elegir acción
+    [SerializeField] private float decisionTime; // Tiempo para elegir acción
     [SerializeField] private float executionTime = 4f; // Tiempo para mostrar resultados
     //[SerializeField] private TMP_Text timerText;
+
+    public string mode;
 
     private bool isDecisionPhase = true;
     private bool isGameOver = false;
@@ -135,6 +137,15 @@ public class GameManager : NetworkBehaviour
 
         if (isServer)
         {
+            if (mode == "Ranked")
+            {
+                decisionTime = 5f;
+            }
+            else
+            {
+                decisionTime = 10f;
+            }
+
             talismanHolder = players.FirstOrDefault(p => p.isAlive);
             if (talismanHolder != null)
             {
@@ -154,6 +165,8 @@ public class GameManager : NetworkBehaviour
         base.OnStartServer();
 
         Debug.Log("[GameManager] Iniciado en servidor.");
+
+        readyTimeoutCoroutine = StartCoroutine(WaitPlayersOrAbort());
     }
 
     [Server]
@@ -291,10 +304,44 @@ public class GameManager : NetworkBehaviour
             return;
         }
 
+        // ⬇️ NUEVO: cancelar el timeout si seguía corriendo
+        if (readyTimeoutCoroutine != null) { StopCoroutine(readyTimeoutCoroutine); readyTimeoutCoroutine = null; }
+
         isGameStarted = true;
         FillBotsIfNeeded();
-        StartCoroutine (BegingameAfterDelay()); //Usamos esto para agregar una pantalla de LOADING, para la ilusión de espera, LOL
+        StartCoroutine(BegingameAfterDelay());
     }
+
+    private Coroutine readyTimeoutCoroutine;
+    [SerializeField] private float readyTimeoutSeconds = 15f;
+
+
+    [Server]
+    private IEnumerator WaitPlayersOrAbort()
+    {
+        float deadline = Time.time + readyTimeoutSeconds;
+
+        while (Time.time < deadline)
+        {
+            if (isGameStarted) yield break;
+
+            var match = MatchHandler.Instance.GetMatch(matchId);
+            if (match == null) yield break;
+
+            // ¿ya están todos instanciados?
+            if (players.Count >= match.players.Count)
+                yield break;
+
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        Debug.LogWarning($"[GameManager] Timeout de {readyTimeoutSeconds}s esperando jugadores para {matchId}. Abortando partida.");
+        MatchHandler.Instance.AbortMatch(matchId, "timeout_waiting_players");
+
+        if (readyTimeoutCoroutine != null) { StopCoroutine(readyTimeoutCoroutine); readyTimeoutCoroutine = null; }
+    }
+
+
 
     #region BOT BOT BOT
 
@@ -784,220 +831,254 @@ public class GameManager : NetworkBehaviour
     {
         currentDecisionTime = 0;
 
-        foreach (var player in players)
+        #region 0) Antes de todo en ExecutionPhase, reseteo de UI
+        try
         {
-            player.RpcSetTargetIndicator(player, null);//Quitar targets marcados en los jugadores
-            player.RpcResetButtonHightLight();//Quitar Highlights en botones
-        }
-
-        //Prioridad a la accion cubrirse
-        foreach (var entry in actionsQueue)
-        {
-            if (entry.Value.type == ActionType.Cover)
+            foreach (var player in players)
             {
-                float probability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)]; //Disminuye la probabilidad de cobertura por cada uso
-
-                if (entry.Key.shieldBoostActivate) //Si se cumple la mision
-                {
-                    entry.Key.consecutiveCovers = 0; //Lo seteamos otra ves al 100%
-                    entry.Key.shieldBoostActivate = false;
-                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]);
-                }
-
-                if (UnityEngine.Random.value <= probability)
-                {
-                    entry.Key.isCovering = true; //Manejado por el serivdor
-                    entry.Key.RpcUpdateCover(true);
-                    entry.Key.PlayDirectionalAnimation("Cover");
-                    entry.Key.consecutiveCovers++;
-                    entry.Key.timesCovered++; //Sumar el contador de vecescubierto
-                    Debug.Log($"[SERVER] {entry.Key.playerName} se cubrió con éxito en el intento { entry.Key.consecutiveCovers}");
-                    entry.Key.RpcSendLogToClients($"{entry.Key.playerName} se cubrió con éxito en el intento {entry.Key.consecutiveCovers}");
-                }
-                else
-                {
-                    entry.Key.RpcPlayAnimation("CoverFail");
-                    Debug.Log($"[SERVER] {entry.Key.playerName} intento cubrirse, pero falló después del {entry.Key.consecutiveCovers + 1} intento");
-                    entry.Key.RpcSendLogToClients($"{entry.Key.playerName} intento cubrirse, pero falló después del {entry.Key.consecutiveCovers + 1} intento");
-                }
-                //El servidor envía la actualizacion de UI a cada cliente
-                float updatedProbability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)];
-                entry.Key.RpcUpdateCoverProbabilityUI(updatedProbability); //Actualizar UI de probabilidad de cubrirse
+                player.RpcSetTargetIndicator(player, null);//Quitar targets marcados en los jugadores
+                player.RpcResetButtonHightLight();//Quitar Highlights en botones
             }
-        }
+        }catch (Exception e) { Debug.LogWarning($"[GM] Exec.1(PreResetUI): {e}"); }
 
+        #endregion
+
+        #region 1) Try/Catch cover
+        try
+        {
+            //Prioridad a la accion cubrirse
+            foreach (var entry in actionsQueue)
+            {
+                if (entry.Value.type == ActionType.Cover)
+                {
+                    float probability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)]; //Disminuye la probabilidad de cobertura por cada uso
+
+                    if (entry.Key.shieldBoostActivate) //Si se cumple la mision
+                    {
+                        entry.Key.consecutiveCovers = 0; //Lo seteamos otra ves al 100%
+                        entry.Key.shieldBoostActivate = false;
+                        entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]);
+                    }
+
+                    if (UnityEngine.Random.value <= probability)
+                    {
+                        entry.Key.isCovering = true; //Manejado por el serivdor
+                        entry.Key.RpcUpdateCover(true);
+                        entry.Key.PlayDirectionalAnimation("Cover");
+                        entry.Key.consecutiveCovers++;
+                        entry.Key.timesCovered++; //Sumar el contador de vecescubierto
+                        Debug.Log($"[SERVER] {entry.Key.playerName} se cubrió con éxito en el intento {entry.Key.consecutiveCovers}");
+                        entry.Key.RpcSendLogToClients($"{entry.Key.playerName} se cubrió con éxito en el intento {entry.Key.consecutiveCovers}");
+                    }
+                    else
+                    {
+                        entry.Key.RpcPlayAnimation("CoverFail");
+                        Debug.Log($"[SERVER] {entry.Key.playerName} intento cubrirse, pero falló después del {entry.Key.consecutiveCovers + 1} intento");
+                        entry.Key.RpcSendLogToClients($"{entry.Key.playerName} intento cubrirse, pero falló después del {entry.Key.consecutiveCovers + 1} intento");
+                    }
+                    //El servidor envía la actualizacion de UI a cada cliente
+                    float updatedProbability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)];
+                    entry.Key.RpcUpdateCoverProbabilityUI(updatedProbability); //Actualizar UI de probabilidad de cubrirse
+                }
+            }
+        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.2(Cover): {e}"); }
+
+        #endregion
+
+        #region 2) Try/Catch shoot
         Dictionary<PlayerController, List<PlayerController>> targetToShooters = new();
 
-        foreach (var entry in actionsQueue)
+        try
         {
-            if (entry.Value.type == ActionType.Shoot || entry.Value.type == ActionType.SuperShoot)
+            foreach (var entry in actionsQueue)
             {
-                var shooter = entry.Key;
-                var target = entry.Value.target;
+                if (entry.Value.type == ActionType.Shoot || entry.Value.type == ActionType.SuperShoot)
+                {
+                    var shooter = entry.Key;
+                    var target = entry.Value.target;
 
-                if (target == null || !target.isAlive) continue;
+                    if (target == null || !target.isAlive) continue;
 
-                if (!targetToShooters.ContainsKey(target))
-                    targetToShooters[target] = new List<PlayerController>();
+                    if (!targetToShooters.ContainsKey(target))
+                        targetToShooters[target] = new List<PlayerController>();
 
-                targetToShooters[target].Add(shooter);
+                    targetToShooters[target].Add(shooter);
+                }
             }
-        }
+        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.3(TargetMap): {e}"); }
+
+        #endregion
 
         //Luego aplica "Recargar" y "Disparar"
         yield return new WaitForSeconds(0.7f); //Pausa antes del tiroteo
 
-        //Aplicar recarga o None...
-        foreach (var entry in actionsQueue)
+        #region 3) Try/Catch reload - none
+        try
         {
-            switch (entry.Value.type)
+            //Aplicar recarga o None...
+            foreach (var entry in actionsQueue)
             {
-                case ActionType.Reload:
-                    entry.Key.ServerReload();
-                    break;
-                /*case ActionType.Shoot:
-                    entry.Key.ServerAttemptShoot(entry.Value.target);
+                switch (entry.Value.type)
+                {
+                    case ActionType.Reload:
+                        entry.Key.ServerReload();
+                        break;
+                    case ActionType.None:
+                        entry.Key.RpcPlayAnimation("None");
+                        break;
+                }
+
+                //Recargar escudos si no te has cubierto
+                if (entry.Value.type == ActionType.Reload ||
+                    entry.Value.type == ActionType.Shoot ||
+                    entry.Value.type == ActionType.SuperShoot)
+                {
                     entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
-                    break;
-                case ActionType.SuperShoot:
-                    entry.Key.ServerAttemptShoot(entry.Value.target);
-                    entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
-                    entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
-                    break;*/
-                case ActionType.None:
-                    entry.Key.RpcPlayAnimation("None");
-                    break;
-            }
-
-            //Recargar escudos si no te has cubierto
-            if (entry.Value.type == ActionType.Reload ||
-                entry.Value.type == ActionType.Shoot ||
-                entry.Value.type == ActionType.SuperShoot)
-            {
-                entry.Key.consecutiveCovers = 0; //Reinicia la posibilidad de cobertura al máximo otra ves
-                entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
-            }
-        }
-
-        yield return new WaitForSeconds(0.7f); //Otra pausa pa' agregar tiempo
-
-        //Aplicar disparos
-        foreach (var target in targetToShooters.Keys)
-        {
-            List<PlayerController> shooters = targetToShooters[target];
-
-            // Ejecutar disparos reales de los jugadores que eligieron disparar.
-            // Si hay más de un jugador apuntando al mismo objetivo, solo el más cercano al Tiki ejecuta el disparo.
-            // Este es el punto donde realmente se aplica el daño (y eventualmente la muerte).
-            if (shooters.Count == 1)
-            {
-                shooters[0].canDealDamageThisRound = true;
-                shooters[0].ServerAttemptShoot(target);
-            }
-            else
-            {
-                PlayerController chosenShooter = GetClosestToTalisman(shooters);
-
-                foreach (var shooter in shooters)
-                {
-                    if (shooter == chosenShooter)
-                    {
-                        shooter.canDealDamageThisRound = true;
-                        shooter.ServerAttemptShoot(target);
-                        Debug.Log($"[Talisman] {chosenShooter.playerName} gana la prioridad para atacar a {target.playerName}"); //Los demás fallan el tiro pero no se muestra
-                    }
-                    else
-                    {
-                        // Jugadores que disparan, pero no hacen daño
-                        shooter.canDealDamageThisRound = false;
-                        shooter.ServerAttemptShoot(target);
-                    }
                 }
             }
-        }
-        
-        foreach (var player in players)
-        {
-            player.selectedAction = ActionType.None;
-
-            var mission = player.currentQuickMission;
-
-            if (player.hasQMRewardThisRound && !player.isBot)
-            {
-                player.hasQMRewardThisRound = false;
-                player.TargetPlayAnimation("QM_Reward_Exit");
-            }
-
-            if (mission != null && mission.assignedRound == currentRound)
-            {
-                bool success = EvaluateQuickMission(player, mission);
-
-                if (success)
-                {
-                    ApplyQuickMissionReward(mission.type, player);
-                    player.RpcSendLogToClients($"{player.playerName}¡Completaste tu misión rápida!");
-
-                    player.hasQMRewardThisRound= true;
-                }
-                else
-                {
-                    player.RpcSendLogToClients($"{player.playerName} Fallaste tu misión rápida.");
-                }
-
-                // SIEMPRE limpiamos la misión al final de la ronda
-                player.currentQuickMission = null;
-
-                string animSuffix = success ? "Reward" : "Exit";
-                string animName = $"QM_{animSuffix}_{mission.type}";
-
-                if (!player.isBot)
-                {
-                    player.TargetPlayAnimation(animName);
-                }
-            }
-        }
-
-        damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
-
-        CheckGameOver();
-
-        #region Registro de disparos para los BOTS
-
-        foreach (var shooter in players)
-        {
-            if (!actionsQueue.ContainsKey(shooter)) continue;
-            var action = actionsQueue[shooter];
-            if ((action.type == ActionType.Shoot || action.type == ActionType.SuperShoot) && action.target != null)
-            {
-                if (!recentAttackers.ContainsKey(action.target))
-                {
-                    recentAttackers[action.target] = new Queue<PlayerController>();
-                }
-
-                if (action.target != shooter && shooter.isAlive)
-                {
-                    recentAttackers[action.target].Enqueue(shooter);
-                    if (recentAttackers[action.target].Count > 5)
-                    {
-                        recentAttackers[action.target].Dequeue();
-                    }
-                }
-            }
-        }
+        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.4(Reload/None): {e}"); }
 
         #endregion
 
-        foreach (var player in players)
-        {
-            player.wasShotBlockedThisRound = false; //Limpiar el bool para poder volver a usar
+        yield return new WaitForSeconds(0.7f); //Otra pausa pa' agregar tiempo
 
-            if (!isGameOver && player.isAlive)
+        #region 4) Try/Catch aplicar disparos
+        try
+        {
+            //Aplicar disparos
+            foreach (var target in targetToShooters.Keys)
             {
-                // Mostrar la cuenta regresiva en todos los clientes
-                player.RpcShowCountdown(executionTime);
+                List<PlayerController> shooters = targetToShooters[target];
+
+                // Ejecutar disparos reales de los jugadores que eligieron disparar.
+                // Si hay más de un jugador apuntando al mismo objetivo, solo el más cercano al Tiki ejecuta el disparo.
+                // Este es el punto donde realmente se aplica el daño (y eventualmente la muerte).
+                if (shooters.Count == 1)
+                {
+                    shooters[0].canDealDamageThisRound = true;
+                    shooters[0].ServerAttemptShoot(target);
+                }
+                else
+                {
+                    PlayerController chosenShooter = GetClosestToTalisman(shooters);
+
+                    foreach (var shooter in shooters)
+                    {
+                        if (shooter == chosenShooter)
+                        {
+                            shooter.canDealDamageThisRound = true;
+                            shooter.ServerAttemptShoot(target);
+                            Debug.Log($"[Talisman] {chosenShooter.playerName} gana la prioridad para atacar a {target.playerName}"); //Los demás fallan el tiro pero no se muestra
+                        }
+                        else
+                        {
+                            // Jugadores que disparan, pero no hacen daño
+                            shooter.canDealDamageThisRound = false;
+                            shooter.ServerAttemptShoot(target);
+                        }
+                    }
+                }
             }
-        }
+        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.5(Shoots): {e}"); }
+
+        #endregion
+
+        #region 5) Try/Catch misión rápida / animaciones de cierre
+        try
+        {
+            foreach (var player in players)
+            {
+                player.selectedAction = ActionType.None;
+
+                var mission = player.currentQuickMission;
+
+                if (player.hasQMRewardThisRound && !player.isBot)
+                {
+                    player.hasQMRewardThisRound = false;
+                    player.TargetPlayAnimation("QM_Reward_Exit");
+                }
+
+                if (mission != null && mission.assignedRound == currentRound)
+                {
+                    bool success = EvaluateQuickMission(player, mission);
+
+                    if (success)
+                    {
+                        ApplyQuickMissionReward(mission.type, player);
+                        player.RpcSendLogToClients($"{player.playerName}¡Completaste tu misión rápida!");
+
+                        player.hasQMRewardThisRound = true;
+                    }
+                    else
+                    {
+                        player.RpcSendLogToClients($"{player.playerName} Fallaste tu misión rápida.");
+                    }
+
+                    // SIEMPRE limpiamos la misión al final de la ronda
+                    player.currentQuickMission = null;
+
+                    string animSuffix = success ? "Reward" : "Exit";
+                    string animName = $"QM_{animSuffix}_{mission.type}";
+
+                    if (!player.isBot)
+                    {
+                        player.TargetPlayAnimation(animName);
+                    }
+                }
+            }
+        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.6(QM): {e}"); }
+
+        #endregion
+
+        damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
+        CheckGameOver();
+
+        #region 6) Registro de disparos para los BOTS
+        try
+        {
+            foreach (var shooter in players)
+            {
+                if (!actionsQueue.ContainsKey(shooter)) continue;
+                var action = actionsQueue[shooter];
+                if ((action.type == ActionType.Shoot || action.type == ActionType.SuperShoot) && action.target != null)
+                {
+                    if (!recentAttackers.ContainsKey(action.target))
+                    {
+                        recentAttackers[action.target] = new Queue<PlayerController>();
+                    }
+
+                    if (action.target != shooter && shooter.isAlive)
+                    {
+                        recentAttackers[action.target].Enqueue(shooter);
+                        if (recentAttackers[action.target].Count > 5)
+                        {
+                            recentAttackers[action.target].Dequeue();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.7(BotMemory): {e}"); }
+
+        #endregion
+
+        #region 7) Try/Catch countdown de cierre
+        try
+        {
+            foreach (var player in players)
+            {
+                player.wasShotBlockedThisRound = false; //Limpiar el bool para poder volver a usar
+
+                if (!isGameOver && player.isAlive)
+                {
+                    // Mostrar la cuenta regresiva en todos los clientes
+                    player.RpcShowCountdown(executionTime);
+                }
+            }
+        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.8(Countdown): {e}"); }
+
+        #endregion
+
         yield return new WaitForSeconds(executionTime);
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
     }
@@ -1078,6 +1159,7 @@ public class GameManager : NetworkBehaviour
 
     private void CheckGameOver()
     {
+        if (isGameOver) return; //Evitamos seguir llamando esta función si ya acabo el juego para no seguir actualizando el startGameStatistics
         //Contar número de jugadores vivos
         int alivePlayers = players.Count(player => player.isAlive);
 
@@ -1386,13 +1468,13 @@ public class GameManager : NetworkBehaviour
 
     public void PlayerDisconnected(PlayerController player)
     {
-        if (players.Contains(player))
+        actionsQueue.Remove(player); // quita su acción si estaba registrada
+        recentAttackers.Remove(player); // no recordarlo como atacante
+        
+        players.Remove(player);
+        if (!deadPlayers.Contains(player))
         {
-            players.Remove(player);
-            if (!deadPlayers.Contains(player))
-            {
-                deadPlayers.Add(player); // Aquí está la clave
-            }
+            deadPlayers.Add(player); // Aquí está la clave
         }
 
         if (gameStatistic != null)

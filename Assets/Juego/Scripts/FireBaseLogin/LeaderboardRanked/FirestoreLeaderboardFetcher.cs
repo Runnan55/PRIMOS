@@ -6,7 +6,7 @@ using TMPro;
 using SimpleJSON;
 
 public class FirestoreLeaderboardFetcher : MonoBehaviour
-{
+{/*
     public static FirestoreLeaderboardFetcher Instance;
 
     public Transform contentContainer;
@@ -100,5 +100,5 @@ public class FirestoreLeaderboardFetcher : MonoBehaviour
     {
         public string name;
         public int points;
-    }
+    }*/
 }

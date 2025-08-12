@@ -542,7 +542,7 @@ public class PlayerController : NetworkBehaviour
         DetectSpawnPosition(transform.position); //Setear orientacion y posición usando la posición actual
     }
 
-    [Client]
+    [ClientCallback]
     private void Update()
     {
         if (!isOwned) return;

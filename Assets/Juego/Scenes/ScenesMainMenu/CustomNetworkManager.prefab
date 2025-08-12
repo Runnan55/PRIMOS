@@ -56,12 +56,12 @@ MonoBehaviour:
   onlineScene: Assets/Juego/Scenes/ScenesMainMenu/MainScene.unity
   offlineSceneLoadDelay: 0
   transport: {fileID: 233103716309713200}
-  networkAddress: localhost
-  maxConnections: 100
+  networkAddress: miniback.primos.games/ws
+  maxConnections: 120
   disconnectInactiveConnections: 0
   disconnectInactiveTimeout: 60
   authenticator: {fileID: 0}
-  playerPrefab: {fileID: 0}
+  playerPrefab: {fileID: 6611139386470013384, guid: c441ff5b0517a014e8348f7b835358dc, type: 3}
   autoCreatePlayer: 0
   playerSpawnMethod: 1
   spawnPrefabs:
@@ -86,7 +86,6 @@ MonoBehaviour:
   timeInterpolationGui: 0
   roomPlayerPrefab: {fileID: 6960753788626952187, guid: a1b3bd588019ab344b680c80824c2a78, type: 3}
   gameManagerPrefab: {fileID: 1813321752748107178, guid: 84876c097daff814691f6a043e7330d1, type: 3}
-  playerControllerPrefab: {fileID: 6611139386470013384, guid: 0ff601bcb83d8344685798401727d690, type: 3}
 --- !u!114 &233103716309713200
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -103,19 +102,19 @@ MonoBehaviour:
   maxHandshakeSize: 16384
   serverMaxMsgsPerTick: 10000
   clientMaxMsgsPerTick: 1000
-  sendTimeout: 5000
-  receiveTimeout: 20000
+  sendTimeout: 20000
+  receiveTimeout: 300000
   noDelay: 1
   sslEnabled: 0
   sslProtocols: 3072
   sslCertJson: ./cert.json
-  port: 27777
+  port: 2777
   batchSend: 1
   waitBeforeSend: 1
-  clientUseWss: 0
+  clientUseWss: 1
   clientWebsocketSettings:
-    ClientPortOption: 0
-    CustomClientPort: 7777
+    ClientPortOption: 2
+    CustomClientPort: 443
   minimumLogLevel: 3
 --- !u!114 &3316401913925202819
 MonoBehaviour:
@@ -124,7 +123,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3124671724160179898}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6442dc8070ceb41f094e44de0bf87274, type: 3}
   m_Name: 

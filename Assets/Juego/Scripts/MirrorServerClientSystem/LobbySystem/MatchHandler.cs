@@ -271,6 +271,7 @@ public class MatchHandler : NetworkBehaviour
         GameManager gmInstance = Instantiate(gameManagerPrefab);
         gmInstance.matchId = match.matchId;
         gmInstance.playerControllerPrefab = NetworkManager.singleton.playerPrefab;
+        gmInstance.mode = match.mode; // Setea el modo de juego para que GameManager lo sepa 
 
         NetworkServer.Spawn(gmInstance.gameObject);
         SceneManager.MoveGameObjectToScene(gmInstance.gameObject, matchScene);
@@ -536,4 +537,25 @@ public class MatchHandler : NetworkBehaviour
     }
 
     #endregion
+
+    [Server]
+    public void AbortMatch(string matchId, string reason = "")
+    {
+        if (!matches.TryGetValue(matchId, out var match)) return;
+
+        Debug.LogWarning($"[MatchHandler] Abortando match {matchId}. Razón: {reason}");
+
+        // 1) Enviar a todos los jugadores al MainMenu
+        foreach (var rp in match.players.ToArray())
+        {
+            if (rp != null && rp.connectionToClient != null)
+            {
+                // Reset mínimo de estado de sala
+                rp.isPlayingNow = false;
+                rp.currentMatchId = "";
+                rp.TargetReturnToMainMenu(rp.connectionToClient);
+            }
+        }
+    }
+
 }

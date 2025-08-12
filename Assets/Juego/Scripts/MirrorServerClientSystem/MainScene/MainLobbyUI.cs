@@ -6,6 +6,7 @@ using System.Collections;
 using TMPro;
 using Unity.VisualScripting;
 using System;
+using SimpleJSON;
 
 public class MainLobbyUI : MonoBehaviour
 {
@@ -51,6 +52,12 @@ public class MainLobbyUI : MonoBehaviour
     public GameObject leaderboardPanel;
     public Button leaderboardBtn;
     public Button btnBackLeaderboard;
+
+    public Transform leaderboardContentContainer;
+    public GameObject leaderboardRankedEntryPrefab;
+    public GameObject localPlayerRankedEntry;
+
+    private string _serverLeaderboardJson; // buffer para la respuesta del server
 
     [Header("Ticket y Llaves")]
     [SerializeField] private TMP_Text ticketText;
@@ -364,7 +371,8 @@ public class MainLobbyUI : MonoBehaviour
     {
         AudioManager.Instance.PlaySFX("Clic");
         leaderboardPanel.SetActive(true);
-        StartCoroutine(FirestoreLeaderboardFetcher.Instance.FetchAndDisplayLeaderboard());
+        //StartCoroutine(FirestoreLeaderboardFetcher.Instance.FetchAndDisplayLeaderboard());
+        StartCoroutine(FetchAndDisplayLeaderboard());
     }
 
     private void HideLeaderboardPanel()
@@ -373,7 +381,80 @@ public class MainLobbyUI : MonoBehaviour
         leaderboardPanel.SetActive(false);
     }
 
+    // Llamada desde TargetReceiveLeaderboard en el server
+    public void OnServerLeaderboardJson(string json)
+    {
+        _serverLeaderboardJson = json;
+    }
+
+    // === LA FUNCIÓN ÚNICA QUE HACE TODO ===
+    public IEnumerator FetchAndDisplayLeaderboard()
+    {
+        // 1) Pedir al server
+        _serverLeaderboardJson = null;
+        CustomRoomPlayer.LocalInstance?.CmdFetchLeaderboard();
+
+        // 2) Esperar respuesta (timeout de cortesía)
+        float t = 0f, timeout = 10f;
+        while (_serverLeaderboardJson == null && t < timeout)
+        {
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        if (_serverLeaderboardJson == null)
+        {
+            Debug.LogWarning("[Leaderboard] Timeout esperando datos del server.");
+            yield break;
+        }
+
+        // 3) Parsear JSON y pintar UI
+        var arr = JSON.Parse(_serverLeaderboardJson)?.AsArray;
+        var users = new List<(string name, int points)>();
+        if (arr != null)
+        {
+            foreach (var n in arr)
+            {
+                var v = n.Value;
+                users.Add((v["name"], v["points"].AsInt));
+            }
+        }
+
+        foreach (Transform child in leaderboardContentContainer)
+            Destroy(child.gameObject);
+
+        for (int i = 0; i < users.Count; i++)
+        {
+            var go = Instantiate(leaderboardRankedEntryPrefab, leaderboardContentContainer);
+            var ui = go.GetComponent<LeaderboardEntryUI>();
+            if (ui != null) ui.SetEntry(i + 1, users[i].name, users[i].points);
+        }
+
+        // Tu fila (como antes: solo si entras en el Top-100; si no, “No Rank”)
+        if (localPlayerRankedEntry != null)
+        {
+            string localName = nameInputField?.text?.Trim();
+            var ui = localPlayerRankedEntry.GetComponent<LeaderboardEntryUI>();
+            if (ui != null)
+            {
+                int idx = users.FindIndex(u => u.name.Trim()
+                    .Equals(localName, StringComparison.OrdinalIgnoreCase));
+                if (idx != -1)
+                {
+                    localPlayerRankedEntry.SetActive(true);
+                    ui.SetEntry(idx + 1, users[idx].name, users[idx].points);
+                }
+                else
+                {
+                    localPlayerRankedEntry.SetActive(true);
+                    ui.SetEntry(-1, string.IsNullOrEmpty(localName) ? "You" : localName + " (No Rank)", 0);
+                }
+            }
+        }
+    }
+
     #endregion
+
+
 
     #region Ticket
 

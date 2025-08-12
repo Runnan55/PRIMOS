@@ -55,10 +55,18 @@
             font-size: 18px;
             z-index: 10;
         }
+
+        /* Hide OS cursor everywhere in the page/canvas */
+        html, body,
+        #unity-container, #unity-container canvas,
+        #unity-canvas {
+            cursor: none !important;
+        }
+
     </style>
 </head>
 
-<!-- 👇 Cambia aquí la posición: position-top | position-middle | position-bottom -->
+<!-- Cambia aquí la posición: position-top | position-middle | position-bottom -->
 <body class="position-custom">
     <div id="loading-bar"><div id="progress-bar"></div></div>
     <div id="loading-text">Loading...</div>

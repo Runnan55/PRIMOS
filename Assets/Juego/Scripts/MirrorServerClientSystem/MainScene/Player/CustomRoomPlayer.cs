@@ -207,35 +207,6 @@ public class CustomRoomPlayer : NetworkBehaviour
             MoveToLobbyScene(mode);
         }
     }
-    /*
-    private IEnumerator DelayedTicketValidation(string uid, NetworkConnectionToClient conn)
-    {
-        float timeout = 3f;
-        float elapsed = 0f;
-
-        // Espera activa para asegurar que la sincronización haya ocurrido
-        while ((syncedTickets <= 0 || !AccountManager.Instance.HasDataFor(conn)) && elapsed < timeout)
-        {
-            yield return new WaitForSeconds(0.1f);
-            elapsed += 0.1f;
-        }
-
-        Debug.Log($"[CustomRoomPlayer] Tickets tras espera: {syncedTickets} para UID: {uid}");
-
-        yield return FirebaseServerClient.CheckTicketAvailable(uid, hasTicket =>
-        {
-            if (!hasTicket)
-            {
-                Debug.LogWarning($"[CustomRoomPlayer] Ticket desincronizado. Expulsando al UID: {uid} (syncedTickets local = {syncedTickets})");
-                TargetReturnToMainMenu(conn);
-            }
-            else
-            {
-                Debug.Log($"[CustomRoomPlayer] Ticket confirmado remotamente para UID: {uid}");
-            }
-        });
-    }*/
-
 
     [Command]
     public void CmdSyncWalletFromClient(int tickets, int keys)
@@ -351,7 +322,8 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         if (isLocalPlayer)
         {
-            CustomSceneInterestManager.Instance.RegisterPlayer(NetworkClient.connection, currentMatchId); // Asignar escena real
+            //CustomSceneInterestManager.Instance.RegisterPlayer(NetworkClient.connection, currentMatchId); // Asignar escena real
+            CmdRegisterSceneInterest(currentMatchId);
         }
 
         CmdNotifySceneReady();
@@ -366,31 +338,44 @@ public class CustomRoomPlayer : NetworkBehaviour
         if (identity != null)
         {
             identity.sceneId = 0;
+
             NetworkServer.RebuildObservers(identity, true);
         }
 
         Debug.Log($"[SERVER] Cliente {playerName} avisó que cargó GameScene");
 
-        // Avisar al GameManager de su escena que hay un nuevo jugador listo
+        // Buscar el GameManager de la partida
         MatchInfo match = MatchHandler.Instance.GetMatch(currentMatchId);
         if (match != null)
         {
             Scene gameScene = SceneManager.GetSceneByName(match.sceneName);
             if (gameScene.IsValid())
             {
+                GameManager gm = null;
+
                 foreach (var go in gameScene.GetRootGameObjects())
                 {
-                    GameManager gm = go.GetComponent<GameManager>();
+                    gm = go.GetComponent<GameManager>();
                     if (gm != null)
                     {
                         gm.OnPlayerSceneReady(this);
                         break;
                     }
                 }
+
+                // Reconstruir observers de toda la escena para este cliente
+                foreach (var go in gameScene.GetRootGameObjects())
+                {
+                    foreach (var netId in go.GetComponentsInChildren<NetworkIdentity>(true))
+                    {
+                        NetworkServer.RebuildObservers(netId, true);
+                    }
+                }
             }
         }
     }
-        
+
+
     [Command]
     public void CmdKickPlayer(string targetPlayerId)
     {
@@ -603,13 +588,10 @@ public class CustomRoomPlayer : NetworkBehaviour
     [Command]
     public void CmdRequestTicketAndKeyStatus()
     {
-        if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
+        if (!AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
         {
-            string uid = creds.uid;
-        }
-        else
-        {
-            Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
+            Debug.LogWarning("[CustomRoomPlayer] No UID.");
+            return;
         }
 
         StartCoroutine(FirebaseServerClient.FetchTicketAndKeyInfoFromWallet(creds.uid, (tickets, keys) =>
@@ -624,13 +606,10 @@ public class CustomRoomPlayer : NetworkBehaviour
     [Command]
     public void CmdTryConsumeTicket()
     {
-        if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
-        {
-            string uid = creds.uid;
-        }
-        else
+        if (!AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
         {
             Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
+            return;
         }
 
         StartCoroutine(FirebaseServerClient.TryConsumeTicket(creds.uid, success =>
@@ -642,13 +621,10 @@ public class CustomRoomPlayer : NetworkBehaviour
     [Command]
     public void CmdGrantBasicKeyToPlayer()
     {
-        if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
-        {
-            string uid = creds.uid;
-        }
-        else
+        if (!AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
         {
             Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
+            return;
         }
 
         StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(creds.uid, success =>
@@ -667,6 +643,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         else
         {
             Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
+            return;
         }
 
         StartCoroutine(FirebaseServerClient.UpdateRankedPoints(creds.uid, newPoints, success =>
@@ -742,6 +719,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         else
         {
             Debug.LogWarning("[CustomRoomPlayer] No se encontró UID para actualizar nickname.");
+            return;
         }
     }
 
@@ -752,6 +730,94 @@ public class CustomRoomPlayer : NetworkBehaviour
         if (nicknameUI != null)
         {
             nicknameUI.nicknameInput.text = nickname;
+        }
+    }
+
+    #endregion
+
+    #region FocusResync resincronizar al Alt + Tab
+
+    [Command]
+    public void CmdRequestResyncObservers()
+    {
+        var conn = connectionToClient;
+        if (conn == null || string.IsNullOrEmpty(currentMatchId)) return;
+
+        var im = CustomSceneInterestManager.Instance;
+        var match = MatchHandler.Instance.GetMatch(currentMatchId);
+        if (im == null || match == null) return;
+
+        // 1) Reafirmar SIEMPRE el mapeo (por si el diccionario se limpió)
+        im.RegisterPlayer(conn, match.sceneName);
+
+        // 2) Ready si hiciera falta
+        if (!conn.isReady) NetworkServer.SetClientReady(conn);
+
+        // 3) Asegura que el CRP esté en la escena real de la partida
+        var scene = SceneManager.GetSceneByName(match.sceneName);
+        if (scene.IsValid() && gameObject.scene != scene)
+            SceneManager.MoveGameObjectToScene(gameObject, scene);
+
+        // 4) Rebuild observers de todos los NetworkIdentity de esa escena
+        foreach (var ni in NetworkServer.spawned.Values.ToArray())
+        {
+            if (ni != null && ni.gameObject.scene == scene)
+                NetworkServer.RebuildObservers(ni, initialize: false);
+        }
+    }
+
+    #endregion
+
+    #region Update LeaderboardRanked
+
+    [Command]
+    public void CmdFetchLeaderboard()
+    {
+        if (!AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
+        {
+            Debug.LogWarning("[SERVER] No UID para leaderboard.");
+            return;
+        }
+
+        StartCoroutine(FirebaseServerClient.FetchTop100Leaderboard(creds.uid, json =>
+        {
+            TargetReceiveLeaderboard(connectionToClient, json);
+        }));
+    }
+
+    [TargetRpc]
+    public void TargetReceiveLeaderboard(NetworkConnection target, string json)
+    {
+        var ui = FindFirstObjectByType<MainLobbyUI>();
+        ui?.OnServerLeaderboardJson(json);
+    }
+
+    [Command]
+    public void CmdRegisterSceneInterest(string realSceneName)
+    {
+        var im = CustomSceneInterestManager.Instance;
+        if (im == null) return;
+
+        // 1) Vincula SIEMPRE esta conexión con la escena real
+        im.RegisterPlayer(connectionToClient, realSceneName);
+
+        // 2) Asegura Ready (no hagas NotReady nunca aquí)
+        if (!connectionToClient.isReady)
+            NetworkServer.SetClientReady(connectionToClient);
+
+        // 3) Mueve el CustomRoomPlayer a la escena real (clave para OnCheckObserver)
+        var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(realSceneName);
+        if (scene.IsValid() && gameObject.scene != scene)
+            SceneManager.MoveGameObjectToScene(gameObject, scene);
+
+        // 4) Rebuild solo de los objetos de esa escena
+        if (scene.IsValid())
+        {
+            foreach (var ni in Mirror.NetworkServer.spawned.Values)
+            {
+                if (ni != null && ni.gameObject.scene == scene)
+                    Mirror.NetworkServer.RebuildObservers(ni, false);
+            }
         }
     }
 

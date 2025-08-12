@@ -930,6 +930,9 @@ MonoBehaviour:
   leaderboardPanel: {fileID: 1170356448}
   leaderboardBtn: {fileID: 1887208667}
   btnBackLeaderboard: {fileID: 1469872659}
+  leaderboardContentContainer: {fileID: 2096158482}
+  leaderboardRankedEntryPrefab: {fileID: 411019413239122484, guid: b5d7510c2b5e0e241b97f5209177336f, type: 3}
+  localPlayerRankedEntry: {fileID: 1821150506}
   ticketText: {fileID: 1798433580}
   keyText: {fileID: 94288274}
 --- !u!4 &186979933
