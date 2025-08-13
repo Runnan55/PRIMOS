@@ -64,9 +64,9 @@ public class PlayerController : NetworkBehaviour
     public GameObject targetIndicator; //Indicador visual de objetivo elegido
     public GameObject localPlayerIndicator; //Indicador visual de tu jugador
 
-    [Header("Crosshair")]
+    /*[Header("Crosshair")]
     public GameObject crosshairPrefab; //Prefab de la mirilla
-    private GameObject crosshairInstance; //Instancia que crea el script cuando seleccionamos disparar
+    private GameObject crosshairInstance; //Instancia que crea el script cuando seleccionamos disparar*/
 
     public TMP_Text healthText;
     public TMP_Text ammoText;
@@ -481,11 +481,12 @@ public class PlayerController : NetworkBehaviour
         lastPressedButton = ActionType.None;
         isAiming = false;
 
-        if (crosshairInstance)
+        /*if (crosshairInstance)
         {
             Destroy(crosshairInstance);
             crosshairInstance = null;
-        }
+        }*/
+        CursorSetup.I?.UsePinkCursor();
 
         CmdRegisterAction(ActionType.None, null); //Registramos NONE
         ResetButtonHighlightLocally(); // Método local, no RPC
@@ -549,17 +550,18 @@ public class PlayerController : NetworkBehaviour
 
         if (!clientDecisionPhase)
         {
-            if (isAiming && crosshairInstance)
+            if (isAiming /*&& crosshairInstance*/)
             {
-                Destroy(crosshairInstance);
-                crosshairInstance = null;
+                /*Destroy(crosshairInstance);
+                crosshairInstance = null;*/
+                CursorSetup.I?.UsePinkCursor();
             }
 
             isAiming = false;
             selectedAction = ActionType.None;
             return;
         }
-
+        /*
         //Mover mirilla con mouse
         if (isAiming && crosshairInstance)
         {
@@ -567,7 +569,7 @@ public class PlayerController : NetworkBehaviour
             mousePosition.z = 0;
             crosshairInstance.transform.position = mousePosition;
             Cursor.visible = false; // Ocultamos el cursor original
-        }
+        }*/
 
         //Detectar clics para seleccionar enemigos o cancelar apuntado
         if (Input.GetMouseButtonDown(0))
@@ -598,7 +600,8 @@ public class PlayerController : NetworkBehaviour
                         Debug.Log($"Objetivo seleccionado: {clickedPlayer.playerName}");
                         CmdRegisterAction(ActionType.SuperShoot, clickedPlayer);
                     }
-                    Destroy(crosshairInstance);
+                    //Destroy(crosshairInstance);
+                    CursorSetup.I?.UsePinkCursor();
                     isAiming = false;
                     selectedAction = ActionType.None;
                     //ResetButtonHighlightLocally();
@@ -1046,13 +1049,14 @@ public class PlayerController : NetworkBehaviour
         isAiming = true;
         selectedAction = ActionType.Shoot;
 
-        if (crosshairPrefab && crosshairInstance == null)
+        /*if (crosshairPrefab && crosshairInstance == null)
         {
             crosshairInstance = Instantiate(crosshairPrefab);
             Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             mousePosition.z = 0;
             crosshairInstance.transform.position = mousePosition; // <- ¡esto evita que se vea en el centro!
-        }
+        }*/
+        CursorSetup.I?.UseCrosshairCursor();
 
         HighlightButton(shootButton);//Resaltar botón
     }
@@ -1065,13 +1069,14 @@ public class PlayerController : NetworkBehaviour
         isAiming = true;
         selectedAction = ActionType.SuperShoot;
 
-        if (crosshairPrefab && crosshairInstance == null)
+        /*if (crosshairPrefab && crosshairInstance == null)
         {
             crosshairInstance = Instantiate(crosshairPrefab);
             Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             mousePosition.z = 0;
             crosshairInstance.transform.position = mousePosition; // <- ¡esto evita que se vea en el centro!
-        }
+        }*/
+        CursorSetup.I?.UseCrosshairCursor();
 
         HighlightButton(superShootButton);
     }
@@ -1201,11 +1206,12 @@ public class PlayerController : NetworkBehaviour
     {
         if (!isLocalPlayer && !isOwned) return;
 
-        if (crosshairInstance != null)
+        /*if (crosshairInstance != null)
         {
             Destroy(crosshairInstance);
             crosshairInstance = null;
-        }
+        }*/
+        CursorSetup.I?.UsePinkCursor();
 
         isAiming = false;
         selectedAction = ActionType.None;

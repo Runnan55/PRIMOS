@@ -3524,8 +3524,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0daae3ea4982d3443a34bde83eee689d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  customCursorTexture: {fileID: 2800000, guid: 2997f06b2b877f3459ae2970f7868e82, type: 3}
-  hotspot: {x: 0, y: 0}
+  pinkCursor: {fileID: 2800000, guid: 2997f06b2b877f3459ae2970f7868e82, type: 3}
+  pinkHotspot: {x: 0, y: 0}
+  crosshairCursor: {fileID: 2800000, guid: c9e87ee4814419145a05869c72e8cdad, type: 3}
+  crosshairHotspot: {x: 0, y: 0}
 --- !u!1 &917712026
 GameObject:
   m_ObjectHideFlags: 0
