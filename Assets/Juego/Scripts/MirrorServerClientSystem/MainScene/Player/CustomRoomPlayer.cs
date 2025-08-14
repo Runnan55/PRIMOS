@@ -136,7 +136,7 @@ public class CustomRoomPlayer : NetworkBehaviour
 
     private IEnumerator ResetReadyAfterDelay()
     {
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSecondsRealtime(1f);
         isReady = false;
     }
 

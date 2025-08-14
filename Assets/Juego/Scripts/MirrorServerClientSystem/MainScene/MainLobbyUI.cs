@@ -120,7 +120,7 @@ public class MainLobbyUI : MonoBehaviour
         
         while (true)
         {
-            yield return new WaitForSeconds(5f);
+            yield return new WaitForSecondsRealtime(5f);
             CustomRoomPlayer.LocalInstance.CmdRequestTicketAndKeyStatus();
         }
     }
@@ -293,42 +293,14 @@ public class MainLobbyUI : MonoBehaviour
 
     public void OnRankedTimeForPlay()
     {
-        /*if (rankedButton != null)
-            rankedButton.interactable = true;
-
-        if (missingTime != null)
-            missingTime.SetActive(false);
-
-        if (timeRemainingForPlay != null)
-            timeRemainingForPlay.SetActive(true);*/
         isRankedTimeAvailable = true;
         UpdateRankedButtonState();
     }
 
     public void OnRankedTimerFinished()
     {
-        /*if (rankedButton != null)
-            rankedButton.interactable = false;
-
-        if (missingTime != null)
-            missingTime.SetActive(true);
-
-        if (timeRemainingForPlay != null)
-            timeRemainingForPlay.SetActive(false);*/
         isRankedTimeAvailable = false;
         UpdateRankedButtonState();
-    }
-
-    public void UpdateCountdownToEvent(TimeSpan remaining)
-    {
-        if (countdownText != null)
-            countdownText.text = $"{remaining.Days}d {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
-    }
-
-    public void UpdateRankedRemainingTime(TimeSpan remaining)
-    {
-        if (rankedRemainingText != null)
-            rankedRemainingText.text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
     }
 
     private void UpdateRankedButtonState()
@@ -354,7 +326,19 @@ public class MainLobbyUI : MonoBehaviour
         {
             youDontHaveTicket.SetActive(true);
         }
-        
+
+    }
+
+    public void UpdateCountdownToEvent(TimeSpan remaining)
+    {
+        if (countdownText != null)
+            countdownText.text = $"{remaining.Days}d {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+    }
+
+    public void UpdateRankedRemainingTime(TimeSpan remaining)
+    {
+        if (rankedRemainingText != null)
+            rankedRemainingText.text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
     }
 
     #endregion
@@ -454,8 +438,6 @@ public class MainLobbyUI : MonoBehaviour
 
     #endregion
 
-
-
     #region Ticket
 
     public void UpdateTicketAndKeyDisplay(int tickets, int keys)
@@ -468,18 +450,13 @@ public class MainLobbyUI : MonoBehaviour
         UpdateRankedButtonState();
     }
 
-    /*public void RequestTicketStatusFromServer()
-    {
-        CustomRoomPlayer.LocalInstance?.CmdRequestTicketAndKeyStatus();
-    }*/
-
     private IEnumerator RequestTicketStatusFromServerPeriodically()
     {
         CustomRoomPlayer.LocalInstance?.CmdRequestTicketAndKeyStatus();
 
         while (true)
         {
-            yield return new WaitForSeconds(5f);
+            yield return new WaitForSecondsRealtime(5f);
         }
     }
 

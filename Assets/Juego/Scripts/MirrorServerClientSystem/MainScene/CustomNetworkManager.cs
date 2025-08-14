@@ -49,7 +49,7 @@ public class CustomNetworkManager : NetworkManager
 
     private IEnumerator LoadLobbyScenesWithDelay()
     {
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSecondsRealtime(0.1f);
 
         SceneManager.LoadSceneAsync("LobbySceneCasual", LoadSceneMode.Additive);
         SceneManager.LoadSceneAsync("LobbySceneRanked", LoadSceneMode.Additive);

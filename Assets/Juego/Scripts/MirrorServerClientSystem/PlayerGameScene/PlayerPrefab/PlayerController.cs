@@ -227,7 +227,7 @@ public class PlayerController : NetworkBehaviour
 
     private IEnumerator DestroyMe()
     {
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSecondsRealtime(1f);
         NetworkServer.Destroy(gameObject);
     }
 
@@ -1112,17 +1112,17 @@ public class PlayerController : NetworkBehaviour
         countdownText.gameObject.SetActive(true); // Mostrar el texto en pantalla
 
         float waitTime = executionTime - 3f; // Esperar hasta los últimos 3 segundos
-        yield return new WaitForSeconds(waitTime);
+        yield return new WaitForSecondsRealtime(waitTime);
 
         // Últimos 3 segundos
         countdownText.text = "Ready\n3";
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSecondsRealtime(1f);
 
         countdownText.text = "Set\n2";
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSecondsRealtime(1f);
 
         countdownText.text = "Go!\n1";
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSecondsRealtime(1f);
 
         countdownText.text = "";
 
@@ -1469,7 +1469,7 @@ public class PlayerController : NetworkBehaviour
 
     private IEnumerator DelayedPlayStunnedAnimation()
     {
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSecondsRealtime(1f);
 
         if (!isAlive)
         {

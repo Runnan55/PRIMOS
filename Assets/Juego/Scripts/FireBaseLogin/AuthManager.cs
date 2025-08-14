@@ -411,7 +411,7 @@ public class AuthManager : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(3300f); // ~55 min
+            yield return new WaitForSecondsRealtime(3300f); // ~55 min
 
             string url = "https://securetoken.googleapis.com/v1/token?key=" + firebaseWebAPIKey;
 
@@ -466,7 +466,7 @@ public class AuthManager : MonoBehaviour
 
     private IEnumerator ConnectToMirrorServerAfterDelay()
     {
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSecondsRealtime(1f);
 
         if (!NetworkClient.active)
         {
@@ -659,7 +659,7 @@ public class AuthManager : MonoBehaviour
 
     private IEnumerator DelayerShowLoginPanel()
     {
-        yield return new WaitForSeconds(1f);
+        yield return new WaitForSecondsRealtime(1f);
         AudioManager.Instance.PlayMusic("OfflineTheme");
         ShowLoginPanel();
         isLoggingOut = false;

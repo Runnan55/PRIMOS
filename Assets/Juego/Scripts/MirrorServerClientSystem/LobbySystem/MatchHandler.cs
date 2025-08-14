@@ -426,7 +426,7 @@ public class MatchHandler : NetworkBehaviour
             // Actualiza la UI en todos los jugadores de ese modo
             UpdateCountdownUIForMode(mode, seconds);
 
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSecondsRealtime(1f);
             seconds--;
 
             // Verifica si llegaron a 6 para empezar ya

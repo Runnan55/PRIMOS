@@ -113,17 +113,21 @@ public class GameManager : NetworkBehaviour
 
     private void IdentifyVeryHealthy()
     {
-        if (players.Count == 0 || SelectedModifier != GameModifierType.CaceriaDelLider) return;
-
-        int maxHealth = players.Max(player => player.health); //Buscar la mayor cantidad de vida
-
-        veryHealthy = players.Where(player => player.health == maxHealth).ToList(); //Filtrar los que tienen vida maxima
-
-        foreach (var player in players)
+        try
         {
-            bool shouldBeHealthy = veryHealthy.Contains(player);
-            player.isVeryHealthy = shouldBeHealthy;
+            if (players.Count == 0 || SelectedModifier != GameModifierType.CaceriaDelLider) return;
+
+            int maxHealth = players.Max(player => player.health); //Buscar la mayor cantidad de vida
+
+            veryHealthy = players.Where(player => player.health == maxHealth).ToList(); //Filtrar los que tienen vida maxima
+
+            foreach (var player in players)
+            {
+                bool shouldBeHealthy = veryHealthy.Contains(player);
+                player.isVeryHealthy = shouldBeHealthy;
+            }
         }
+        catch (Exception e) { Debug.LogError($"[GM] IdentifyVeryHealthy() fallo: {e}"); }
     }
 
     void OnDisable()
@@ -332,7 +336,7 @@ public class GameManager : NetworkBehaviour
             if (players.Count >= match.players.Count)
                 yield break;
 
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSecondsRealtime(0.5f);
         }
 
         Debug.LogWarning($"[GameManager] Timeout de {readyTimeoutSeconds}s esperando jugadores para {matchId}. Abortando partida.");
@@ -423,8 +427,6 @@ public class GameManager : NetworkBehaviour
     [Server]
     private IEnumerator BegingameAfterDelay()
     {
-        //yield return new WaitForSeconds(3f); //Tiempo de carga falsa
-
         if (gameStatistic != null)
         {
             gameStatistic.Initialize(players);
@@ -438,7 +440,6 @@ public class GameManager : NetworkBehaviour
         if (talismanHolder != null)
         {
             talismanHolderNetId = talismanHolder.netId;
-            //RpcSpawnTalisman(talismanHolder.netId);
 
             // Simular una ronda previa de Tiki para establecer prioridad de disparo desde el inicio
             tikiHistory.Clear();
@@ -504,7 +505,7 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator RoundCycle()
     {
-        yield return new WaitForSeconds(0.1f);
+        yield return new WaitForSecondsRealtime(0.1f);
 
         while (true)
         {
@@ -576,28 +577,39 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    [Server]
     #endregion
+
+    [Server]
     private IEnumerator DecisionPhase()
     {
-        AdvanceTalisman();
-        UpdateTikiVisual(talismanHolder);
+        try
+        {
+            AdvanceTalisman();
+            UpdateTikiVisual(talismanHolder);
+        }
+        catch (Exception e) { Debug.LogWarning($"[GM] Decision.1(Talisman/Visual): {e}"); }
 
         isDecisionPhase = true;
 
-        foreach (var p in players)
+        try
         {
-            p.clientDecisionPhase = true;
+            foreach (var p in players)
+                p.clientDecisionPhase = true;
         }
+        catch (Exception e) { Debug.LogWarning($"[GM] Decision.2(SetClientFlag): {e}"); }
 
         currentRound++;
 
-        foreach (var player in players.Concat(deadPlayers))
+        try
         {
-            player.syncedRound = currentRound;
-            player.canDealDamageThisRound = true;
-            player.hasDamagedAnotherPlayerThisRound = false;
+            foreach (var player in players.Concat(deadPlayers))
+            {
+                player.syncedRound = currentRound;
+                player.canDealDamageThisRound = true;
+                player.hasDamagedAnotherPlayerThisRound = false;
+            }
         }
+        catch (Exception e) { Debug.LogWarning($"[GM] Decision.3(InitPlayers): {e}"); }
 
         if (SelectedModifier == GameModifierType.CaceriaDelLider)
         {
@@ -643,7 +655,7 @@ public class GameManager : NetworkBehaviour
             }
         }
 
-        yield return new WaitForSeconds(0.1f); //Esperar que se actualize la lista de los jugadores
+        yield return new WaitForSecondsRealtime(0.1f); //Esperar que se actualize la lista de los jugadores
 
         foreach (var player in players)
         {
@@ -785,13 +797,15 @@ public class GameManager : NetworkBehaviour
 
         while (currentDecisionTime > 0)
         {
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSecondsRealtime(1f);
             currentDecisionTime = Mathf.Max(0, currentDecisionTime - 1);
 
-            foreach (var player in players.Concat(deadPlayers))
+            try
             {
-                player.syncedTimer = currentDecisionTime;
+                foreach (var player in players.Concat(deadPlayers))
+                    player.syncedTimer = currentDecisionTime;
             }
+            catch (Exception e) { Debug.LogWarning($"[GM] Decision.9(UpdateTimers): {e}"); }
         }
 
         isDecisionPhase = false;
@@ -823,7 +837,7 @@ public class GameManager : NetworkBehaviour
             }
         }
 
-        yield return new WaitForSeconds(0.5f);//Tiempo para que se ejecute la animación
+        yield return new WaitForSecondsRealtime(0.5f);//Tiempo para que se ejecute la animación
     }
 
     [Server]
@@ -910,7 +924,7 @@ public class GameManager : NetworkBehaviour
         #endregion
 
         //Luego aplica "Recargar" y "Disparar"
-        yield return new WaitForSeconds(0.7f); //Pausa antes del tiroteo
+        yield return new WaitForSecondsRealtime(0.7f); //Pausa antes del tiroteo
 
         #region 3) Try/Catch reload - none
         try
@@ -941,7 +955,7 @@ public class GameManager : NetworkBehaviour
 
         #endregion
 
-        yield return new WaitForSeconds(0.7f); //Otra pausa pa' agregar tiempo
+        yield return new WaitForSecondsRealtime(0.7f); //Otra pausa pa' agregar tiempo
 
         #region 4) Try/Catch aplicar disparos
         try
@@ -1079,7 +1093,7 @@ public class GameManager : NetworkBehaviour
 
         #endregion
 
-        yield return new WaitForSeconds(executionTime);
+        yield return new WaitForSecondsRealtime(executionTime);
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
     }
 
@@ -1201,7 +1215,7 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator StartGameStatistics()
     {
-        yield return new WaitForSeconds(2f);
+        yield return new WaitForSecondsRealtime(2f);
 
         // Clonar lista original de muertos tal cual se registraron
         List<PlayerController> leaderboardPlayers = new List<PlayerController>(deadPlayers);
@@ -1297,14 +1311,6 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    //Eliminar esto en etapas finales o comentar, sirve solo para el testeo
-    public void SetPause(bool pauseState)
-    {
-        Time.timeScale = pauseState ? 0f : 1f; //Si la consola está abierta, pausamos; si está cerrada, despausamos.
-
-        Debug.Log($"[GameManager] Pausa: {(pauseState ? "Activada" : "Desactivada")}");
-    }
-
 #endregion
 
     #region SERVER
@@ -1323,7 +1329,7 @@ public class GameManager : NetworkBehaviour
     private IEnumerator HandleBufferedDeaths()
     {
         isProcessingDeath = true;
-        yield return new WaitForSeconds(0.05f);
+        yield return new WaitForSecondsRealtime(0.05f);
 
         if (deathBuffer.Count == 0)
         {
@@ -1373,7 +1379,7 @@ public class GameManager : NetworkBehaviour
             deadPlayers.Add(deadPlayer);
 
             CheckGameOver();
-            yield return new WaitForSeconds(0.1f);
+            yield return new WaitForSecondsRealtime(0.1f);
 
             if (!isDraw)
             {
@@ -1453,7 +1459,7 @@ public class GameManager : NetworkBehaviour
                 player.TargetStartRouletteWithWinner(player.connectionToClient, rouletteDuration, winnerIndex);
         }
 
-        yield return new WaitForSeconds(rouletteDuration);
+        yield return new WaitForSecondsRealtime(rouletteDuration);
 
         foreach (var player in players)
         {

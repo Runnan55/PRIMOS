@@ -42,7 +42,7 @@ public class FirebaseServerClient : MonoBehaviour
     {
         int retries = 30;
         while (AuthManager.Instance == null && retries-- > 0)
-            yield return new WaitForSeconds(0.1f);
+            yield return new WaitForSecondsRealtime(0.1f);
 
         if (AuthManager.Instance != null)
         {
@@ -264,6 +264,7 @@ public class FirebaseServerClient : MonoBehaviour
         string userUrl = GetUserUrl(uid);
         UnityWebRequest getUser = UnityWebRequest.Get(userUrl);
         getUser.SetRequestHeader("Authorization", $"Bearer {idToken}");
+
         yield return getUser.SendWebRequest();
 
         if (getUser.result != UnityWebRequest.Result.Success)
@@ -274,7 +275,7 @@ public class FirebaseServerClient : MonoBehaviour
         }
 
         var userData = JSON.Parse(getUser.downloadHandler.text);
-        string walletAddress = userData["fields"]["walletAddress"]?["stringValue"];
+        string walletAddress = userData["fields"]["walletAddress"]["stringValue"];
         if (string.IsNullOrEmpty(walletAddress))
         {
             Debug.LogError("[Firebase] walletAddress no encontrado para UID: " + uid);
