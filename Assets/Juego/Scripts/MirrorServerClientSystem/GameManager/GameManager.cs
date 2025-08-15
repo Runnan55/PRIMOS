@@ -323,9 +323,9 @@ public class GameManager : NetworkBehaviour
     [Server]
     private IEnumerator WaitPlayersOrAbort()
     {
-        float deadline = Time.time + readyTimeoutSeconds;
+        float deadline = Time.realtimeSinceStartup + readyTimeoutSeconds;
 
-        while (Time.time < deadline)
+        while (Time.realtimeSinceStartup < deadline)
         {
             if (isGameStarted) yield break;
 
@@ -501,6 +501,62 @@ public class GameManager : NetworkBehaviour
 
     #endregion
 
+    #region WatchDog
+
+    // Ejecuta una coroutine con timeout. Si no termina a tiempo, la aborta y corre un fallback.
+    private IEnumerator GameManagerWatchDog(IEnumerator phase, float maxSeconds, string label, Action onTimeout)
+    {
+        bool done = false;
+
+        IEnumerator Wrapper()
+        {
+            while (true)
+            {
+                bool moveNext;
+                try { moveNext = phase.MoveNext(); }
+                catch (Exception ex) { done = true; Debug.LogWarning($"{label} throw: {ex}"); yield break; }
+                if (!moveNext) break;
+                yield return phase.Current;
+            }
+            done = true;
+        }
+
+        var handle = StartCoroutine(Wrapper());
+        float deadline = Time.realtimeSinceStartup + maxSeconds;
+
+        while (!done && Time.realtimeSinceStartup < deadline)
+            yield return null;
+
+        if (!done)
+        {
+            StopCoroutine(handle);
+            Debug.LogError($"[Timeout] {label} superó {maxSeconds:F1}s. Forzando avance.");
+            onTimeout?.Invoke();
+        }
+    }
+
+    private void ForceCloseDecisionPhaseOnTimeout()
+    {
+        isDecisionPhase = false;
+        foreach (var p in players)
+        {
+            p.clientDecisionPhase = false;
+
+            if (!p.isBot && p.connectionToClient != null)
+                p.TargetPlayButtonAnimation(p.connectionToClient, false);
+
+            p.RpcCancelAiming();
+
+            if (!actionsQueue.ContainsKey(p))
+                actionsQueue[p] = new PlayerAction(ActionType.None);
+        }
+
+        Debug.LogWarning("[GM] DecisionPhase forzado por timeout (faltantes -> None).");
+    }
+
+
+    #endregion
+
     #region GameCycles
 
     private IEnumerator RoundCycle()
@@ -509,12 +565,23 @@ public class GameManager : NetworkBehaviour
 
         while (true)
         {
-            decisionPhaseCoroutine = StartCoroutine(DecisionPhase());
-            yield return decisionPhaseCoroutine;
+            // Si DecisionPhase tarda > decisionTime + 3s, se fuerza cierre y se sigue
+            yield return GameManagerWatchDog(
+                DecisionPhase(),
+                decisionTime + 3f,
+                "[GM] DecisionPhase",
+                ForceCloseDecisionPhaseOnTimeout
+            );
 
-            executionPhaseCoroutine = StartCoroutine(ExecutionPhase());
-            yield return executionPhaseCoroutine;
-            ResetAllCovers(); //Elimina coberturas
+            // Si ExecutionPhase tarda > 8s, se corta y al menos limpiamos coberturas
+            yield return GameManagerWatchDog(
+                ExecutionPhase(),
+                decisionTime + 3f,
+                "[GM] ExecutionPhase",
+                ResetAllCovers
+            );
+
+            ResetAllCovers(); // limpieza normal al final de la ronda
         }
     }
 

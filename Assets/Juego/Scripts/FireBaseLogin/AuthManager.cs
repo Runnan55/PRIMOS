@@ -130,6 +130,14 @@ public class AuthManager : MonoBehaviour
         StartCoroutine(ConnectToMirrorServerAfterDelay());
     }
 
+    public void OnFirebaseLoginError(string message)
+    {
+        Debug.LogWarning("[AuthManager] JS auth error: " + message);
+        ShowLoginPanel();
+        if (feedbackText != null) feedbackText.text = "Error de login: " + message;
+    }
+
+
     #region Recover Password
 
     [System.Serializable]

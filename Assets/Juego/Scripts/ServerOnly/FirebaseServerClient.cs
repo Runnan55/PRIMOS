@@ -92,7 +92,7 @@ public class FirebaseServerClient : MonoBehaviour
     {
         var idToken = Instance.GetIdToken();
 
-        // Paso 1: Obtener walletAddress desde users/{uid}
+        // 1) Leer user -> walletAddress
         string userUrl = GetUserUrl(uid);
         UnityWebRequest getUser = UnityWebRequest.Get(userUrl);
         getUser.SetRequestHeader("Authorization", $"Bearer {idToken}");
@@ -100,21 +100,21 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getUser.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error al obtener documento del usuario: " + getUser.downloadHandler.text);
+            Debug.LogError("[Firebase] TryConsumeTicket: error getUser " + getUser.downloadHandler.text);
             callback(false);
             yield break;
         }
 
         var userData = JSON.Parse(getUser.downloadHandler.text);
-        string walletAddress = userData["fields"]["walletAddress"]?["stringValue"];
+        string walletAddress = userData["fields"]["walletAddress"]["stringValue"];
         if (string.IsNullOrEmpty(walletAddress))
         {
-            Debug.LogError("[Firebase] walletAddress no encontrado para UID: " + uid);
+            Debug.LogError("[Firebase] TryConsumeTicket: walletAddress vacío.");
             callback(false);
             yield break;
         }
 
-        // Paso 2: Obtener y consumir tickets desde wallets/{walletAddress}
+        // 2) Leer wallet -> tickets
         string walletUrl = GetWalletUrl(walletAddress);
         UnityWebRequest getWallet = UnityWebRequest.Get(walletUrl);
         getWallet.SetRequestHeader("Authorization", $"Bearer {idToken}");
@@ -122,7 +122,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getWallet.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error al obtener wallet: " + getWallet.downloadHandler.text);
+            Debug.LogError("[Firebase] TryConsumeTicket: error getWallet " + getWallet.downloadHandler.text);
             callback(false);
             yield break;
         }
@@ -132,29 +132,47 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (tickets <= 0)
         {
-            Debug.LogWarning("[Firebase] El jugador no tiene tickets disponibles.");
+            Debug.LogWarning("[Firebase] TryConsumeTicket: sin tickets.");
             callback(false);
             yield break;
         }
 
-        // PATCH: Restar uno
-        string patchJson = $"{{\"fields\":{{\"gameBalance\":{{\"mapValue\":{{\"fields\":{{\"ticketsAvailable\":{{\"integerValue\":\"{tickets - 1}\"}}}}}}}}}}}}";
-        UnityWebRequest patch = new UnityWebRequest(walletUrl, "PATCH");
-        byte[] body = System.Text.Encoding.UTF8.GetBytes(patchJson);
+        int newTickets = tickets - 1;
+
+        // 3) PATCH con updateMask a gameBalance.ticketsAvailable
+        string patchUrl = walletUrl + "?updateMask.fieldPaths=gameBalance.ticketsAvailable";
+
+        var payload = new JSONObject();
+        var fields = new JSONObject();
+
+        var gameBalance = new JSONObject();
+        var gbMap = new JSONObject();
+        var gbFields = new JSONObject();
+
+        var ticketsField = new JSONObject();
+        ticketsField["integerValue"] = newTickets.ToString();
+        gbFields["ticketsAvailable"] = ticketsField;
+
+        gbMap["fields"] = gbFields;
+        gameBalance["mapValue"] = gbMap;
+
+        fields["gameBalance"] = gameBalance;
+        payload["fields"] = fields;
+
+        var body = System.Text.Encoding.UTF8.GetBytes(payload.ToString());
+        var patch = new UnityWebRequest(patchUrl, "PATCH");
         patch.uploadHandler = new UploadHandlerRaw(body);
         patch.downloadHandler = new DownloadHandlerBuffer();
         patch.SetRequestHeader("Content-Type", "application/json");
         patch.SetRequestHeader("Authorization", $"Bearer {idToken}");
-
         yield return patch.SendWebRequest();
 
-        bool success = patch.result == UnityWebRequest.Result.Success;
-        Debug.Log(success
-            ? $"[Firebase] Ticket consumido correctamente. Nuevo total = {tickets - 1}"
-            : $"[Firebase] Error al consumir ticket: {patch.downloadHandler.text}");
+        bool ok = (patch.result == UnityWebRequest.Result.Success);
+        if (!ok) Debug.LogError("[Firebase] TryConsumeTicket PATCH error: " + patch.downloadHandler.text);
 
-        callback(success);
+        callback(ok);
     }
+
 
 
     public static IEnumerator CheckTicketAvailable(string uid, Action<bool> callback)
@@ -260,16 +278,15 @@ public class FirebaseServerClient : MonoBehaviour
     {
         var idToken = Instance.GetIdToken();
 
-        // Paso 1: Obtener walletAddress desde users/{uid}
+        // 1) Leer user -> walletAddress
         string userUrl = GetUserUrl(uid);
         UnityWebRequest getUser = UnityWebRequest.Get(userUrl);
         getUser.SetRequestHeader("Authorization", $"Bearer {idToken}");
-
         yield return getUser.SendWebRequest();
 
         if (getUser.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error obteniendo usuario: " + getUser.downloadHandler.text);
+            Debug.LogError("[Firebase] GrantKeyToPlayer: error getUser " + getUser.downloadHandler.text);
             callback(false);
             yield break;
         }
@@ -278,12 +295,12 @@ public class FirebaseServerClient : MonoBehaviour
         string walletAddress = userData["fields"]["walletAddress"]["stringValue"];
         if (string.IsNullOrEmpty(walletAddress))
         {
-            Debug.LogError("[Firebase] walletAddress no encontrado para UID: " + uid);
+            Debug.LogError("[Firebase] GrantKeyToPlayer: walletAddress vacío.");
             callback(false);
             yield break;
         }
 
-        // Paso 2: Obtener current basic keys
+        // 2) Leer wallet -> keys.basic
         string walletUrl = GetWalletUrl(walletAddress);
         UnityWebRequest getWallet = UnityWebRequest.Get(walletUrl);
         getWallet.SetRequestHeader("Authorization", $"Bearer {idToken}");
@@ -291,33 +308,57 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getWallet.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error obteniendo wallet: " + getWallet.downloadHandler.text);
+            Debug.LogError("[Firebase] GrantKeyToPlayer: error getWallet " + getWallet.downloadHandler.text);
             callback(false);
             yield break;
         }
 
         var walletData = JSON.Parse(getWallet.downloadHandler.text);
-        int currentBasicKeys = walletData["fields"]["gameBalance"]["mapValue"]["fields"]["keys"]["mapValue"]["fields"]["basic"]["integerValue"].AsInt;
+        int currentBasic = walletData["fields"]["gameBalance"]["mapValue"]["fields"]["keys"]["mapValue"]["fields"]["basic"]["integerValue"].AsInt;
+        int newBasic = currentBasic + 1;
 
-        // PATCH: Sumar una llave básica
-        string patchJson = $@"{{ ""fields"": {{ ""gameBalance"": {{ ""mapValue"": {{ ""fields"": {{ ""keys"": {{ ""mapValue"": {{ ""fields"": {{ ""basic"": {{ ""integerValue"": ""{currentBasicKeys + 1}"" }}}}}}}}}}}}}}}}}}";
+        // 3) PATCH con updateMask a gameBalance.keys.basic
+        string patchUrl = walletUrl + "?updateMask.fieldPaths=gameBalance.keys.basic";
 
-        UnityWebRequest patch = new UnityWebRequest(walletUrl, "PATCH");
-        byte[] body = System.Text.Encoding.UTF8.GetBytes(patchJson);
+        var payload = new JSONObject();
+        var fields = new JSONObject();
+
+        var gameBalance = new JSONObject();
+        var gbMap = new JSONObject();
+        var gbFields = new JSONObject();
+
+        var keys = new JSONObject();
+        var keysMap = new JSONObject();
+        var keysFields = new JSONObject();
+
+        var basic = new JSONObject();
+        basic["integerValue"] = newBasic.ToString();
+        keysFields["basic"] = basic;
+
+        keysMap["fields"] = keysFields;
+        keys["mapValue"] = keysMap;
+
+        gbFields["keys"] = keys;
+        gbMap["fields"] = gbFields;
+        gameBalance["mapValue"] = gbMap;
+
+        fields["gameBalance"] = gameBalance;
+        payload["fields"] = fields;
+
+        var body = System.Text.Encoding.UTF8.GetBytes(payload.ToString());
+        var patch = new UnityWebRequest(patchUrl, "PATCH");
         patch.uploadHandler = new UploadHandlerRaw(body);
         patch.downloadHandler = new DownloadHandlerBuffer();
         patch.SetRequestHeader("Content-Type", "application/json");
         patch.SetRequestHeader("Authorization", $"Bearer {idToken}");
-
         yield return patch.SendWebRequest();
 
-        bool success = patch.result == UnityWebRequest.Result.Success;
-        Debug.Log(success
-            ? $"[Firebase] Llave básica otorgada correctamente. Nuevo total = {currentBasicKeys + 1}"
-            : $"[Firebase] Error al otorgar llave: {patch.downloadHandler.text}");
+        bool ok = (patch.result == UnityWebRequest.Result.Success);
+        if (!ok) Debug.LogError("[Firebase] GrantKeyToPlayer PATCH error: " + patch.downloadHandler.text);
 
-        callback(success);
+        callback(ok);
     }
+
 
 
     public static IEnumerator UpdateRankedPoints(string uid, int pointsToAdd, Action<bool> callback)

@@ -14,6 +14,8 @@ public class MatchHandler : NetworkBehaviour
     private int partidasActivas = 0;
     public int PartidasActivas => partidasActivas;
 
+    private readonly HashSet<string> modesStarting = new HashSet<string>();
+
     [SerializeField] public GameManager gameManagerPrefab;
 
     private void Awake()
@@ -361,17 +363,9 @@ public class MatchHandler : NetworkBehaviour
             {
                 if (player.currentMode == "Ranked")
                 {
-                    if (!AccountManager.Instance.TryGetFirebaseCredentials(player.connectionToClient, out var creds))
-                    {
-                        Debug.LogWarning($"[MatchHandler] No se encontraron credenciales para {player.playerName}");
-                        return;
-                    }
-
-                    // Consumir ticket justo antes de iniciar la partida
-                    player.StartCoroutine(FirebaseServerClient.TryConsumeTicket(creds.uid, success =>
-                    {
-                        FinalizeMatchStart(player.currentMode);
-                    }));
+                    // Evitar doble inicio si hay condiciones de carrera
+                    if (!modesStarting.Contains(player.currentMode))
+                        StartCoroutine(ConsumeTicketsForAllThenStart(player.currentMode));
                 }
                 else
                 {
@@ -380,6 +374,106 @@ public class MatchHandler : NetworkBehaviour
             }
         }
     }
+
+    [Server]
+    private IEnumerator ConsumeTicketsForAllThenStart(string mode)
+    {
+        if (modesStarting.Contains(mode)) yield break; // ya en curso
+        modesStarting.Add(mode);
+
+        // cancelar countdown actual (lo rearmamos si hay alguien sin ticket)
+        if (countdownCoroutines.ContainsKey(mode))
+        {
+            StopCoroutine(countdownCoroutines[mode]);
+            countdownCoroutines.Remove(mode);
+        }
+
+        if (!matchQueue.ContainsKey(mode) || matchQueue[mode].Count < MATCH_SIZE)
+        {
+            modesStarting.Remove(mode);
+            yield break;
+        }
+
+        var queue = matchQueue[mode];
+
+        // Snapshot de los 6 primeros de la cola
+        var selected = new List<CustomRoomPlayer>(MATCH_SIZE);
+        for (int i = 0; i < MATCH_SIZE; i++)
+            selected.Add(queue[i]);
+
+        // 1) PRE-CHECK: ¿todos tienen >=1 ticket?
+        bool someoneWithoutTicket = false;
+
+        for (int i = 0; i < selected.Count; i++)
+        {
+            var rp = selected[i];
+            if (rp == null)
+            {
+                Debug.LogWarning($"[MatchHandler] Player nulo en snapshot {i}.");
+                someoneWithoutTicket = true;
+                continue;
+            }
+
+            if (!AccountManager.Instance.TryGetFirebaseCredentials(rp.connectionToClient, out var creds))
+            {
+                Debug.LogWarning($"[MatchHandler] Sin credenciales para {rp.playerName}.");
+                someoneWithoutTicket = true;
+                continue;
+            }
+
+            bool got = false;
+            int tickets = 0, keys = 0;
+            yield return FirebaseServerClient.FetchTicketAndKeyInfoFromWallet(creds.uid, (t, k) =>
+            {
+                tickets = t; keys = k; got = true;
+            });
+
+            if (!got || tickets < 1)
+            {
+                Debug.LogWarning($"[MatchHandler] {rp.playerName} <1 ticket -> return to MainMenu.");
+                rp.TargetReturnToMainMenu(rp.connectionToClient); // solo retornarlo al Main
+                someoneWithoutTicket = true;
+            }
+        }
+
+        if (someoneWithoutTicket)
+        {
+            // Reiniciar el countdown y salir, sin tocar la cola
+            countdownCoroutines[mode] = StartCoroutine(StartCountdownForMode(mode));
+            modesStarting.Remove(mode);
+            yield break;
+        }
+
+        // 2) CONSUMO: restar 1 a cada jugador (secuencial)
+        for (int i = 0; i < selected.Count; i++)
+        {
+            var rp = selected[i];
+            if (!AccountManager.Instance.TryGetFirebaseCredentials(rp.connectionToClient, out var creds))
+            {
+                Debug.LogWarning($"[MatchHandler] Sin credenciales al consumir para {rp.playerName}.");
+                // reinicia countdown para reintentar más tarde
+                countdownCoroutines[mode] = StartCoroutine(StartCountdownForMode(mode));
+                modesStarting.Remove(mode);
+                yield break;
+            }
+
+            bool ok = false;
+            yield return FirebaseServerClient.TryConsumeTicket(creds.uid, (success) => ok = success);
+
+            if (!ok)
+            {
+                Debug.LogWarning($"[MatchHandler] Falló consumo de ticket para {rp.playerName}. Reinicio countdown.");
+                countdownCoroutines[mode] = StartCoroutine(StartCountdownForMode(mode));
+                modesStarting.Remove(mode);
+                yield break;
+            }
+        }
+
+        // 3) Todo OK -> iniciar partida
+        FinalizeMatchStart(mode);
+        modesStarting.Remove(mode);
+    }
+
 
     private void FinalizeMatchStart(string mode)
     {

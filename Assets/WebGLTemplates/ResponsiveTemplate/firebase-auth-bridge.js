@@ -1,107 +1,225 @@
-// Firebase WebGL Exchange → Firebase Custom Token → Unity
-// Requisitos en el HTML antes de este script:
-//   <script src="/firebase-app-compat.js"></script>
-//   <script src="/firebase-auth-compat.js"></script>
-//   <script>window.FIREBASE_CONFIG = { /* tu config */ };</script>
-
+// firebase-auth-bridge.js - Versión CORREGIDA con detección de contexto
 (function () {
     let firebaseApp, firebaseAuth;
+    let authCheckInterval, authTimeout;
+    let pendingAuthData = null;
+    let unityCheckInterval = null;
 
+    // Detectar contexto de ejecución
+    function getContext() {
+        if (window.opener && window.opener !== window) {
+            return { type: 'popup', target: window.opener, origin: 'https://account.primos.games' };
+        } else if (window.parent && window.parent !== window) {
+            return { type: 'iframe', target: window.parent, origin: 'https://account.primos.games' };
+        }
+        return { type: 'standalone', target: null, origin: null };
+    }
+
+    // 1) Inicializar Firebase con tu window.FIREBASE_CONFIG
     function initFirebase() {
         if (!window.FIREBASE_CONFIG) {
-            console.error("[Exchange] Missing FIREBASE_CONFIG.");
-            return;
+            console.error("[PostMessage] Missing FIREBASE_CONFIG");
+            return false;
         }
-        // Evita doble init si Unity recarga escena/iframe
         try { firebaseApp = firebase.app(); }
         catch { firebaseApp = firebase.initializeApp(window.FIREBASE_CONFIG); }
         firebaseAuth = firebase.auth();
-        console.log("[Exchange] Firebase initialized");
+        console.log("[PostMessage] Firebase initialized");
+        return true;
     }
 
-    function readExchangeToken() {
-        const p = new URLSearchParams(location.search);
-        return (
-            p.get("exchange_token") || // nombre nuevo preferido
-            p.get("code") ||           // compat
-            p.get("auth_token")        // compat
-        );
-    }
+    // 2) Pedir custom token al parent/opener según contexto
+    function requestAuthToken() {
+        const context = getContext();
 
-    async function exchangeAndLogin(code) {
-        const url = `https://account.primos.games/api/exchange?code=${encodeURIComponent(code)}`;
-        console.log("[Exchange] GET", url);
-
-        // Nota: no pongas headers ni credentials para evitar preflight
-        const res = await fetch(url);
-        if (!res.ok) {
-            const t = await res.text().catch(() => "");
-            throw new Error(`[Exchange] HTTP ${res.status} ${t}`);
-        }
-
-        const data = await res.json();
-        // Esperamos algo como: { success: true, tokenType: "firebase-custom-token", token: "..." }
-        const customToken = data.token || data.customToken;
-        if (!customToken) {
-            throw new Error("[Exchange] Response without custom token");
-        }
-
-        // Login con Custom Token
-        const cred = await firebaseAuth.signInWithCustomToken(customToken);
-        const user = cred.user || firebaseAuth.currentUser;
-        if (!user) throw new Error("[Exchange] Firebase user is null after signIn");
-
-        // Tokens para Unity
-        const idToken = await user.getIdToken(true); // fuerza refresco inicial
-        const refreshToken = user.refreshToken;
-
-        const payload = {
-            uid: user.uid,
-            email: user.email || null,
-            idToken,
-            refreshToken
-        };
-
-        // Enviar a Unity (ajusta el nombre del método si tu AuthManager usa otro)
-        if (typeof unityInstance !== "undefined") {
-            try {
-                unityInstance.SendMessage("AuthManager", "OnFirebaseLoginSuccess", JSON.stringify(payload));
-            } catch (e) {
-                // Compat: si usabas antes otro nombre
-                try {
-                    unityInstance.SendMessage("AuthManager", "OnFirebaseCredentialsReceived", JSON.stringify(payload));
-                } catch (e2) {
-                    console.warn("[Exchange] Unity receiver not found:", e2);
-                }
-            }
-        } else {
-            console.warn("[Exchange] unityInstance not defined; payload:", payload);
-        }
-
-        // Limpia la URL (quita el exchange_token)
-        const clean = location.origin + location.pathname;
-        window.history.replaceState({}, document.title, clean);
-        console.log("[Exchange] Login done, URL cleaned");
-    }
-
-    async function run() {
-        initFirebase();
-        const code = readExchangeToken();
-        if (!code) {
-            console.log("[Exchange] No exchange_token/code/auth_token in URL. Skipping.");
+        if (!context.target) {
+            console.error("[PostMessage] No parent/opener found - running standalone");
             return;
         }
+
+        console.log(`[PostMessage] Requesting auth token via ${context.type} to ${context.origin}`);
+        const msg = {
+            type: "REQUEST_AUTH_TOKEN",
+            gameId: "mini-primos",
+            timestamp: Date.now()
+        };
+
+        context.target.postMessage(msg, context.origin);
+    }
+
+    // 3) Recibir respuesta con token y login Firebase
+    async function handleAuthResponse(event) {
+        // Seguridad: solo aceptar desde account.primos.games
+        if (event.origin !== "https://account.primos.games") {
+            console.warn("[PostMessage] Ignored message from:", event.origin);
+            return;
+        }
+        if (event.data?.type !== "AUTH_TOKEN_RESPONSE") return;
+
+        console.log("[PostMessage] Received auth response");
+
+        // Limpiar intervalo de reintentos
+        clearAuthCheck();
+
+        if (!event.data.success) {
+            console.error("[PostMessage] Auth failed:", event.data.error);
+            notifyUnity("AUTH_FAILED", { error: event.data.error });
+            return;
+        }
+
         try {
-            await exchangeAndLogin(code);
+            const customToken = event.data.token;
+            const cred = await firebaseAuth.signInWithCustomToken(customToken);
+            const user = cred.user;
+
+            console.log("[PostMessage] Firebase auth successful:", user.uid);
+
+            // Tokens para Unity
+            const idToken = await user.getIdToken(true);
+            const refreshToken = user.refreshToken;
+
+            const payload = {
+                uid: user.uid,
+                email: user.email || null,
+                idToken,
+                refreshToken
+            };
+
+            // Intentar notificar a Unity
+            notifyUnity("AUTH_SUCCESS", payload);
+
         } catch (err) {
-            console.error(err);
-            // opcional: alert("No se pudo iniciar sesión. Revisa la consola.");
+            console.error("[PostMessage] Firebase auth error:", err);
+            notifyUnity("AUTH_FAILED", { error: err.message });
         }
     }
 
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", run);
+    // 4) Pasar resultado a Unity con reintentos
+    function notifyUnity(status, data) {
+        // Guardar datos por si Unity no está listo
+        pendingAuthData = { status, data };
+
+        // Intentar enviar inmediatamente
+        if (tryNotifyUnity()) {
+            console.log("[PostMessage] Unity notified successfully");
+            pendingAuthData = null;
+            return;
+        }
+
+        // Si no está listo, iniciar reintentos
+        console.log("[PostMessage] Unity not ready, starting retry loop...");
+
+        let retryCount = 0;
+        const maxRetries = 60; // 30 segundos con intervalos de 500ms
+
+        unityCheckInterval = setInterval(() => {
+            retryCount++;
+
+            if (tryNotifyUnity()) {
+                console.log(`[PostMessage] Unity notified after ${retryCount} retries`);
+                clearInterval(unityCheckInterval);
+                pendingAuthData = null;
+                return;
+            }
+
+            if (retryCount >= maxRetries) {
+                console.error("[PostMessage] Unity notification timeout after 30 seconds");
+                clearInterval(unityCheckInterval);
+                // Mantener pendingAuthData por si Unity aparece más tarde
+            }
+        }, 500);
+    }
+
+    // Intentar notificar a Unity (devuelve true si exitoso)
+    function tryNotifyUnity() {
+        if (!pendingAuthData) return false;
+
+        if (typeof unityInstance === "undefined" || !unityInstance) {
+            return false;
+        }
+
+        try {
+            const { status, data } = pendingAuthData;
+
+            if (status === "AUTH_SUCCESS") {
+                unityInstance.SendMessage("AuthManager", "OnFirebaseLoginSuccess", JSON.stringify(data));
+                console.log("[PostMessage] Sent AUTH_SUCCESS to Unity");
+            } else {
+                unityInstance.SendMessage("AuthManager", "OnFirebaseLoginError", data.error || "Unknown error");
+                console.log("[PostMessage] Sent AUTH_FAILED to Unity");
+            }
+
+            return true;
+        } catch (e) {
+            console.warn("[PostMessage] Error sending to Unity (will retry):", e);
+            return false;
+        }
+    }
+
+    // 5) Limpieza
+    function clearAuthCheck() {
+        if (authCheckInterval) {
+            clearInterval(authCheckInterval);
+            authCheckInterval = null;
+        }
+        if (authTimeout) {
+            clearTimeout(authTimeout);
+            authTimeout = null;
+        }
+    }
+
+    // 6) Bootstrap
+    function init() {
+        if (!initFirebase()) {
+            console.error("[PostMessage] Failed to initialize Firebase");
+            return;
+        }
+
+        // Detectar contexto
+        const context = getContext();
+        console.log(`[PostMessage] Running in ${context.type} mode`);
+
+        // Solo proceder si hay parent/opener
+        if (!context.target) {
+            console.warn("[PostMessage] No parent/opener - waiting for manual auth");
+            return;
+        }
+
+        // Escuchar mensajes
+        window.addEventListener('message', handleAuthResponse);
+
+        // Solicitar token inmediatamente
+        requestAuthToken();
+
+        // Reintentar cada 2 segundos por si el parent no está listo
+        authCheckInterval = setInterval(requestAuthToken, 2000);
+
+        // Timeout después de 30 segundos
+        authTimeout = setTimeout(() => {
+            clearAuthCheck();
+            console.error("[PostMessage] Auth timeout - no response received");
+            notifyUnity('AUTH_FAILED', { error: 'Authentication timeout' });
+        }, 30000);
+    }
+
+    // Exponer función para que Unity pueda reintentar
+    window.retryAuthentication = function () {
+        clearAuthCheck();
+        init();
+    };
+
+    // Exponer función para chequear si hay auth pendiente
+    window.checkPendingAuth = function () {
+        if (pendingAuthData) {
+            console.log("[PostMessage] Retrying pending auth data...");
+            tryNotifyUnity();
+        }
+    };
+
+    // Iniciar cuando el DOM esté listo
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        run();
+        init();
     }
 })();
