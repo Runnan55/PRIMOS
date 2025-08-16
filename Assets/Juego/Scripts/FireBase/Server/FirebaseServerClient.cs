@@ -150,7 +150,7 @@ public class FirebaseServerClient : MonoBehaviour
         var gbFields = new JSONObject();
 
         var ticketsField = new JSONObject();
-        ticketsField["integerValue"] = newTickets.ToString();
+        ticketsField["integerValue"] = (tickets - 1).ToString();
         gbFields["ticketsAvailable"] = ticketsField;
 
         gbMap["fields"] = gbFields;
@@ -169,7 +169,6 @@ public class FirebaseServerClient : MonoBehaviour
 
         bool ok = (patch.result == UnityWebRequest.Result.Success);
         if (!ok) Debug.LogError("[Firebase] TryConsumeTicket PATCH error: " + patch.downloadHandler.text);
-
         callback(ok);
     }
 
@@ -331,6 +330,7 @@ public class FirebaseServerClient : MonoBehaviour
         var keysMap = new JSONObject();
         var keysFields = new JSONObject();
 
+        // newBasic = currentBasic + 1
         var basic = new JSONObject();
         basic["integerValue"] = newBasic.ToString();
         keysFields["basic"] = basic;
@@ -363,10 +363,10 @@ public class FirebaseServerClient : MonoBehaviour
 
     public static IEnumerator UpdateRankedPoints(string uid, int pointsToAdd, Action<bool> callback)
     {
-        string url = GetUserUrl(uid);
-
+        string url = GetUserUrl(uid) + "?updateMask.fieldPaths=rankedPoints";
         var idToken = Instance.GetIdToken();
 
+        // GET (usa baseUrl)
         UnityWebRequest getReq = UnityWebRequest.Get(url);
         getReq.SetRequestHeader("Authorization", $"Bearer {idToken}");
 
@@ -382,6 +382,7 @@ public class FirebaseServerClient : MonoBehaviour
         var data = JSON.Parse(getReq.downloadHandler.text);
         int current = data["fields"]["rankedPoints"]["integerValue"].AsInt;
 
+        // PATCH (usa patchUrl)
         string json = $"{{\"fields\":{{\"rankedPoints\":{{\"integerValue\":\"{current + pointsToAdd}\"}}}}}}";
 
         UnityWebRequest patch = new UnityWebRequest(url, "PATCH");
@@ -396,8 +397,6 @@ public class FirebaseServerClient : MonoBehaviour
     }
 
     #region LeaderboardRankedPoint
-
-    
 
     // Garantiza que el documento users/{uid} tenga rankedPoints; si falta, lo crea a 0.
     public static IEnumerator EnsureRankedPointsField(string uid, Action<int> callback)

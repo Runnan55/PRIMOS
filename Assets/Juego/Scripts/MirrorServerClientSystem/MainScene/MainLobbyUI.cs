@@ -26,8 +26,8 @@ public class MainLobbyUI : MonoBehaviour
     public Button backToStartMenuButton;
 
     [Header("Opcional")]
-    public NicknameUI nicknameUI;
-    public FirestoreUserManager userManager;
+    //public GameObject nicknameUI;
+    //public FirestoreUserManager userManager;
 
     [Header("Panel Opciones y Audio")]
     public GameObject settingsPanel;
@@ -95,7 +95,7 @@ public class MainLobbyUI : MonoBehaviour
         // Llamar a actualizar los Keys y Tickets desde Server-Firebase
         StartCoroutine(AutoRefreshWalletData());
 
-        nameInputField.onValueChanged.AddListener(OnNameChangedLive);
+        //nameInputField.onValueChanged.AddListener(OnNameChangedLive);
 
         rankedButton.onClick.AddListener(() => JoinMode("Ranked")); 
         comingSoonButton.onClick.AddListener(() => Debug.Log("Este modo aún no está disponible."));
@@ -167,38 +167,14 @@ public class MainLobbyUI : MonoBehaviour
         // Activar el botón solo si hay nombre
         playButton.interactable = true;
 
-        // Enviar al servidor
-        if (NetworkClient.isConnected && NetworkClient.connection != null)
-        {
-            NetworkClient.connection.Send(new NameMessage { playerName = enteredName });
-        }
-        else
-        {
-            Debug.LogWarning("[MainLobbyUI] No se puede enviar el nombre: no hay conexión.");
-        }
+        if (CustomRoomPlayer.LocalInstance != null)
+            CustomRoomPlayer.LocalInstance.CmdUpdateNickname(enteredName);
+
 
 
         Debug.Log("Nombre confirmado: " + enteredName);
     }
-
-    private void OnNameChangedLive(string newText)
-    {
-        // Activar o desactivar el botón Play dinámicamente
-        playButton.interactable = !string.IsNullOrWhiteSpace(newText);
-
-        // También podés resetear el placeholder si estaba modificado
-        if (string.IsNullOrWhiteSpace(newText))
-        {
-            nameInputField.placeholder.GetComponent<TMP_Text>().text = "Enter name";
-            return;
-        }
-
-        playButton.interactable = true;
-
-        nicknameUI.nicknameInput.text = newText;
-        nicknameUI.SaveNickname();
-    }
-
+    
     #region Opciones Y Audio
 
     private void OpenSettingsPanel()
@@ -223,7 +199,6 @@ public class MainLobbyUI : MonoBehaviour
     {
         audioPanel.SetActive(false);
     }
-
 
     #endregion
 

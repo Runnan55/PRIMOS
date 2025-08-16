@@ -153,7 +153,6 @@ Transform:
   - {fileID: 624548852}
   - {fileID: 604412606}
   - {fileID: 186979933}
-  - {fileID: 1958374330}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4020566
@@ -885,7 +884,6 @@ GameObject:
   m_Component:
   - component: {fileID: 186979933}
   - component: {fileID: 186979932}
-  - component: {fileID: 186979934}
   m_Layer: 0
   m_Name: MainLobbyUI
   m_TagString: Untagged
@@ -914,8 +912,6 @@ MonoBehaviour:
   casualButton: {fileID: 126820881}
   comingSoonButton: {fileID: 1752417104}
   backToStartMenuButton: {fileID: 1501005312}
-  nicknameUI: {fileID: 186979934}
-  userManager: {fileID: 1958374329}
   settingsPanel: {fileID: 1432220822}
   audioPanel: {fileID: 1624277982}
   settingsButton: {fileID: 1897770333}
@@ -950,20 +946,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 4020565}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &186979934
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 186979931}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af73a4c0db8eed94196512ef8dadca4f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  nicknameInput: {fileID: 1052629268}
-  feedbackText: 
 --- !u!1 &232376027
 GameObject:
   m_ObjectHideFlags: 0
@@ -2567,7 +2549,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeHourStart
-      value: 5
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeMinuteEnd
@@ -2575,7 +2557,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: activeMinuteStart
-      value: 0
+      value: 5
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -8107,73 +8089,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1931632483}
   m_CullTransparentMesh: 1
---- !u!1 &1958374328
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1958374330}
-  - component: {fileID: 1958374329}
-  - component: {fileID: 1958374331}
-  m_Layer: 0
-  m_Name: FirestoreUserManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1958374329
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1958374328}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 460ed0ac82550ae4e89dc4e40289e7d6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  firebaseProjectId: primosminigameshoot
-  nicknameInput: {fileID: 1052629268}
-  feedbackText: {fileID: 153314747}
---- !u!224 &1958374330
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1958374328}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 10.852373}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 4020565}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 382.84048, y: 218.10303}
-  m_SizeDelta: {x: 100, y: 100}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1958374331
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1958374328}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cdc986d905c1b6b48a3ec28e07c23214, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  contentContainer: {fileID: 2096158482}
-  leaderboardRankedEntryPrefab: {fileID: 411019413239122484, guid: b5d7510c2b5e0e241b97f5209177336f, type: 3}
-  localPlayerRankedEntry: {fileID: 1821150506}
 --- !u!1 &1963833797
 GameObject:
   m_ObjectHideFlags: 0

@@ -634,7 +634,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     }
 
     [Command]
-    public void CmdUpdateRankedPoints(int newPoints)
+    public void CmdAddRankedPoints(int newPoints)
     {
         if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
         {
@@ -726,10 +726,17 @@ public class CustomRoomPlayer : NetworkBehaviour
     [TargetRpc]
     public void TargetReceiveNickname(NetworkConnection target, string nickname)
     {
-        var nicknameUI = FindFirstObjectByType<NicknameUI>();
-        if (nicknameUI != null)
+        var lobbyUI = FindFirstObjectByType<MainLobbyUI>();
+        if (lobbyUI != null && lobbyUI.nameInputField != null)
         {
-            nicknameUI.nicknameInput.text = nickname;
+            // No dispara onValueChanged, evita bucles/guardados
+            lobbyUI.nameInputField.SetTextWithoutNotify(nickname);
+
+            // opcional: habilitar botón jugar si hay nombre
+            if (lobbyUI.playButton != null)
+                lobbyUI.playButton.interactable = !string.IsNullOrWhiteSpace(nickname);
+
+            return;
         }
     }
 

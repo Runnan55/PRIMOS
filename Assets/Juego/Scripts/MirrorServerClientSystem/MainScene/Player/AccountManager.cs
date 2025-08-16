@@ -32,22 +32,8 @@ public class AccountManager : NetworkBehaviour
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
-    }/*
-
-    private void OnEnable()
-    {
-        if (NetworkServer.active)
-        {
-            NetworkServer.RegisterHandler<FirebaseCredentialMessage>(OnFirebaseCredentialsReceived);
-        }
-    }*/
-    /*
-    private void OnFirebaseCredentialsReceived(NetworkConnectionToClient conn, FirebaseCredentialMessage msg)
-    {
-        RegisterFirebaseCredentials(conn, msg.uid);
-        Debug.Log("[AccountManager] Credenciales recibidas para jugador: " + msg.uid);
     }
-    */
+
     public void RegisterPlayer(NetworkConnectionToClient conn, string playerName, string playerId)
     {
         PlayerAccountData data = new PlayerAccountData(playerId, playerName);

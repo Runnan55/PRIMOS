@@ -64,9 +64,22 @@ public class PlayerController : NetworkBehaviour
     public GameObject targetIndicator; //Indicador visual de objetivo elegido
     public GameObject localPlayerIndicator; //Indicador visual de tu jugador
 
-    /*[Header("Crosshair")]
-    public GameObject crosshairPrefab; //Prefab de la mirilla
-    private GameObject crosshairInstance; //Instancia que crea el script cuando seleccionamos disparar*/
+    [Header("Sprites Vida Local")]
+    public GameObject vidaAzul_3;
+    public GameObject vidaAzul_2;
+    public GameObject vidaAzul_1;
+    public GameObject vidaAzulBarra;
+    public GameObject corazonAzul;
+
+    [Header("Sprites Vida No Local")]
+    public GameObject vidaRoja_3;
+    public GameObject vidaRoja_2;
+    public GameObject vidaRoja_1;
+    public GameObject vidaRojaBarra;
+    public GameObject corazonRojo;
+
+    [Header("Sprite Balas")]
+    public GameObject bulletSprite;
 
     public TMP_Text healthText;
     public TMP_Text ammoText;
@@ -260,20 +273,6 @@ public class PlayerController : NetworkBehaviour
     }
 
     #region Vida UI Local y NoLocal
-
-    [Header("Sprites Vida Local")]
-    public GameObject vidaAzul_3;
-    public GameObject vidaAzul_2;
-    public GameObject vidaAzul_1;
-    public GameObject vidaAzulBarra;
-    public GameObject corazonAzul;
-
-    [Header("Sprites Vida No Local")]
-    public GameObject vidaRoja_3;
-    public GameObject vidaRoja_2;
-    public GameObject vidaRoja_1;
-    public GameObject vidaRojaBarra;
-    public GameObject corazonRojo;
 
     private void UpdateLifeUI(int currentLives)
     {
@@ -1049,13 +1048,6 @@ public class PlayerController : NetworkBehaviour
         isAiming = true;
         selectedAction = ActionType.Shoot;
 
-        /*if (crosshairPrefab && crosshairInstance == null)
-        {
-            crosshairInstance = Instantiate(crosshairPrefab);
-            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            mousePosition.z = 0;
-            crosshairInstance.transform.position = mousePosition; // <- ¡esto evita que se vea en el centro!
-        }*/
         CursorSetup.I?.UseCrosshairCursor();
 
         HighlightButton(shootButton);//Resaltar botón
@@ -1069,13 +1061,6 @@ public class PlayerController : NetworkBehaviour
         isAiming = true;
         selectedAction = ActionType.SuperShoot;
 
-        /*if (crosshairPrefab && crosshairInstance == null)
-        {
-            crosshairInstance = Instantiate(crosshairPrefab);
-            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            mousePosition.z = 0;
-            crosshairInstance.transform.position = mousePosition; // <- ¡esto evita que se vea en el centro!
-        }*/
         CursorSetup.I?.UseCrosshairCursor();
 
         HighlightButton(superShootButton);
@@ -1206,11 +1191,6 @@ public class PlayerController : NetworkBehaviour
     {
         if (!isLocalPlayer && !isOwned) return;
 
-        /*if (crosshairInstance != null)
-        {
-            Destroy(crosshairInstance);
-            crosshairInstance = null;
-        }*/
         CursorSetup.I?.UsePinkCursor();
 
         isAiming = false;
@@ -1230,6 +1210,22 @@ public class PlayerController : NetworkBehaviour
         coverProbabilityText.gameObject.SetActive(false);
         healthText.gameObject.SetActive(false);
         ammoText.gameObject.SetActive(false);
+
+        // ocultar TODOS los indicadores de vida/balas para todos
+        vidaAzul_3?.SetActive(false);
+        vidaAzul_2?.SetActive(false);
+        vidaAzul_1?.SetActive(false);
+        vidaRoja_3?.SetActive(false);
+        vidaRoja_2?.SetActive(false);
+        vidaRoja_1?.SetActive(false);
+
+        vidaAzulBarra?.SetActive(false);
+        vidaRojaBarra?.SetActive(false);
+        corazonAzul?.SetActive(false);
+        corazonRojo?.SetActive(false);
+
+        bulletSprite?.SetActive(false);
+        targetIndicator?.SetActive(false);
     }
 
     [ClientRpc]
@@ -1244,6 +1240,22 @@ public class PlayerController : NetworkBehaviour
         coverProbabilityText.gameObject.SetActive(false);
         healthText.gameObject.SetActive(false);
         ammoText.gameObject.SetActive(false);
+
+        // ocultar TODOS los indicadores de vida/balas para todos
+        vidaAzul_3?.SetActive(false);
+        vidaAzul_2?.SetActive(false);
+        vidaAzul_1?.SetActive(false);
+        vidaRoja_3?.SetActive(false);
+        vidaRoja_2?.SetActive(false);
+        vidaRoja_1?.SetActive(false);
+
+        vidaAzulBarra?.SetActive(false);
+        vidaRojaBarra?.SetActive(false);
+        corazonAzul?.SetActive(false);
+        corazonRojo?.SetActive(false);
+
+        bulletSprite?.SetActive(false);
+        targetIndicator?.SetActive(false);
     }
 
     [ClientRpc]

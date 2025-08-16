@@ -6793,7 +6793,6 @@ GameObject:
   m_Component:
   - component: {fileID: 300703470703158167}
   - component: {fileID: 4996110652532814862}
-  - component: {fileID: 1995742921654557300}
   - component: {fileID: 7926418534383210663}
   - component: {fileID: 1609246026707848892}
   - component: {fileID: 553047326087167263}
@@ -6865,7 +6864,17 @@ MonoBehaviour:
   drawCanvas: {fileID: 1549753443528293973}
   targetIndicator: {fileID: 4775169796478817605}
   localPlayerIndicator: {fileID: 8239939098131616633}
-  crosshairPrefab: {fileID: 2141574147791224643, guid: e8d6fd2df13a2ec40a0d712b10f3c779, type: 3}
+  vidaAzul_3: {fileID: 1518357010120138666}
+  vidaAzul_2: {fileID: 4324721794579842168}
+  vidaAzul_1: {fileID: 3449179448896249881}
+  vidaAzulBarra: {fileID: 4127327202598320167}
+  corazonAzul: {fileID: 6984552669849048557}
+  vidaRoja_3: {fileID: 811278573261345792}
+  vidaRoja_2: {fileID: 6238006748426753702}
+  vidaRoja_1: {fileID: 7392344925486969084}
+  vidaRojaBarra: {fileID: 165808109170567296}
+  corazonRojo: {fileID: 2684420882595281338}
+  bulletSprite: {fileID: 6187479247460360578}
   healthText: {fileID: 803253927996962326}
   ammoText: {fileID: 523416322897077662}
   coverProbabilityText: {fileID: 4335575694248232891}
@@ -6910,39 +6919,11 @@ MonoBehaviour:
   leaderboardCanvas: {fileID: 5425550610921173356}
   leaderboardContent: {fileID: 1628792646861002936}
   leaderboardEntryPrefab: {fileID: 5744724382073687794, guid: 1e3836d2c05766147a439e2191571cd7, type: 3}
-  vidaAzul_3: {fileID: 1518357010120138666}
-  vidaAzul_2: {fileID: 4324721794579842168}
-  vidaAzul_1: {fileID: 3449179448896249881}
-  vidaAzulBarra: {fileID: 4127327202598320167}
-  corazonAzul: {fileID: 6984552669849048557}
-  vidaRoja_3: {fileID: 811278573261345792}
-  vidaRoja_2: {fileID: 6238006748426753702}
-  vidaRoja_1: {fileID: 7392344925486969084}
-  vidaRojaBarra: {fileID: 165808109170567296}
-  corazonRojo: {fileID: 2684420882595281338}
   playerId: 
   ownerRoomPlayer: {fileID: 0}
   parcaAzul: {fileID: 6792987625382996629}
   parcaRojo: {fileID: 4246738374481368340}
   currentFacingDirection: 0
---- !u!114 &1995742921654557300
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6611139386470013384}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a6bb1716837b1ea44a649a92dfe8f98d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  syncDirection: 0
-  syncMode: 0
-  syncInterval: 0
-  consolePanel: {fileID: 1647486348386136016}
-  logText: {fileID: 3274323738709125607}
-  scrollRect: {fileID: 4457247944970652949}
 --- !u!114 &7926418534383210663
 MonoBehaviour:
   m_ObjectHideFlags: 0

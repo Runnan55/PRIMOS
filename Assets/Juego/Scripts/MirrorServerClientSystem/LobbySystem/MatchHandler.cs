@@ -171,18 +171,6 @@ public class MatchHandler : NetworkBehaviour
             return null;
     }
 
-    //??????????????????????????????????????????????????????????????????????????????????????????????????????????? Verificar esto y ver si se puede reducir a uno solo
-    public bool AreAllPlayersReadyToStart(string matchId)
-    {
-        if (!matches.TryGetValue(matchId, out MatchInfo match)) return false;
-
-        foreach (var player in match.players)
-        {
-            if (!player.isPlayingNow)
-                return false;
-        }
-        return true;
-    }
     public bool AreAllPlayersReady(string matchId)
     {
         if (!matches.TryGetValue(matchId, out MatchInfo match)) return false;
@@ -194,7 +182,6 @@ public class MatchHandler : NetworkBehaviour
         }
         return true;
     }
-    //??????????????????????????????????????????????????????????????????????????????????????????????????????????? Verificar esto cuanto antes
 
     public void CheckStartGame(string matchId)
     {
@@ -281,18 +268,6 @@ public class MatchHandler : NetworkBehaviour
         Debug.Log($"[MatchHandler] GameManager spawn para {match.matchId}");
     }
 
-    public bool AreAllPlayersInGameScene(string matchId)
-    {
-        if (!matches.TryGetValue(matchId, out MatchInfo match)) return false;
-
-        foreach (var player in match.players)
-        {
-            if (player.gameObject.scene.name != "GameScene")
-                return false;
-        }
-        return true;
-    }
-
     [Server]
     public void NotifyPlayersToLoadGameScene(string matchId)
     {
@@ -333,7 +308,7 @@ public class MatchHandler : NetworkBehaviour
 
     private Dictionary<string, List<CustomRoomPlayer>> matchQueue = new();
     private Dictionary<string, Coroutine> countdownCoroutines = new();
-    private Dictionary<string, int> countdownSeconds = new();
+    //private Dictionary<string, int> countdownSeconds = new();
     private const int MIN_PLAYERS_TO_START = 3;
     public const int MATCH_SIZE = 6; //Cantidad de jugadores para iniciar partida
 
@@ -358,132 +333,13 @@ public class MatchHandler : NetworkBehaviour
 
             Debug.Log($"[Matchmaking] Jugador {player.playerName} agregado a la cola del modo {player.currentMode}. Total: {queue.Count}");
 
-            // --- NUEVO: iniciar partida inmediata si llegan a 6
+            // --- Iniciar partida inmediata si llegan a 6
             if (queue.Count == MATCH_SIZE)
             {
-                if (player.currentMode == "Ranked")
-                {
-                    // Evitar doble inicio si hay condiciones de carrera
-                    if (!modesStarting.Contains(player.currentMode))
-                        StartCoroutine(ConsumeTicketsForAllThenStart(player.currentMode));
-                }
-                else
-                {
-                    FinalizeMatchStart(player.currentMode);
-                }
-            }
-        }
-    }
-
-    [Server]
-    private IEnumerator ConsumeTicketsForAllThenStart(string mode)
-    {
-        if (modesStarting.Contains(mode)) yield break; // ya en curso
-        modesStarting.Add(mode);
-
-        // cancelar countdown actual (lo rearmamos si hay alguien sin ticket)
-        if (countdownCoroutines.ContainsKey(mode))
-        {
-            StopCoroutine(countdownCoroutines[mode]);
-            countdownCoroutines.Remove(mode);
-        }
-
-        if (!matchQueue.ContainsKey(mode) || matchQueue[mode].Count < MATCH_SIZE)
-        {
-            modesStarting.Remove(mode);
-            yield break;
-        }
-
-        var queue = matchQueue[mode];
-
-        // Snapshot de los 6 primeros de la cola
-        var selected = new List<CustomRoomPlayer>(MATCH_SIZE);
-        for (int i = 0; i < MATCH_SIZE; i++)
-            selected.Add(queue[i]);
-
-        // 1) PRE-CHECK: ¿todos tienen >=1 ticket?
-        bool someoneWithoutTicket = false;
-
-        for (int i = 0; i < selected.Count; i++)
-        {
-            var rp = selected[i];
-            if (rp == null)
-            {
-                Debug.LogWarning($"[MatchHandler] Player nulo en snapshot {i}.");
-                someoneWithoutTicket = true;
-                continue;
+                CreateMatchNow(player.currentMode); // Ranked se gestiona dentro de CreateMatchNow
             }
 
-            if (!AccountManager.Instance.TryGetFirebaseCredentials(rp.connectionToClient, out var creds))
-            {
-                Debug.LogWarning($"[MatchHandler] Sin credenciales para {rp.playerName}.");
-                someoneWithoutTicket = true;
-                continue;
-            }
-
-            bool got = false;
-            int tickets = 0, keys = 0;
-            yield return FirebaseServerClient.FetchTicketAndKeyInfoFromWallet(creds.uid, (t, k) =>
-            {
-                tickets = t; keys = k; got = true;
-            });
-
-            if (!got || tickets < 1)
-            {
-                Debug.LogWarning($"[MatchHandler] {rp.playerName} <1 ticket -> return to MainMenu.");
-                rp.TargetReturnToMainMenu(rp.connectionToClient); // solo retornarlo al Main
-                someoneWithoutTicket = true;
-            }
         }
-
-        if (someoneWithoutTicket)
-        {
-            // Reiniciar el countdown y salir, sin tocar la cola
-            countdownCoroutines[mode] = StartCoroutine(StartCountdownForMode(mode));
-            modesStarting.Remove(mode);
-            yield break;
-        }
-
-        // 2) CONSUMO: restar 1 a cada jugador (secuencial)
-        for (int i = 0; i < selected.Count; i++)
-        {
-            var rp = selected[i];
-            if (!AccountManager.Instance.TryGetFirebaseCredentials(rp.connectionToClient, out var creds))
-            {
-                Debug.LogWarning($"[MatchHandler] Sin credenciales al consumir para {rp.playerName}.");
-                // reinicia countdown para reintentar más tarde
-                countdownCoroutines[mode] = StartCoroutine(StartCountdownForMode(mode));
-                modesStarting.Remove(mode);
-                yield break;
-            }
-
-            bool ok = false;
-            yield return FirebaseServerClient.TryConsumeTicket(creds.uid, (success) => ok = success);
-
-            if (!ok)
-            {
-                Debug.LogWarning($"[MatchHandler] Falló consumo de ticket para {rp.playerName}. Reinicio countdown.");
-                countdownCoroutines[mode] = StartCoroutine(StartCountdownForMode(mode));
-                modesStarting.Remove(mode);
-                yield break;
-            }
-        }
-
-        // 3) Todo OK -> iniciar partida
-        FinalizeMatchStart(mode);
-        modesStarting.Remove(mode);
-    }
-
-
-    private void FinalizeMatchStart(string mode)
-    {
-        if (countdownCoroutines.ContainsKey(mode))
-        {
-            StopCoroutine(countdownCoroutines[mode]);
-            countdownCoroutines.Remove(mode);
-        }
-
-        CreateMatchNow(mode);
     }
 
     [Server]
@@ -513,7 +369,7 @@ public class MatchHandler : NetworkBehaviour
     private IEnumerator StartCountdownForMode(string mode)
     {
         int seconds = 30;
-        countdownSeconds[mode] = seconds;
+        //countdownSeconds[mode] = seconds;
 
         while (seconds > 0)
         {
@@ -570,19 +426,134 @@ public class MatchHandler : NetworkBehaviour
         }
     }
 
-    [Server]
     private void CreateMatchNow(string mode)
     {
-        if (!matchQueue.TryGetValue(mode, out var queue)) return;
-        int playersToUse = Mathf.Min(queue.Count, MATCH_SIZE);
+        Debug.Log($"[RANKED] CreateMatchNow mode={mode} queueSize={matchQueue[mode].Count}");
 
+        if (!matchQueue.TryGetValue(mode, out var queue)) return;
+
+        int playersToUse = Mathf.Min(queue.Count, MATCH_SIZE);
         List<CustomRoomPlayer> playersForMatch = queue.Take(playersToUse).ToList();
         queue.RemoveRange(0, playersToUse);
 
-        CreateAutoMatch(playersForMatch, mode);
+        // CASUAL u otros modos: directo
+        if (mode != "Ranked")
+        {
+            CreateAutoMatch(playersForMatch, mode);
+            UpdateCountdownUIForMode(mode, -1);
+            return;
+        }
 
-        UpdateCountdownUIForMode(mode, -1); // Reset UI
+        // ---------- RANKED: pre-check a TODOS, luego consumo a TODOS ----------
+
+        Debug.Log($"[RANKED] PreCheck -> players={string.Join(",", playersForMatch.Select(p => p?.playerId))}");
+
+        var expelledOnCheck = new HashSet<CustomRoomPlayer>();
+        bool finished = false;
+
+        int pendingCheck = playersForMatch.Count;
+        foreach (var p in playersForMatch)
+        {
+            var playerRef = p; // capturar correctamente en el closure
+
+            if (!AccountManager.Instance.TryGetFirebaseCredentials(playerRef.connectionToClient, out var creds))
+            {
+                expelledOnCheck.Add(playerRef);
+                playerRef.TargetReturnToMainMenu(playerRef.connectionToClient);
+                if (--pendingCheck == 0) AfterCheck();
+                continue;
+            }
+
+            // 1) PRE-CHECK: ¿tiene ticket?
+            playerRef.StartCoroutine(FirebaseServerClient.CheckTicketAvailable(creds.uid, hasTicket =>
+            {
+                if (!hasTicket)
+                {
+                    expelledOnCheck.Add(playerRef);
+                    playerRef.TargetReturnToMainMenu(playerRef.connectionToClient); // expulsar
+                }
+                if (--pendingCheck == 0) AfterCheck();
+            }));
+        }
+
+        // local: tras pre-check
+        void AfterCheck()
+        {
+            if (finished) return;
+
+            // Si alguien NO tenía ticket -> cancelar inicio y re-encolar a los que sí
+            if (expelledOnCheck.Count > 0)
+            {
+                foreach (var ok in playersForMatch.Where(x => !expelledOnCheck.Contains(x)))
+                    EnqueueForMatchmaking(ok); // reutilizamos tu método existente
+
+                UpdateCountdownUIForMode(mode, -1);
+                finished = true;
+                return;
+            }
+
+            // 2) Todos tienen ticket -> CONSUMIR a todos
+            var expelledOnConsume = new HashSet<CustomRoomPlayer>();
+            int pendingConsume = playersForMatch.Count;
+
+            foreach (var p in playersForMatch)
+            {
+                var playerRef = p;
+                if (!AccountManager.Instance.TryGetFirebaseCredentials(playerRef.connectionToClient, out var creds2))
+                {
+                    expelledOnConsume.Add(playerRef);
+                    playerRef.TargetReturnToMainMenu(playerRef.connectionToClient);
+                    if (--pendingConsume == 0) AfterConsume();
+                    continue;
+                }
+
+                playerRef.StartCoroutine(FirebaseServerClient.TryConsumeTicket(creds2.uid, success =>
+                {
+                    if (!success)
+                    {
+                        // Raro que falle aquí tras el pre-check, pero lo contemplamos
+                        expelledOnConsume.Add(playerRef);
+                        playerRef.TargetReturnToMainMenu(playerRef.connectionToClient);
+                    }
+                    else
+                    {
+                        // Refrescar UI de wallet en el acto para que vea el -1
+                        playerRef.StartCoroutine(
+                            FirebaseServerClient.FetchTicketAndKeyInfoFromWallet(creds2.uid, (t, k) =>
+                            {
+                                playerRef.TargetReceiveWalletData(playerRef.connectionToClient, t, k);
+                            })
+                        );
+                    }
+
+                    if (--pendingConsume == 0) AfterConsume();
+                }));
+            }
+
+            // local: tras consumo
+            void AfterConsume()
+            {
+                if (finished) return;
+
+                // Si algún consumo falló -> cancelar y re-encolar a los OK
+                if (expelledOnConsume.Count > 0)
+                {
+                    foreach (var ok in playersForMatch.Where(x => !expelledOnConsume.Contains(x)))
+                        EnqueueForMatchmaking(ok);
+
+                    UpdateCountdownUIForMode(mode, -1);
+                    finished = true;
+                    return;
+                }
+
+                // Todo OK -> arrancar la partida
+                CreateAutoMatch(playersForMatch, mode);
+                UpdateCountdownUIForMode(mode, -1);
+                finished = true;
+            }
+        }
     }
+
 
 
     [Server]

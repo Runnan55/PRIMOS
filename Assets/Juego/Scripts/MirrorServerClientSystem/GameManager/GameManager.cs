@@ -1326,12 +1326,6 @@ public class GameManager : NetworkBehaviour
                     var identity = p.ownerRoomPlayer.GetComponent<NetworkIdentity>();
                     var conn = identity.connectionToClient;
 
-                    /*if (conn == null || updater == null || !updater.TryGetCredentials(conn, out var creds))
-                    {
-                        Debug.LogWarning($"[GameManager] No se encontraron credenciales para {p.ownerRoomPlayer.playerName}");
-                        yield break;
-                    }*/
-
                     // Si es el ganador humano, otorgar 1 llave básica
                     if (position == totalPlayers)
                     {
@@ -1347,11 +1341,6 @@ public class GameManager : NetworkBehaviour
                         if (!success)
                             Debug.LogWarning($"[GameManager] No se pudo actualizar rankedPoints para {p.ownerRoomPlayer.playerName}");
                     }));
-                    /*
-                    if (p.ownerRoomPlayer != null)
-                    {
-                        p.ownerRoomPlayer.TargetUpdateRankedPoints(p.ownerRoomPlayer.connectionToClient, pointsToAdd);
-                    }*/
                 }
             }
         }
