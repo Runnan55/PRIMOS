@@ -46,6 +46,7 @@ public class AuthManager : MonoBehaviour
     public static AuthManager Instance { get; private set; }
 
     private Coroutine refreshRoutine;
+    private bool loginAccepted = false;
 
     private void Awake()
     {
@@ -88,7 +89,9 @@ public class AuthManager : MonoBehaviour
             refreshToken = savedRefresh;
             userId = savedUid;
 
+#if UNITY_SERVER
             FirebaseServerClient.SetServerCredentials(idToken, userId);
+#endif
 
             if (refreshRoutine != null) StopCoroutine(refreshRoutine);
             refreshRoutine = StartCoroutine(RefreshTokenLoop());
@@ -100,9 +103,52 @@ public class AuthManager : MonoBehaviour
         else
         {
             Debug.LogWarning("[AuthManager] No se encontró token guardado, se requeriría login manual.");
-            ShowLoginPanel();
+            //ShowLoginPanel();
+            //De momento desactivamos lo de token manual
         }
     }
+
+    #region Disconnect_Duplicate_User
+
+    private bool loginHandlerRegistered;
+    void OnEnable()
+    {
+        if (!loginHandlerRegistered)
+        {
+            NetworkClient.RegisterHandler<LoginResultMessage>(OnLoginResult);
+            loginHandlerRegistered = true;
+        }
+    }
+
+    private void OnLoginResult(LoginResultMessage msg)
+    {
+        if (msg.ok)
+        {
+            loginAccepted = true;
+
+            // AHORA sí cerramos el login y dejamos ver tu MainMenu/UI
+            if (loginPanel) loginPanel.SetActive(false);
+            if (registerPanel) registerPanel.SetActive(false);
+            if (feedbackText) feedbackText.text = "";
+        }
+        else
+        {
+            // Duplicado: mantenemos el login visible y mostramos error
+            if (feedbackText) feedbackText.text = "Esta cuenta ya está conectada en otro dispositivo.";
+
+            // desconecta el cliente si quedó conectado
+            StartCoroutine(DisconnectClientIfConnected());
+        }
+    }
+
+    private System.Collections.IEnumerator DisconnectClientIfConnected()
+    {
+        yield return null; // deja drenar el mensaje local
+        if (NetworkClient.isConnected)
+            NetworkManager.singleton.StopClient();
+    }
+
+    #endregion
 
     public void OnFirebaseLoginSuccess(string json)
     {
@@ -119,7 +165,9 @@ public class AuthManager : MonoBehaviour
         refreshToken = p.refreshToken;
         userId = p.uid;
 
-        FirebaseServerClient.SetServerCredentials(idToken, userId);
+#if UNITY_SERVER
+        FirebaseServerClient.SetServerCredentials(idToken, userId); // SOLO en build de servidor
+#endif
 
         if (refreshRoutine != null) StopCoroutine(refreshRoutine);
         refreshRoutine = StartCoroutine(RefreshTokenLoop());
@@ -133,7 +181,7 @@ public class AuthManager : MonoBehaviour
     public void OnFirebaseLoginError(string message)
     {
         Debug.LogWarning("[AuthManager] JS auth error: " + message);
-        ShowLoginPanel();
+        //ShowLoginPanel();
         if (feedbackText != null) feedbackText.text = "Error de login: " + message;
     }
 
@@ -352,7 +400,9 @@ public class AuthManager : MonoBehaviour
             refreshToken = loginResponse.refreshToken;
             userId = loginResponse.localId;
 
+#if UNITY_SERVER
             FirebaseServerClient.SetServerCredentials(idToken, userId);
+#endif
 
             if (refreshRoutine != null) StopCoroutine(refreshRoutine);
             refreshRoutine = StartCoroutine(RefreshTokenLoop());
@@ -373,8 +423,10 @@ public class AuthManager : MonoBehaviour
     private string refreshToken;
     private string userId;
 
+#if UNITY_SERVER
     public IEnumerator LoginHeadlessForServer(string email, string password)
     {
+
         string url = string.Format(LoginUrl, firebaseWebAPIKey);
 
         string jsonPayload = JsonUtility.ToJson(new LoginRequest
@@ -383,7 +435,6 @@ public class AuthManager : MonoBehaviour
             password = password,
             returnSecureToken = true
         });
-
         UnityWebRequest request = new UnityWebRequest(url, "POST");
         byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonPayload);
         request.uploadHandler = new UploadHandlerRaw(bodyRaw);
@@ -413,7 +464,8 @@ public class AuthManager : MonoBehaviour
 
             StartCoroutine(RefreshTokenLoop());
         }
-    }
+}
+#endif
 
     private IEnumerator RefreshTokenLoop()
     {
@@ -446,7 +498,9 @@ public class AuthManager : MonoBehaviour
                 PlayerPrefs.SetString("firebase_refreshToken", refreshToken);
 #endif
 
+#if UNITY_SERVER
                 FirebaseServerClient.SetServerCredentials(idToken, userId);
+#endif
                 Debug.Log("[AuthManager] Token refrescado correctamente.");
             }
             else
@@ -474,52 +528,102 @@ public class AuthManager : MonoBehaviour
 
     private IEnumerator ConnectToMirrorServerAfterDelay()
     {
-        yield return new WaitForSecondsRealtime(1f);
+        // Pequeño respiro de un frame por seguridad
+        yield return null;
 
-        if (!NetworkClient.active)
+        // 1) Conectar a Mirror (si no está ya activo)
+        if (!NetworkClient.isConnected && !NetworkClient.active)
         {
-            NetworkManager.singleton.StartClient(); //Intenta conectarse como cliente
+            try
+            {
+                NetworkManager.singleton.StartClient();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[AuthManager] Error al iniciar cliente: {ex.Message}");
+                OnConnectionFailed();
+                yield break;
+            }
         }
 
-        float timeout = 5f;
-        float timer = 0f;
-
-        //Esperar que se conecte
-        while (!NetworkClient.isConnected && timer < timeout)
+        // 2) Esperar conexión (timeout)
+        float connectTimeout = 8f;
+        float t = 0f;
+        while (!NetworkClient.isConnected && t < connectTimeout)
         {
-            timer += Time.deltaTime;
+            t += Time.unscaledDeltaTime;
             yield return null;
         }
 
-        // Esperar a que esté listo para AddPlayer
-        yield return new WaitUntil(() =>
-            NetworkClient.isConnected &&
-            NetworkClient.ready &&
-            NetworkClient.connection != null &&
-            NetworkClient.connection.identity == null
-        );
-
-        string uid = WebGLStorage.LoadString("local_id");
-        //string token = WebGLStorage.LoadString("jwt_token");
-
-        FirebaseCredentialMessage credsMsg = new FirebaseCredentialMessage
-        {
-            uid = uid,
-        };
-
-        Debug.Log("Enviando credenciales al servidor: " + uid);
-        NetworkClient.connection.Send(credsMsg);
-
         if (!NetworkClient.isConnected)
         {
-            Debug.Log($"[AuthManager] envio a jugador a servidor");
+            Debug.LogError("[AuthManager] Timeout de conexión a Mirror.");
+            NetworkManager.singleton.StopClient();
             OnConnectionFailed();
+            yield break;
         }
+
+        // 3) Obtener la conexión y preparar UID
+        var conn = NetworkClient.connection;
+        if (conn == null)
+        {
+            Debug.LogError("[AuthManager] NetworkClient.connection es null.");
+            OnConnectionFailed();
+            yield break;
+        }
+
+        // UID llega del dashboard -> userId
+        string uid = userId;
+        if (string.IsNullOrEmpty(uid)) uid = WebGLStorage.LoadString("local_id");
+
+        if (string.IsNullOrEmpty(uid))
+        {
+            Debug.LogError("[AuthManager] UID vacío; abortando envío de credenciales.");
+            NetworkManager.singleton.StopClient();
+            OnConnectionFailed();
+            yield break;
+        }
+
+        // 4) Enviar credenciales al server
+        try
+        {
+            conn.Send(new FirebaseCredentialMessage { uid = uid });
+            Debug.Log($"[CLIENT] FirebaseCredentialMessage enviado (UID={uid}).");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[AuthManager] Error enviando credenciales: {ex.Message}");
+            NetworkManager.singleton.StopClient();
+            OnConnectionFailed();
+            yield break;
+        }
+
+        // 5) Esperar ACK del server (LoginResultMessage) o cortar por timeout/desconexión
+        // (OnLoginResult() debe poner loginAccepted = true al recibir OK)
+        float ackTimeout = 6f;
+        t = 0f;
+        while (!loginAccepted && NetworkClient.isConnected && t < ackTimeout)
+        {
+            t += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
+        if (!loginAccepted)
+        {
+            // Si fue duplicado, OnLoginResult ya habrá mostrado el error y desconectado.
+            if (NetworkClient.isConnected) NetworkManager.singleton.StopClient();
+            OnConnectionFailed();
+            yield break;
+        }
+
+        // 6) Éxito: seguimos; la UI/overlay se apaga en OnLoginResult(ok)
+        yield break;
     }
+
 
     private void OnConnectionFailed()
     {
-        ShowLoginPanel();
+        //ShowLoginPanel();
 
         if (feedbackText != null)
         {

@@ -594,6 +594,7 @@ public class CustomRoomPlayer : NetworkBehaviour
             return;
         }
 
+        string uid = creds.uid;
         StartCoroutine(FirebaseServerClient.FetchTicketAndKeyInfoFromWallet(creds.uid, (tickets, keys) =>
         {
             syncedTickets = tickets;

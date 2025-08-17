@@ -33,11 +33,15 @@ public class FirebaseServerClient : MonoBehaviour
         else { Destroy(gameObject); return; }
 
         DontDestroyOnLoad(gameObject);
-        Debug.Log("[FirebaseServerClient] Awake ejecutado");
-
-        StartCoroutine(WaitForAuthManagerAndLogin());
+#if UNITY_SERVER
+        StartCoroutine(WaitForAuthManagerAndLogin()); // SOLO en build de servidor
+#else
+    Debug.Log("[FirebaseServerClient] Client build: sin login headless.");
+    Destroy(gameObject);
+#endif
     }
 
+#if UNITY_SERVER
     private IEnumerator WaitForAuthManagerAndLogin()
     {
         int retries = 30;
@@ -54,6 +58,7 @@ public class FirebaseServerClient : MonoBehaviour
             Debug.LogError("[FirebaseServerClient] AuthManager no disponible tras el timeout.");
         }
     }
+#endif
 
     public static void SetServerCredentials(string token, string uid)
     {

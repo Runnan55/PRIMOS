@@ -64,6 +64,9 @@ public class MainLobbyUI : MonoBehaviour
     [SerializeField] private TMP_Text keyText;
     private int currentTickets = 0;
 
+    [Header("LoadingScreen")]
+    [SerializeField] private GameObject loadingScreen;
+
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
         { "Casual", "LobbySceneCasual" },
@@ -95,6 +98,9 @@ public class MainLobbyUI : MonoBehaviour
         // Llamar a actualizar los Keys y Tickets desde Server-Firebase
         StartCoroutine(AutoRefreshWalletData());
 
+        //Llamar a ocultar la pantalla de carga cuando el server nos de el OK
+        StartCoroutine(HideLoadingWhenLoginAccepted());
+
         //nameInputField.onValueChanged.AddListener(OnNameChangedLive);
 
         rankedButton.onClick.AddListener(() => JoinMode("Ranked")); 
@@ -113,6 +119,26 @@ public class MainLobbyUI : MonoBehaviour
         }
 
     }
+
+    private IEnumerator HideLoadingWhenLoginAccepted()
+    {
+        // Asegúrate de que el overlay esté encendido desde el primer frame
+        if (loadingScreen) loadingScreen.SetActive(true);
+
+        // Espera a que el server cree al jugador local (señal de login OK)
+        while (NetworkClient.isConnected &&
+               (CustomRoomPlayer.LocalInstance == null || !CustomRoomPlayer.LocalInstance.isLocalPlayer))
+        {
+            yield return null;
+        }
+
+        // Si nos desconectaron (duplicado/kick), no quites el overlay
+        if (!NetworkClient.isConnected) yield break;
+
+        // OK: ahora sí quitamos el overlay y puede verse el menú
+        if (loadingScreen) loadingScreen.SetActive(false);
+    }
+
 
     private IEnumerator AutoRefreshWalletData()
     {

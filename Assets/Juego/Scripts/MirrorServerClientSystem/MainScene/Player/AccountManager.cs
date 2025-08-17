@@ -22,11 +22,11 @@ public class PlayerAccountData
 
 public class AccountManager : NetworkBehaviour
 {
-    private Dictionary<NetworkConnectionToClient, FirebaseCredentials> firebaseTokens = new();
-
     public static AccountManager Instance { get; private set; }
 
+    private Dictionary<NetworkConnectionToClient, FirebaseCredentials> firebaseTokens = new();
     private Dictionary<NetworkConnectionToClient, PlayerAccountData> playerAccounts = new();
+    private readonly Dictionary<string, NetworkConnectionToClient> uidToConn = new();
 
     private void Awake()
     {
@@ -68,10 +68,12 @@ public class AccountManager : NetworkBehaviour
         }
             
     }
-    
+
+    // Extiende el registro actual de credenciales para también indexar por UID
     public void RegisterFirebaseCredentials(NetworkConnectionToClient conn, string uid)
     {
         firebaseTokens[conn] = new FirebaseCredentials(uid);
+        uidToConn[uid] = conn;
         Debug.Log($"[AccountManager] Credenciales de Firebase recibidas para {uid}");
         Debug.Log($"[AccountManager] connId guardado: {conn.connectionId}");
     }
@@ -87,6 +89,32 @@ public class AccountManager : NetworkBehaviour
         creds = stored;
         return true;
     }
+
+    #region Disconnect_Duplicate_User
+
+    // Helper para consultar si un UID ya está en uso
+    public bool IsUidInUse(string uid, out NetworkConnectionToClient existing)
+    {
+        return uidToConn.TryGetValue(uid, out existing);
+    }
+
+    // Limpieza integral cuando una conexión se cae
+    public void RemoveConnection(NetworkConnectionToClient conn)
+    {
+        // borra player account si existiera
+        if (playerAccounts.ContainsKey(conn))
+            playerAccounts.Remove(conn);
+
+        // borra tokens y el índice inverso
+        if (firebaseTokens.TryGetValue(conn, out var creds))
+        {
+            if (uidToConn.TryGetValue(creds.uid, out var stored) && stored == conn)
+                    uidToConn.Remove(creds.uid);
+            firebaseTokens.Remove(conn);
+        }
+    }
+
+    #endregion
 }
 
 public class FirebaseCredentials
