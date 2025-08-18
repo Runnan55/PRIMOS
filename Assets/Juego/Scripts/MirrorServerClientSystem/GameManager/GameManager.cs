@@ -459,6 +459,11 @@ public class GameManager : NetworkBehaviour
         if (randomizeModifier)
         {
             yield return StartCoroutine(ShowRouletteBeforeStart());
+
+            // Failsafe #1: fuerza cerrar la ruleta en todos los clientes por si algún cliente aún estaba resync
+            foreach (var p in players)
+                if (!p.isBot && p.connectionToClient != null)
+                    p.TargetHideRouletteCanvas(p.connectionToClient);
         }
 
         Debug.Log($"[GameManager] Modificador seleccionado: {SelectedModifier}");

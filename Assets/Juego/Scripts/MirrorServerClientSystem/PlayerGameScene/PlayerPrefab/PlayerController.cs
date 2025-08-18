@@ -143,6 +143,7 @@ public class PlayerController : NetworkBehaviour
     [Header("Game Roulette Modifier")]
     public GameModifierRoulette roulette;
     public GameObject gameModifierCanvas;
+    public GameObject waitingPlayers_Anim;
 
     [SyncVar] public uint gameManagerNetId;
     private GameManager cachedGameManager;
@@ -150,15 +151,6 @@ public class PlayerController : NetworkBehaviour
     [Header("Bot Bot Bot")]
     [SyncVar] public bool isBot = false;
     [SyncVar] public BotPersonality botPersonality;
-
-    [TargetRpc]
-    public void TargetHideRouletteCanvas(NetworkConnection target)
-    {
-        if (gameModifierCanvas != null)
-            gameModifierCanvas.SetActive(false);
-        
-        AudioManager.Instance.PlayMusic("CasualGameSceneTheme");
-    }
 
     #region Leaderboard
 
@@ -1553,6 +1545,7 @@ public class PlayerController : NetworkBehaviour
     {
         if (!isOwned) return;
 
+        waitingPlayers_Anim.SetActive(false);
         AudioManager.Instance.PlayMusic("Spinning_Loop");
 
         if (gameModifierCanvas != null)
@@ -1564,6 +1557,15 @@ public class PlayerController : NetworkBehaviour
             GameModifierType type = (GameModifierType)winnerIndex;
             roulette.StartRoulette(type, duration);
         }
+    }
+
+    [TargetRpc]
+    public void TargetHideRouletteCanvas(NetworkConnection target)
+    {
+        if (gameModifierCanvas != null)
+            gameModifierCanvas.SetActive(false);
+
+        AudioManager.Instance.PlayMusic("CasualGameSceneTheme");
     }
 
     #endregion
