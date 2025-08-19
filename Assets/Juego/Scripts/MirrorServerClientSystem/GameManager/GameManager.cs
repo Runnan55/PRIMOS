@@ -62,6 +62,7 @@ public class GameManager : NetworkBehaviour
     [SerializeField] public List<PlayerController> players = new List<PlayerController>(); //Lista de jugadores que entran
     [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>(); //Lista de jugadores muertos
     private HashSet<PlayerController> damagedPlayers = new HashSet<PlayerController>(); // Para almacenar jugadores que ya recibieron daño en la ronda
+    private HashSet<string> startingHumans = new HashSet<string>(); // SnapShot de humanos que inician el juego
 
     private Dictionary<PlayerController, PlayerAction> actionsQueue = new Dictionary<PlayerController, PlayerAction>();
     
@@ -212,10 +213,10 @@ public class GameManager : NetworkBehaviour
         PlayerController controller = playerInstance.GetComponent<PlayerController>();
         controller.gameManagerNetId = netId; // <- Vincula de inmediato al playerPrefab con el GameManager, por alguna razón sin esto revienta y el cliente no detecta GManager del server
         controller.playerName = roomPlayer.playerName;
-
         controller.playerId = roomPlayer.playerId;
-
         controller.ownerRoomPlayer = roomPlayer;
+        controller.firebaseUID = roomPlayer.firebaseUID;
+
         roomPlayer.linkedPlayerController = controller;
 
         RegisterPlayer(controller);
@@ -313,6 +314,13 @@ public class GameManager : NetworkBehaviour
 
         isGameStarted = true;
         FillBotsIfNeeded();
+
+        // Puntuar solo a los que estaban al inicio del juego, si se van antes de empezar no suman ni restan RP
+        startingHumans = new HashSet<string>(
+            players.Where(p => !p.isBot && !string.IsNullOrEmpty(p.firebaseUID))
+           .Select(p => p.firebaseUID)
+            );
+
         StartCoroutine(BegingameAfterDelay());
     }
 
@@ -334,7 +342,10 @@ public class GameManager : NetworkBehaviour
 
             // ¿ya están todos instanciados?
             if (players.Count >= match.players.Count)
+            {
+                CheckAllPlayersReady();   // <- arranca aunque la igualdad se logre porque alguien se fue
                 yield break;
+            }
 
             yield return new WaitForSecondsRealtime(0.5f);
         }
@@ -1245,7 +1256,7 @@ public class GameManager : NetworkBehaviour
 
     private void CheckGameOver()
     {
-        if (isGameOver) return; //Evitamos seguir llamando esta función si ya acabo el juego para no seguir actualizando el startGameStatistics
+        if (!isGameStarted || isGameOver) return; //Evitamos seguir llamando esta función si ya acabo el juego o si no ha empezado para no seguir actualizando el startGameStatistics
         //Contar número de jugadores vivos
         int alivePlayers = players.Count(player => player.isAlive);
 
@@ -1287,9 +1298,12 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator StartGameStatistics()
     {
+        // Pequeño delay para que terminen RPCs/animaciones
         yield return new WaitForSecondsRealtime(2f);
 
-        // Clonar lista original de muertos tal cual se registraron
+        // 1) Construir lista final para el leaderboard
+        //    - Mantiene el orden real de muertes (deadPlayers)
+        //    - Añade al ganador (si existe) al final
         List<PlayerController> leaderboardPlayers = new List<PlayerController>(deadPlayers);
 
         // Agregar al jugador vivo al final (si existe y no está duplicado)
@@ -1305,15 +1319,15 @@ public class GameManager : NetworkBehaviour
             leaderboardPlayers[i].deathOrder = i + 1;
         }
 
-        // No reordenar: se respeta el orden original del GameManager
+        // 2) Mostrar leaderboard en clientes
         if (gameStatistic != null)
         {
             gameStatistic.Initialize(leaderboardPlayers);
             gameStatistic.ShowLeaderboard();
-            Debug.Log("Enviando señal de activación de statsCanvas");
+            Debug.Log("[GameManager] Activando statsCanvas (leaderboard).");
         }
 
-        // Actualiza Firestore si es Ranked
+        // 3) Actualizar Firestore SOLO si el match es Ranked
         MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
         if (match != null && match.mode == "Ranked")
         {
@@ -1321,32 +1335,43 @@ public class GameManager : NetworkBehaviour
 
             foreach (var p in leaderboardPlayers)
             {
-                if (!p.isBot && !string.IsNullOrEmpty(p.playerId))
+                // Solo humanos con UID válido
+                if (p == null || p.isBot) continue;
+
+                string uid = !string.IsNullOrEmpty(p.firebaseUID)
+                             ? p.firebaseUID
+                             : (p.ownerRoomPlayer != null ? p.ownerRoomPlayer.firebaseUID : null);
+
+                if (string.IsNullOrEmpty(uid))
                 {
-                    int position = p.deathOrder;
-                    int pointsToAdd = GameStatistic.GetRankedPointsByPosition(position);
+                    Debug.LogWarning($"[RP] UID vacío para {p.playerName}, salto update.");
+                    continue;
+                }
 
-                    //FirestoreUserUpdater updater = FindFirstObjectByType<FirestoreUserUpdater>();
-                    string uid = p.ownerRoomPlayer.firebaseUID;
-                    var identity = p.ownerRoomPlayer.GetComponent<NetworkIdentity>();
-                    var conn = identity.connectionToClient;
+                // deathOrder: 1 = primer muerto, N = ganador
+                // rankedPosition: 1 = ganador, último = peor
+                int rankedPosition = totalPlayers - p.deathOrder + 1;
 
-                    // Si es el ganador humano, otorgar 1 llave básica
-                    if (position == totalPlayers)
+                // Lee la tabla desde GameStatistic
+                int pointsToAdd = GameStatistic.GetRankedPointsByPosition(rankedPosition);
+
+                // (Opcional) si guardas quiénes empezaron la partida:
+                // if (startingHumans.Count > 0 && !startingHumans.Contains(uid)) continue;
+
+                // Premio de llave al ganador humano
+                if (rankedPosition == 1)
+                {
+                    StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(uid, ok =>
                     {
-                        StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(uid, success =>
-                        {
-                            if (!success)
-                                Debug.LogWarning($"[GameManager] No se pudo otorgar llave a {p.ownerRoomPlayer.playerName}");
-                        }));
-                    }
-
-                    StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, pointsToAdd, success =>
-                    {
-                        if (!success)
-                            Debug.LogWarning($"[GameManager] No se pudo actualizar rankedPoints para {p.ownerRoomPlayer.playerName}");
+                        if (!ok) Debug.LogWarning($"[RP] No se pudo otorgar llave a {p.playerName}");
                     }));
                 }
+
+                // Update RP directo desde GameManager al cliente de Firebase del servidor
+                StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, pointsToAdd, ok =>
+                {
+                    Debug.Log($"[RP] uid={uid} pos={rankedPosition}/{totalPlayers} delta={pointsToAdd} ok={ok}");
+                }));
             }
         }
     }
@@ -1539,16 +1564,25 @@ public class GameManager : NetworkBehaviour
         recentAttackers.Remove(player); // no recordarlo como atacante
         
         players.Remove(player);
+
+        // PRE-GAME: revalidar inicio, NO terminar partida
+        if (!isGameStarted)
+        {
+            if (gameStatistic != null) gameStatistic.UpdatePlayerStats(player, true);
+            CheckIfSceneShouldClose();
+            CheckAllPlayersReady();   // reevalúa y, si da, arranca + bots
+            return;
+        }
+
         if (!deadPlayers.Contains(player))
         {
             deadPlayers.Add(player); // Aquí está la clave
         }
 
-        if (gameStatistic != null)
-        {
-            gameStatistic.UpdatePlayerStats(player); // Guardamos su estado final
-        }
+        if (gameStatistic != null) gameStatistic.UpdatePlayerStats(player, true);
 
+        if (!isGameStarted)
+            CheckAllPlayersReady();  // si ya estamos todos (tras restar), arranca.
         CheckIfSceneShouldClose();
         CheckGameOver();
     }

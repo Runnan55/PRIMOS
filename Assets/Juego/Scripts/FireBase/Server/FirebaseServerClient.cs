@@ -368,11 +368,13 @@ public class FirebaseServerClient : MonoBehaviour
 
     public static IEnumerator UpdateRankedPoints(string uid, int pointsToAdd, Action<bool> callback)
     {
-        string url = GetUserUrl(uid) + "?updateMask.fieldPaths=rankedPoints";
+        var getUrl = GetUserUrl(uid);                                             // Obtener datos a lo bestia sin restricciones
+        var patchUrl = GetUserUrl(uid) + "?updateMask.fieldPaths=rankedPoints";   // Modificar solo el campo requerido, para eso usamos el updateMask
+
         var idToken = Instance.GetIdToken();
 
         // GET (usa baseUrl)
-        UnityWebRequest getReq = UnityWebRequest.Get(url);
+        UnityWebRequest getReq = UnityWebRequest.Get(getUrl);
         getReq.SetRequestHeader("Authorization", $"Bearer {idToken}");
 
         yield return getReq.SendWebRequest();
@@ -390,7 +392,7 @@ public class FirebaseServerClient : MonoBehaviour
         // PATCH (usa patchUrl)
         string json = $"{{\"fields\":{{\"rankedPoints\":{{\"integerValue\":\"{current + pointsToAdd}\"}}}}}}";
 
-        UnityWebRequest patch = new UnityWebRequest(url, "PATCH");
+        UnityWebRequest patch = new UnityWebRequest(patchUrl, "PATCH");
         byte[] body = System.Text.Encoding.UTF8.GetBytes(json);
         patch.uploadHandler = new UploadHandlerRaw(body);
         patch.downloadHandler = new DownloadHandlerBuffer();
@@ -398,6 +400,10 @@ public class FirebaseServerClient : MonoBehaviour
         patch.SetRequestHeader("Authorization", $"Bearer {idToken}");
 
         yield return patch.SendWebRequest();
+
+        if (patch.result != UnityWebRequest.Result.Success)
+            Debug.LogError("[Firebase][UpdateRP] PATCH error: " + patch.downloadHandler.text);
+
         callback(patch.result == UnityWebRequest.Result.Success);
     }
 

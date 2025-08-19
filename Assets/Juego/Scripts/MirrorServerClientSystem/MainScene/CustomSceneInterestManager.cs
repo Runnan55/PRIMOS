@@ -21,6 +21,27 @@ public class CustomSceneInterestManager : SceneInterestManagement
         clientMatchScene[conn] = sceneName;
     }
 
+    // NUEVO: consultar, desregistrar y reconstruir observers
+    public bool TryGetAssignedScene(NetworkConnection conn, out string sceneName)
+        => clientMatchScene.TryGetValue(conn, out sceneName);
+
+    public void Unregister(NetworkConnection conn)
+    {
+        if (clientMatchScene.Remove(conn))
+            Debug.Log($"[Interest] Unregistered {conn}.");
+    }
+
+    public void RebuildSceneObservers(string sceneName, bool initialize = false)
+    {
+        var scn = SceneManager.GetSceneByName(sceneName);
+        if (!scn.IsValid()) return;
+
+        foreach (var ni in NetworkServer.spawned.Values)
+            if (ni != null && ni.gameObject.scene == scn)
+                NetworkServer.RebuildObservers(ni, initialize);
+    }
+    // Espero esto solucione el bug
+
     public override bool OnCheckObserver(NetworkIdentity identity, NetworkConnectionToClient newObserver)
     {
         Scene objectScene = identity.gameObject.scene;

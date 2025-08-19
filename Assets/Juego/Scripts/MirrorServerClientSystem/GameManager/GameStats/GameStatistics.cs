@@ -51,12 +51,12 @@ public class GameStatistic : NetworkBehaviour
         switch (position)
         {
             case 1: return 50;
-            case 2: return 30;
-            case 3: return 15;
-            case 4: return 5;
-            case 5: return -5;
-            case 6: return -10;
-            default: return -10;
+            case 2: return 25;
+            case 3: return 10;
+            case 4: return -10;
+            case 5: return -25;
+            case 6: return -50;
+            default: return -50;
         }
     }
 
@@ -68,7 +68,7 @@ public class GameStatistic : NetworkBehaviour
             Debug.Log($"{p.playerName}: {p.kills} kills, {p.points} puntos.");
         }
     }
-
+    
     [Server]
     public void Initialize(List<PlayerController> playerList)
     {
@@ -109,7 +109,7 @@ public class GameStatistic : NetworkBehaviour
 
         Debug.Log($"[GameStatistic] Inicializado con {players.Count} jugadores.");
     }
-
+    
     [Server]
     public void UpdatePlayerStats(PlayerController player, bool disconnected = false)
     {
@@ -118,7 +118,10 @@ public class GameStatistic : NetworkBehaviour
             if (players[i].playerName == player.playerName)
             {
                 int updatedDeathOrder = player.deathOrder;
-                int customPoints = PlayerInfo.CalculatePoints(player.kills, player.bulletsReloaded, player.bulletsFired, player.damageDealt, player.timesCovered);
+                int customPoints = PlayerInfo.CalculatePoints(
+                    player.kills, player.bulletsReloaded, player.bulletsFired, player.damageDealt, player.timesCovered);
+
+                bool preservedDisconnected = players[i].isDisconnected || disconnected; // conservar si ya estaba marcado
 
                 players[i] = new PlayerInfo(
                     player.playerName,
@@ -128,15 +131,19 @@ public class GameStatistic : NetworkBehaviour
                     player.damageDealt,
                     player.timesCovered,
                     customPoints,
-                    disconnected,
-                    updatedDeathOrder
+                    preservedDisconnected,
+                    updatedDeathOrder,
+                    player.isAlive // <- ¡importante!
                 );
                 return;
             }
         }
 
+        // Si aún no estaba en la lista
         int deathOrder = player.deathOrder;
-        int points = PlayerInfo.CalculatePoints(player.kills, player.bulletsReloaded, player.bulletsFired, player.damageDealt, player.timesCovered);
+        int points = PlayerInfo.CalculatePoints(
+            player.kills, player.bulletsReloaded, player.bulletsFired, player.damageDealt, player.timesCovered);
+
         players.Add(new PlayerInfo(
             player.playerName,
             player.kills,
@@ -146,7 +153,8 @@ public class GameStatistic : NetworkBehaviour
             player.timesCovered,
             points,
             disconnected,
-            deathOrder
+            deathOrder,
+            player.isAlive // <- ¡importante!
         ));
     }
 

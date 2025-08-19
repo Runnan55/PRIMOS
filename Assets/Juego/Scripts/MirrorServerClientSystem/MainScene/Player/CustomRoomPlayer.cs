@@ -421,6 +421,10 @@ public class CustomRoomPlayer : NetworkBehaviour
     [TargetRpc]
     public void TargetReturnToMainMenu(NetworkConnection target)
     {
+        // 1) corta flags locales para que FocusResync no se active
+        isPlayingNow = false;              // FocusResync chequea esto 
+        currentMatchId = null;
+
         SceneLoaderManager.Instance.LoadScene("MainScene"); // o "StartScene" si lo llamas así
 
         // Opcional: resetear UI o estado si lo necesitas
@@ -583,7 +587,7 @@ public class CustomRoomPlayer : NetworkBehaviour
 
     #endregion
 
-    #region Enviar Credenciales A Servidor
+    #region Pedir credenciales a servidor
 
     [Command]
     public void CmdRequestTicketAndKeyStatus()
@@ -603,56 +607,7 @@ public class CustomRoomPlayer : NetworkBehaviour
             TargetReceiveWalletData(connectionToClient, tickets, keys);
         }));
     }
-
-    [Command]
-    public void CmdTryConsumeTicket()
-    {
-        if (!AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
-        {
-            Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
-            return;
-        }
-
-        StartCoroutine(FirebaseServerClient.TryConsumeTicket(creds.uid, success =>
-        {
-            TargetReceiveTicketConsumedResult(connectionToClient, success);
-        }));
-    }
-
-    [Command]
-    public void CmdGrantBasicKeyToPlayer()
-    {
-        if (!AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
-        {
-            Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
-            return;
-        }
-
-        StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(creds.uid, success =>
-        {
-            TargetReceiveKeyGrantedResult(connectionToClient, success);
-        }));
-    }
-
-    [Command]
-    public void CmdAddRankedPoints(int newPoints)
-    {
-        if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
-        {
-            string uid = creds.uid;
-        }
-        else
-        {
-            Debug.LogWarning("[CustomRoomPlayer] No se encontró el UID para esta conexión.");
-            return;
-        }
-
-        StartCoroutine(FirebaseServerClient.UpdateRankedPoints(creds.uid, newPoints, success =>
-        {
-            Debug.Log("[Server] Resultado de actualizar rankedPoints: " + success);
-        }));
-    }
-
+    
     [TargetRpc]
     public void TargetReceiveWalletData(NetworkConnection target, int tickets, int keys)
     {
@@ -662,20 +617,7 @@ public class CustomRoomPlayer : NetworkBehaviour
             mainUI.UpdateTicketAndKeyDisplay(tickets, keys);
         }
     }
-
-    [TargetRpc]
-    public void TargetReceiveTicketConsumedResult(NetworkConnection target, bool success)
-    {
-        Debug.Log("[Client] Resultado al consumir ticket: " + success);
-        // Podés reaccionar activando Ranked u otra UI
-    }
-
-    [TargetRpc]
-    public void TargetReceiveKeyGrantedResult(NetworkConnection target, bool success)
-    {
-        Debug.Log("[Client] Resultado al otorgar llave: " + success);
-    }
-
+    
     #endregion
 
     #region Enviar o Pedir Nombre a Server

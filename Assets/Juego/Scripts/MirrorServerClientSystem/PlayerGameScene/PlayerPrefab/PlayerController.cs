@@ -145,12 +145,12 @@ public class PlayerController : NetworkBehaviour
     public GameObject gameModifierCanvas;
     public GameObject waitingPlayers_Anim;
 
-    [SyncVar] public uint gameManagerNetId;
-    private GameManager cachedGameManager;
-
     [Header("Bot Bot Bot")]
     [SyncVar] public bool isBot = false;
     [SyncVar] public BotPersonality botPersonality;
+
+    //Información relevante para Firebase
+    [SyncVar] public string firebaseUID;
 
     #region Leaderboard
 
@@ -244,7 +244,13 @@ public class PlayerController : NetworkBehaviour
     }
 
     #endregion
-    public GameManager GameManager
+
+    #region GameManager y GameStatistics de tu propia escena, para que no cruces datos con otras
+
+    [SyncVar] public uint gameManagerNetId;
+    private GameManager cachedGameManager;
+
+    public GameManager GManager
     {
         get
         {
@@ -258,6 +264,24 @@ public class PlayerController : NetworkBehaviour
             return cachedGameManager;
         }
     }
+
+    [SyncVar] public uint gameStatisticNetId;
+    private GameStatistic cachedStatistic;
+
+    public GameStatistic GStatistic
+    {
+        get
+        {
+            if (cachedStatistic == null && gameStatisticNetId != 0)
+            {
+                if (NetworkServer.spawned.TryGetValue(gameStatisticNetId, out var identity))
+                    cachedStatistic = identity.GetComponent<GameStatistic>();
+            }
+            return cachedStatistic;
+        }
+    }
+
+    #endregion
 
     private void Awake()
     {
@@ -1267,7 +1291,7 @@ public class PlayerController : NetworkBehaviour
         if (GameManager.Instance == null) Debug.Log("No tienesGameManager pero registrasteaccion en server");
         selectedAction = actionType;//Enviar accion seleccionada al servidor
 
-        GameManager.RegisterAction(this, actionType, target);
+        GManager.RegisterAction(this, actionType, target);
 
         RpcSetTargetIndicator(this, target); //Indicador del cliente que disparó
 
@@ -1284,7 +1308,7 @@ public class PlayerController : NetworkBehaviour
 
         ammo--;
         bulletsFired++; //Sumar el contador de balas disparadas
-        GameStatistic stat = FindFirstObjectByType<GameStatistic>(); if (stat != null && isServer) stat.UpdatePlayerStats(this); // Actualizar en el GameStatistics
+        if (GStatistic != null && isServer) GStatistic.UpdatePlayerStats(this); // Actualizar en el GameStatistics
 
         int damage = 1; //Daño por defecto, se puede alterar con potenciadores
 
@@ -1404,14 +1428,14 @@ public class PlayerController : NetworkBehaviour
             Debug.Log($"{playerName} recargó 2 balas debido a Carga Oscura.");
             bulletsReloaded += 2;
 
-            GameStatistic stat = FindFirstObjectByType<GameStatistic>(); if (stat != null && isServer) stat.UpdatePlayerStats(this); // Actualizar en el GameStatistics
+            if (GStatistic != null && isServer) GStatistic.UpdatePlayerStats(this); // Actualizar en el GameStatistics
         }
         else
         {
             ammo++;
             bulletsReloaded++;
 
-            GameStatistic stat = FindFirstObjectByType<GameStatistic>(); if (stat != null && isServer) stat.UpdatePlayerStats(this); // Actualizar en el GameStatistics
+            if (GStatistic != null && isServer) GStatistic.UpdatePlayerStats(this); // Actualizar en el GameStatistics
         }
     }
 
@@ -1420,16 +1444,16 @@ public class PlayerController : NetworkBehaviour
     {
         if (!isAlive || isCovering ) return;
 
-        if (!GameManager.AllowAccumulatedDamage() && GameManager.HasTakenDamage(this)) //Verificar si el daño se debe acumular o no
+        if (!GManager.AllowAccumulatedDamage() && GManager.HasTakenDamage(this)) //Verificar si el daño se debe acumular o no
         {
             Debug.Log($"{playerName} ya recibió daño en esta ronda, ignorando el ataque.");
             return;
         }
 
         // Marcar que el jugador ha recibido daño en esta ronda si el daño no se acumula
-        if (!GameManager.AllowAccumulatedDamage())
+        if (!GManager.AllowAccumulatedDamage())
         {
-            GameManager.RegisterDamagedPlayer(this);
+            GManager.RegisterDamagedPlayer(this);
         }
 
         health -= damageAmount;
@@ -1458,14 +1482,13 @@ public class PlayerController : NetworkBehaviour
 
                 Debug.Log($"[Kills] {killer.playerName} mató a {playerName} en la escena {gameObject.scene.name}, es un HOMICIDA, un SIKOPATA, un ASESINO, llamen a la POLIZIA por el AMOR DE DIOS.");
 
-                var stat = FindFirstObjectByType<GameStatistic>();
-                if (stat != null && isServer)
+                if (GStatistic != null && isServer)
                 {
-                    stat.UpdatePlayerStats(killer);
+                    GStatistic.UpdatePlayerStats(killer);
                 }
             }
 
-            GameManager.PlayerDied(this); // Aquí se vuelve a asignar la muerte en el Gamemanager pa otras cosas, no está bien optimizado, deberían ir juntos
+            GManager.PlayerDied(this); // Aquí se vuelve a asignar la muerte en el Gamemanager pa otras cosas, no está bien optimizado, deberían ir juntos
         }
 
         StartCoroutine(DelayedPlayStunnedAnimation()); // Vamos a actualizar el estado de vida y esperar un segundo para mandar la animación de recibir daño, damos tiempo a que se ejecuten otras animaciones
@@ -1523,16 +1546,14 @@ public class PlayerController : NetworkBehaviour
     {
         base.OnStopServer();
 
-        if (GameManager != null)
+        if (GManager != null)
         {
-           GameManager.PlayerDisconnected(this);
+           GManager.PlayerDisconnected(this);
         }
 
-        GameStatistic stat = FindFirstObjectByType<GameStatistic>();
-
-        if (stat != null && isServer)
+        if (GStatistic != null && isServer)
         {
-            stat.UpdatePlayerStats(this, true);
+            GStatistic.UpdatePlayerStats(this, true);
         }
     }
 
