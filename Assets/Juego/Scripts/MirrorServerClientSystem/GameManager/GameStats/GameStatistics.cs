@@ -90,7 +90,7 @@ public class GameStatistic : NetworkBehaviour
             int rankedPosition = i + 1;
 
             int customPoints = isRanked
-                ? GetRankedPointsByPosition(rankedPosition)
+                ? GetRankedPointsByPosition(rankedPosition) + (p.kills * 5)
                 : PlayerInfo.CalculatePoints(p.kills, p.bulletsReloaded, p.bulletsFired, p.damageDealt, p.timesCovered);
 
             players.Add(new PlayerInfo(

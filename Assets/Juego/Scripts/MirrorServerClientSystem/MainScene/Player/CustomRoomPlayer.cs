@@ -415,43 +415,91 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         currentMode = null;
 
-        TargetReturnToMainMenu(connectionToClient);
+        ServerReturnToMainMenu();
     }
 
+    // === ENTRYPOINT ÚNICO (SERVER) ===
+    // Llama a esto cuando el jugador sale de la GameScene o al terminar la partida.
+    [Server]
+    public void ServerReturnToMainMenu()
+    {
+        var conn = connectionToClient;
+        var im = CustomSceneInterestManager.Instance;
+
+        // 1) Cortar flags de juego (bloquea FocusResync) y recordar escena real previa
+        isPlayingNow = false;
+        var oldMatchId = currentMatchId;
+        currentMatchId = null;
+
+        // 2) Destruir el PlayerController de este jugador si sigue vivo
+        if (linkedPlayerController != null)
+        {
+            // NUEVO: notificar al GameManager antes de destruir
+            var gm = linkedPlayerController.GManager;
+            if (gm != null) gm.MarkDisconnected(linkedPlayerController);
+
+            if (linkedPlayerController.gameObject != null)
+                NetworkServer.Destroy(linkedPlayerController.gameObject);
+            linkedPlayerController = null;
+        }
+
+
+        // 3) Desregistrar interés y forzar HIDE de todos los objetos de la GameScene
+        if (im != null && conn != null)
+        {
+            // Si añadiste TryGetAssignedScene/Unregister/RebuildSceneObservers en el InterestManager, úsalo aquí:
+            if (im.TryGetAssignedScene(conn, out var realSceneName))
+            {
+                im.Unregister(conn);                // -> el CRP deja de ser observador de la GameScene
+                im.RebuildSceneObservers(realSceneName, initialize: false); // -> Mirror manda HIDE
+            }
+        }
+
+        // 4) Mover este CRP al MainScene (clave para que OnCheckObserver no nos vuelva a colgar a la GameScene)
+        var main = SceneManager.GetSceneByName("MainScene");
+        if (main.IsValid() && gameObject.scene != main)
+            SceneManager.MoveGameObjectToScene(gameObject, main);
+
+        // 5) Disparar el retorno en el cliente (limpieza visual y carga de escena)
+        TargetReturnToMainMenu(conn);
+    }
+
+    // === CLIENTE ===
     [TargetRpc]
     public void TargetReturnToMainMenu(NetworkConnection target)
     {
-        // 1) corta flags locales para que FocusResync no se active
-        isPlayingNow = false;              // FocusResync chequea esto 
+        // Blindaje anti-resync en el cliente
+        isPlayingNow = false;
         currentMatchId = null;
 
-        SceneLoaderManager.Instance.LoadScene("MainScene"); // o "StartScene" si lo llamas así
+        // (Failsafe visual) apaga cualquier HUD de in-game que hubiese quedado renderizado
+        // Nota: el PlayerController ya fue destruido en server, esto es por si la UI quedó “huérfana” 1 frame.
+        foreach (var c in Resources.FindObjectsOfTypeAll<Canvas>())
+        {
+            // Si usas tags/nombres para HUD in-game, filtra aquí (ej.: c.tag == "InGameUI")
+            if (c != null && c.gameObject != null && c.gameObject.scene.isLoaded)
+            {
+                // Heurística ligera: canvases activos fuera del MainScene con nombre típico de HUD
+                if (c.gameObject.name.Contains("HUD") || c.gameObject.name.Contains("Game"))
+                    c.gameObject.SetActive(false);
+            }
+        }
 
-        // Opcional: resetear UI o estado si lo necesitas
-        Debug.Log("[CLIENT] Volviendo a menú principal...");
-
-        // Esperar a que cargue la escena para acceder a sus objetos
+        // Cargar MainScene y mostrar el menú
+        SceneManager.sceneLoaded -= OnMainSceneLoaded;
         SceneManager.sceneLoaded += OnMainSceneLoaded;
+
+        SceneLoaderManager.Instance.LoadScene("MainScene");
     }
 
     private void OnMainSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (scene.name != "MainScene") return;
-
         SceneManager.sceneLoaded -= OnMainSceneLoaded;
 
-        Debug.Log("[CLIENT] MainScene cargada, intentando mostrar GameSelectionMenu...");
-
+        // Abre tu UI de selección/lobby
         var mainLobbyUI = UnityEngine.Object.FindFirstObjectByType<MainLobbyUI>();
-        if (mainLobbyUI != null)
-        {
-            mainLobbyUI.StartGameSelectionMenu();
-            Debug.Log("[CLIENT] GameSelectionMenu activado correctamente");
-        }
-        else
-        {
-            Debug.LogWarning("[CLIENT] No se encontró MainLobbyUI en MainScene");
-        }
+        mainLobbyUI?.StartGameSelectionMenu();
     }
 
     [ClientRpc]
@@ -691,7 +739,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     public void CmdRequestResyncObservers()
     {
         var conn = connectionToClient;
-        if (conn == null || string.IsNullOrEmpty(currentMatchId)) return;
+        if (conn == null || !isPlayingNow || string.IsNullOrEmpty(currentMatchId)) return;
 
         var im = CustomSceneInterestManager.Instance;
         var match = MatchHandler.Instance.GetMatch(currentMatchId);

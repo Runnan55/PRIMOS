@@ -65,7 +65,7 @@ public class GameManager : NetworkBehaviour
     private HashSet<string> startingHumans = new HashSet<string>(); // SnapShot de humanos que inician el juego
 
     private Dictionary<PlayerController, PlayerAction> actionsQueue = new Dictionary<PlayerController, PlayerAction>();
-    
+    private Dictionary<string, string> playerIdToUid = new Dictionary<string, string>();
 
     private int currentRound = 0; // Contador de rondas
                                   //[SerializeField] private TMP_Text roundText; // Texto en UI para mostrar la ronda
@@ -231,6 +231,14 @@ public class GameManager : NetworkBehaviour
         {
             players.Add(player);
             Debug.Log($"[GameManager] Jugador registrado: {player.playerName}");
+
+            // Fallback de UID por si el ownerRoomPlayer desaparece más tarde
+            string uid = player.firebaseUID;
+            if (string.IsNullOrEmpty(uid) && player.ownerRoomPlayer != null)
+                uid = player.ownerRoomPlayer.firebaseUID;
+
+            if (!string.IsNullOrEmpty(uid) && !string.IsNullOrEmpty(player.playerId))
+                playerIdToUid[player.playerId] = uid;
 
             // Verificar si podemos empezar la partida
             CheckAllPlayersReady();
@@ -1342,6 +1350,12 @@ public class GameManager : NetworkBehaviour
                              ? p.firebaseUID
                              : (p.ownerRoomPlayer != null ? p.ownerRoomPlayer.firebaseUID : null);
 
+                // << NUEVO fallback si arriba quedó vacío
+                if (string.IsNullOrEmpty(uid) && !string.IsNullOrEmpty(p.playerId))
+                {
+                    playerIdToUid.TryGetValue(p.playerId, out uid);
+                }
+
                 if (string.IsNullOrEmpty(uid))
                 {
                     Debug.LogWarning($"[RP] UID vacío para {p.playerName}, salto update.");
@@ -1353,10 +1367,7 @@ public class GameManager : NetworkBehaviour
                 int rankedPosition = totalPlayers - p.deathOrder + 1;
 
                 // Lee la tabla desde GameStatistic
-                int pointsToAdd = GameStatistic.GetRankedPointsByPosition(rankedPosition);
-
-                // (Opcional) si guardas quiénes empezaron la partida:
-                // if (startingHumans.Count > 0 && !startingHumans.Contains(uid)) continue;
+                int pointsToAdd = GameStatistic.GetRankedPointsByPosition(rankedPosition) + (p.kills * 5);
 
                 // Premio de llave al ganador humano
                 if (rankedPosition == 1)
@@ -1586,6 +1597,25 @@ public class GameManager : NetworkBehaviour
         CheckIfSceneShouldClose();
         CheckGameOver();
     }
+
+    [Server]
+    public void MarkDisconnected(PlayerController p)
+    {
+        if (p == null) return;
+
+        // Marcar como “muerto/desconectado” para el orden del leaderboard
+        p.isAlive = false;
+        if (!deadPlayers.Contains(p))
+        {
+            p.deathOrder = deathCounter++;
+            deadPlayers.Add(p);
+        }
+
+        // Actualiza snapshot de stats y etiqueta “(Offline)” en UI
+        if (gameStatistic != null)
+            gameStatistic.UpdatePlayerStats(p, disconnected: true);
+    }
+
 
     [Server]
     private void CheckIfSceneShouldClose()

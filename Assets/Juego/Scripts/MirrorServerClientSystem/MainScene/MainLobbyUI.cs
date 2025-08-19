@@ -356,7 +356,6 @@ public class MainLobbyUI : MonoBehaviour
     {
         AudioManager.Instance.PlaySFX("Clic");
         leaderboardPanel.SetActive(true);
-        //StartCoroutine(FirestoreLeaderboardFetcher.Instance.FetchAndDisplayLeaderboard());
         StartCoroutine(FetchAndDisplayLeaderboard());
     }
 
@@ -434,6 +433,25 @@ public class MainLobbyUI : MonoBehaviour
                     ui.SetEntry(-1, string.IsNullOrEmpty(localName) ? "You" : localName + " (No Rank)", 0);
                 }
             }
+        }
+
+        // --- Forzar layout limpio y reset de scroll/offset ---
+        Canvas.ForceUpdateCanvases();
+
+        var rt = leaderboardContentContainer as RectTransform;
+        if (rt != null)
+        {
+            UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+            rt.anchoredPosition = Vector2.zero; // evita “corrimiento” lateral
+        }
+
+        // Si tu panel usa ScrollRect, resetea la posición arriba
+        var scroll = leaderboardPanel != null
+            ? leaderboardPanel.GetComponentInChildren<UnityEngine.UI.ScrollRect>(true)
+            : null;
+        if (scroll != null)
+        {
+            scroll.normalizedPosition = new Vector2(0f, 1f);
         }
     }
 

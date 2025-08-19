@@ -210,24 +210,16 @@ public class PlayerController : NetworkBehaviour
     [Command]
     private void CmdReturnToMenuScene()
     {
-        Debug.Log($"[SERVER] {playerName} quiere volver a MenuScene");
-
-        // Mover su CustomRoomPlayer
+        // Delegamos TODO al CRP dueño
         if (ownerRoomPlayer != null)
         {
-            var mainScene = SceneManager.GetSceneByName("MainScene");
-            if (mainScene.IsValid())
-            {
-                SceneManager.MoveGameObjectToScene(ownerRoomPlayer.gameObject, mainScene);
-                Debug.Log($"[SERVER] {playerName} movido a escena MainScene");
-            }
+            ownerRoomPlayer.ServerReturnToMainMenu();
         }
-
-        // Cambiar escena del cliente local
-        TargetReturnToMainScene(connectionToClient);
-
-        // Destruir el PlayerController del servidor
-        StartCoroutine (DestroyMe());
+        else
+        {
+            // Failsafe: si no hay CRP (no debería pasar), destruye este PlayerController para no dejar HUD colgado
+            if (gameObject != null) NetworkServer.Destroy(gameObject);
+        }
     }
 
     private IEnumerator DestroyMe()
@@ -556,6 +548,10 @@ public class PlayerController : NetworkBehaviour
         base.OnStartServer();
 
         DetectSpawnPosition(transform.position); //Setear orientacion y posición usando la posición actual
+
+        // 🔗 Asegura el vínculo con el CRP dueño (para que el CRP pueda destruirte luego)
+        if (ownerRoomPlayer != null)
+            ownerRoomPlayer.linkedPlayerController = this;
     }
 
     [ClientCallback]
