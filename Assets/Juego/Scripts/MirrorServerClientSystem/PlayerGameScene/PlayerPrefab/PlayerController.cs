@@ -376,6 +376,7 @@ public class PlayerController : NetworkBehaviour
             targetIndicator.SetActive(false);
             playerCanvas.SetActive(true);
             gameModifierCanvas.SetActive(true);
+            leaderboardCanvas.SetActive(false);
 
             /*if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
             if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());

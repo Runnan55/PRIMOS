@@ -73,17 +73,48 @@ public class CustomRoomPlayer : NetworkBehaviour
     //Usar siempre para lógica backEnd (Actualizar listas de server, cerrar GameScenes, abandonar partidas,etc)
     public override void OnStopServer()
     {
-        base.OnStopServer();
+        // 1) Marcar como "muerto/desconectado" en su GameManager
+        if (!string.IsNullOrEmpty(currentMatchId))
+        {
+            var match = MatchHandler.Instance.GetMatch(currentMatchId);
+            if (match != null)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(match.sceneName);
+                if (scene.IsValid())
+                {
+                    GameManager gm = null;
+                    foreach (var go in scene.GetRootGameObjects())
+                    {
+                        gm = go.GetComponent<GameManager>();
+                        if (gm != null) break;
+                    }
 
+                    if (gm != null)
+                    {
+                        // Asegurar el PlayerController (por si el link está nulo)
+                        var pc = linkedPlayerController;
+                        if (pc == null)
+                        {
+                            var pcs = scene.GetRootGameObjects()
+                                           .SelectMany(g => g.GetComponentsInChildren<PlayerController>(true));
+                            pc = pcs.FirstOrDefault(p => p.playerId == playerId);
+                        }
+
+                        if (pc != null)
+                            gm.MarkDisconnected(pc);   // clave
+                    }
+                }
+            }
+        }
+
+        // 2) Tu limpieza actual
+        base.OnStopServer();
         MatchHandler.Instance.LeaveMatch(this);
         MatchHandler.Instance.RemoveFromMatchmakingQueue(this);
 
-        if (!string.IsNullOrEmpty(currentMatchId))
-        {
-            //Esto no est´´a funcionando, pero debería, el jugador debería tener el currentMatchId en su inspector, revisar luego
-        }
         Debug.Log($"[SERVER] CustomRoomPlayer desconectado: {playerName}");
     }
+
 
     private void OnAdminStatusChanged(bool oldValue, bool newValue)
     {

@@ -63,6 +63,8 @@ public class GameManager : NetworkBehaviour
     [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>(); //Lista de jugadores muertos
     private HashSet<PlayerController> damagedPlayers = new HashSet<PlayerController>(); // Para almacenar jugadores que ya recibieron daño en la ronda
     private HashSet<string> startingHumans = new HashSet<string>(); // SnapShot de humanos que inician el juego
+    private HashSet<uint> startingNetIds = new HashSet<uint>(); // Snapshot de TODOS los que inician (humanos y bots)
+
 
     private Dictionary<PlayerController, PlayerAction> actionsQueue = new Dictionary<PlayerController, PlayerAction>();
     private Dictionary<string, string> playerIdToUid = new Dictionary<string, string>();
@@ -91,7 +93,7 @@ public class GameManager : NetworkBehaviour
 
     [Header("GameStatistics")]
     [SerializeField] private GameStatistic gameStatistic;
-    private int deathCounter = 1;
+    private int deathCounter = 0;
 
     [Header("Talisman-Tiki")]
     [SerializeField] private GameObject talismanIconPrefab;
@@ -328,6 +330,8 @@ public class GameManager : NetworkBehaviour
             players.Where(p => !p.isBot && !string.IsNullOrEmpty(p.firebaseUID))
            .Select(p => p.firebaseUID)
             );
+
+        startingNetIds = new HashSet<uint>(players.Select(p => p.netId));
 
         StartCoroutine(BegingameAfterDelay());
     }
@@ -1306,85 +1310,119 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator StartGameStatistics()
     {
-        // Pequeño delay para que terminen RPCs/animaciones
-        yield return new WaitForSecondsRealtime(2f);
+        // --- 0) Cerrar partida en server ---
+        isGameOver = true;
 
-        // 1) Construir lista final para el leaderboard
-        //    - Mantiene el orden real de muertes (deadPlayers)
-        //    - Añade al ganador (si existe) al final
+        // --- 1) Asignar deathOrder al ganador (último número) ---
+        var winner = players.FirstOrDefault(p => p != null && p.isAlive);
+        if (winner != null)
+        {
+            if (winner.deathOrder == 0) winner.deathOrder = ++deathCounter;
+            Debug.Log($"[GM][{gameObject.scene.name}] WINNER -> #{winner.deathOrder} {winner.playerName} (alive={winner.isAlive}, netId={winner.netId})");
+        }
+        else
+        {
+            Debug.Log("[GM] WINNER -> ninguno (todos desconectados?)");
+        }
+
+        Debug.Log($"[GM][{gameObject.scene.name}] WINNER -> #{winner.deathOrder} {winner.playerName} (alive={winner.isAlive}, netId={winner.netId})");
+
+        // --- 2) Construir la lista final: muertos (en su orden) + ganador ---
         List<PlayerController> leaderboardPlayers = new List<PlayerController>(deadPlayers);
 
-        // Agregar al jugador vivo al final (si existe y no está duplicado)
-        var winner = players.FirstOrDefault(p => p.isAlive);
         if (winner != null && !leaderboardPlayers.Contains(winner))
-        {
-            leaderboardPlayers.Add(winner); // el ganador va al final
-        }
+            leaderboardPlayers.Add(winner);
 
-        // Asignar deathOrder según orden de aparición
-        for (int i = 0; i < leaderboardPlayers.Count; i++)
-        {
-            leaderboardPlayers[i].deathOrder = i + 1;
-        }
+        leaderboardPlayers = leaderboardPlayers
+            .Where(p => p != null)
+            .GroupBy(p => p.playerName)   // clave visible y estable para el cierre
+            .Select(g => g.First())
+            .ToList();
 
-        // 2) Mostrar leaderboard en clientes
+
+        // DEBUG: imprime el orden final tal como saldrá en el leaderboard (solo por deathOrder desc)
+        var finalOrdered = leaderboardPlayers
+            .OrderByDescending(p => p.deathOrder)
+            .ToList();
+
+        var lines = finalOrdered
+            .Select((p, idx) => $"{idx + 1}: {p.playerName}  (deathOrder={p.deathOrder}, alive={p.isAlive}, netId={p.netId})");
+
+        Debug.Log("[GM] === ORDEN FINAL PARA LEADERBOARD ===\n" + string.Join("\n", lines));
+
+        // --- 3) Empujar snapshot final a GameStatistics (sin reindexar) ---
         if (gameStatistic != null)
         {
             gameStatistic.Initialize(leaderboardPlayers);
+
+            // --- 4) Mostrar leaderboard (ordenará por deathOrder desc) ---
             gameStatistic.ShowLeaderboard();
-            Debug.Log("[GameManager] Activando statsCanvas (leaderboard).");
         }
 
-        // 3) Actualizar Firestore SOLO si el match es Ranked
-        MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
-        if (match != null && match.mode == "Ranked")
+        // Solo para modo Ranked, empuja a Firestore
+        var match = MatchHandler.Instance != null ? MatchHandler.Instance.GetMatch(matchId) : null;
+        bool isRanked = (match != null && match.mode == "Ranked") ||
+                        (!string.IsNullOrEmpty(mode) && mode.Equals("Ranked", StringComparison.OrdinalIgnoreCase));
+
+        if (isRanked && gameStatistic != null)
         {
-            int totalPlayers = leaderboardPlayers.Count;
+            // 1) Primero, los que siguen con PlayerController (como ya hacías)
+            var updatedUids = new HashSet<string>();
 
-            foreach (var p in leaderboardPlayers)
+            foreach (var pc in finalOrdered)
             {
-                // Solo humanos con UID válido
-                if (p == null || p.isBot) continue;
+                if (pc == null || pc.isBot) continue;
 
-                string uid = !string.IsNullOrEmpty(p.firebaseUID)
-                             ? p.firebaseUID
-                             : (p.ownerRoomPlayer != null ? p.ownerRoomPlayer.firebaseUID : null);
+                // Usa el UID que ya guardas
+                string uid = pc.firebaseUID;
+                if (string.IsNullOrEmpty(uid) && pc.ownerRoomPlayer != null)
+                    uid = pc.ownerRoomPlayer.firebaseUID;
+                if (string.IsNullOrEmpty(uid)) continue;
 
-                // << NUEVO fallback si arriba quedó vacío
-                if (string.IsNullOrEmpty(uid) && !string.IsNullOrEmpty(p.playerId))
+                // Toma los puntos EXACTOS que calculó GameStatistic (los del leaderboard)
+                if (gameStatistic.TryGetPointsForPlayer(pc.playerName, out int delta))
                 {
-                    playerIdToUid.TryGetValue(p.playerId, out uid);
-                }
-
-                if (string.IsNullOrEmpty(uid))
-                {
-                    Debug.LogWarning($"[RP] UID vacío para {p.playerName}, salto update.");
-                    continue;
-                }
-
-                // deathOrder: 1 = primer muerto, N = ganador
-                // rankedPosition: 1 = ganador, último = peor
-                int rankedPosition = totalPlayers - p.deathOrder + 1;
-
-                // Lee la tabla desde GameStatistic
-                int pointsToAdd = GameStatistic.GetRankedPointsByPosition(rankedPosition) + (p.kills * 5);
-
-                // Premio de llave al ganador humano
-                if (rankedPosition == 1)
-                {
-                    StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(uid, ok =>
+                    updatedUids.Add(uid);
+                    StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, delta, ok =>
                     {
-                        if (!ok) Debug.LogWarning($"[RP] No se pudo otorgar llave a {p.playerName}");
+                        Debug.Log(ok
+                            ? $"[RankedPoints] OK connected -> {pc.playerName} ({uid}) Δ{delta}"
+                            : $"[RankedPoints] FAIL connected -> {pc.playerName} ({uid}) Δ{delta}");
                     }));
                 }
-
-                // Update RP directo desde GameManager al cliente de Firebase del servidor
-                StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, pointsToAdd, ok =>
+                else
                 {
-                    Debug.Log($"[RP] uid={uid} pos={rankedPosition}/{totalPlayers} delta={pointsToAdd} ok={ok}");
-                }));
+                    Debug.LogWarning($"[RankedPoints] No points in snapshot for connected {pc.playerName}");
+                }
+            }
+
+            // 2) Fallback: también actualiza a los humanos que empezaron pero ya no están conectados
+            foreach (var uid in startingHumans)
+            {
+                if (updatedUids.Contains(uid)) continue; // ya procesado arriba
+
+                string nick = null;
+                yield return StartCoroutine(FirebaseServerClient.GetNicknameFromFirestore(uid, n => nick = n));
+
+                if (string.IsNullOrWhiteSpace(nick)) continue;
+
+                if (gameStatistic.TryGetPointsForPlayer(nick, out int delta))
+                {
+                    yield return StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, delta, ok =>
+                    {
+                        Debug.Log(ok
+                            ? $"[RankedPoints] OK offline -> {nick} ({uid}) Δ{delta}"
+                            : $"[RankedPoints] FAIL offline -> {nick} ({uid}) Δ{delta}");
+                    }));
+                }
+                else
+                {
+                    Debug.LogWarning($"[RankedPoints] Nick {nick} ({uid}) no está en snapshot final (¿bot o no empezó?).");
+                }
             }
         }
+
+        yield break;
     }
 
     private void StopGamePhases()
@@ -1463,17 +1501,15 @@ public class GameManager : NetworkBehaviour
 
         foreach (var deadPlayer in sortedDeaths)
         {
+            // HandleBufferedDeaths()
             if (deadPlayer.deathOrder == 0)
-            {
-                deadPlayer.deathOrder = deathCounter;
-                deathCounter++;
-            }
-
-            if (mostrarDebugDeMuertesEnInspector)
-                ordenDeMuertesInspector.Add($"#{deadPlayer.deathOrder} → {deadPlayer.playerName}");
+                deadPlayer.deathOrder = ++deathCounter;
 
             players.Remove(deadPlayer);
-            deadPlayers.Add(deadPlayer);
+            if (!deadPlayers.Contains(deadPlayer)) deadPlayers.Add(deadPlayer);
+            Debug.Log($"[GM][{gameObject.scene.name}] DEATH  -> #{deadPlayer.deathOrder} {deadPlayer.playerName} (alive={deadPlayer.isAlive}, netId={deadPlayer.netId})");
+
+            if (gameStatistic != null) gameStatistic.UpdatePlayerStats(deadPlayer);
 
             CheckGameOver();
             yield return new WaitForSecondsRealtime(0.1f);
@@ -1564,36 +1600,34 @@ public class GameManager : NetworkBehaviour
                 player.TargetHideRouletteCanvas(player.connectionToClient);
         }
     }
-    
+
     #endregion
 
     #region OnPlayerDisconnect
 
     public void PlayerDisconnected(PlayerController player)
     {
-        actionsQueue.Remove(player); // quita su acción si estaba registrada
-        recentAttackers.Remove(player); // no recordarlo como atacante
-        
+        actionsQueue.Remove(player);
+        recentAttackers.Remove(player);
         players.Remove(player);
 
-        // PRE-GAME: revalidar inicio, NO terminar partida
         if (!isGameStarted)
         {
             if (gameStatistic != null) gameStatistic.UpdatePlayerStats(player, true);
             CheckIfSceneShouldClose();
-            CheckAllPlayersReady();   // reevalúa y, si da, arranca + bots
+            CheckAllPlayersReady();
             return;
         }
 
-        if (!deadPlayers.Contains(player))
-        {
-            deadPlayers.Add(player); // Aquí está la clave
-        }
-
+        // ===== SIMPLIFICADO: desconexión = muerte (si no tenía orden, asígnalo) =====
+        player.isAlive = false;
+        if (player.deathOrder == 0) player.deathOrder = ++deathCounter;
+        if (!deadPlayers.Contains(player)) deadPlayers.Add(player);
         if (gameStatistic != null) gameStatistic.UpdatePlayerStats(player, true);
+        Debug.Log($"[GM][{gameObject.scene.name}] QUIT   -> #{player.deathOrder} {player.playerName} (alive={player.isAlive}, netId={player.netId})");
 
-        if (!isGameStarted)
-            CheckAllPlayersReady();  // si ya estamos todos (tras restar), arranca.
+        if (!isGameStarted) CheckAllPlayersReady();  // si ya estamos todos (tras restar), arranca.
+
         CheckIfSceneShouldClose();
         CheckGameOver();
     }
@@ -1607,7 +1641,8 @@ public class GameManager : NetworkBehaviour
         p.isAlive = false;
         if (!deadPlayers.Contains(p))
         {
-            p.deathOrder = deathCounter++;
+            // FIX: usar pre-incremento e idempotente
+            if (p.deathOrder == 0) p.deathOrder = ++deathCounter;
             deadPlayers.Add(p);
         }
 

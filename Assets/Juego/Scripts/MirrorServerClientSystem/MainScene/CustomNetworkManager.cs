@@ -1,5 +1,4 @@
 using System.Collections;
-using Microsoft.Win32.SafeHandles;
 using Mirror;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -21,6 +20,45 @@ public class CustomNetworkManager : NetworkManager
 {
     public GameObject roomPlayerPrefab;
     public GameObject gameManagerPrefab;
+
+    private static CustomNetworkManager _instance;
+
+    public override void Awake()
+    {
+        if (_instance != null && _instance != this)
+        {
+            string scene = gameObject.scene.name;
+            string path = GetPath(transform);
+
+            Debug.LogError(
+                $"[CustomNetworkManager] Instancia duplicada detectada y destruida.\n" +
+                $" - Instancia existente: {_instance.gameObject.name} (scene: {_instance.gameObject.scene.name})\n" +
+                $" - Instancia destruida: {gameObject.name} (scene: {scene}, path: {path})",
+                gameObject
+            );
+
+            Destroy(gameObject);
+            return;
+        }
+
+        _instance = this;
+        DontDestroyOnLoad(gameObject);
+
+        Debug.Log($"[CustomNetworkManager] Instancia creada en scene {gameObject.scene.name}, path: {GetPath(transform)}");
+
+        base.Awake();
+    }
+
+    private static string GetPath(Transform current)
+    {
+        string path = current.name;
+        while (current.parent != null)
+        {
+            current = current.parent;
+            path = current.name + "/" + path;
+        }
+        return path;
+    }
 
     public override void OnStartServer()
     {

@@ -70,6 +70,7 @@ MonoBehaviour:
   allowAccumulatedDamage: 0
   decisionTime: 10
   executionTime: 5
+  mode: 
   players: []
   deadPlayers: []
   SelectedModifier: 2
@@ -79,10 +80,11 @@ MonoBehaviour:
   missionsPerRound: 1
   gameStatistic: {fileID: 530012246276789366}
   talismanIconPrefab: {fileID: 8773022760893761464, guid: 8975341e867cb0b47a721bb2bd2ccc5f, type: 3}
-  talismanOffset: {x: 0.7, y: 3, z: 0}
-  talismanMoveDuration: 0.75
   matchId: 
   playerControllerPrefab: {fileID: 6611139386470013384, guid: 0ff601bcb83d8344685798401727d690, type: 3}
+  readyTimeoutSeconds: 15
+  mostrarDebugDeMuertesEnInspector: 1
+  ordenDeMuertesInspector: []
 --- !u!114 &530012246276789366
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -98,6 +100,7 @@ MonoBehaviour:
   syncDirection: 0
   syncMode: 0
   syncInterval: 0
+  gameManager: {fileID: 8326968152673269228}
 --- !u!114 &1084369661911532110
 MonoBehaviour:
   m_ObjectHideFlags: 0
