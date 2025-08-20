@@ -10,15 +10,20 @@ public class AudioManager : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
+#if UNITY_SERVER
+        Debug.Log($"[HeadlessCleanup] Destruyendo {gameObject.name} en servidor headless");
+        Destroy(gameObject);
+#else
+    if (Instance == null)
+    {
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+    else
+    {
+        Destroy(gameObject);
+    }
+#endif
     }
 
     private void Start()
