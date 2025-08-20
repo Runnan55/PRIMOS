@@ -33,7 +33,7 @@ public class AccountManager : NetworkBehaviour
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
     }
-
+    /*
     public void RegisterPlayer(NetworkConnectionToClient conn, string playerName, string playerId)
     {
         PlayerAccountData data = new PlayerAccountData(playerId, playerName);
@@ -41,7 +41,7 @@ public class AccountManager : NetworkBehaviour
 
         Debug.Log($"[AccountManager] Player registrado: {playerName} (ID {playerId})");
     }
-
+    */
     public void UnregisterPlayer(NetworkConnectionToClient conn)
     {
         if (playerAccounts.ContainsKey(conn))

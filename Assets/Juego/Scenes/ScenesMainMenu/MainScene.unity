@@ -449,7 +449,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 0000
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1abba25f1948a094f88ffd10a04d3916, type: 2}
   m_sharedMaterial: {fileID: 9134812014732050744, guid: 1abba25f1948a094f88ffd10a04d3916, type: 2}
@@ -2873,11 +2873,40 @@ PrefabInstance:
       propertyPath: activeMinuteStart
       value: 5
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 7690345745160531436, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6391295934432779723, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 673939497}
   m_SourcePrefab: {fileID: 100100000, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+--- !u!1 &673939496 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6391295934432779723, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+  m_PrefabInstance: {fileID: 673939495}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &673939497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 673939496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d9cb2fff003d2a43934617048d843b4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncDirection: 0
+  syncMode: 0
+  syncInterval: 0
+  activeDays: 050000000600000000000000
+  activeHourStart: 12
+  activeMinuteStart: 0
+  activeHourEnd: 23
+  activeMinuteEnd: 0
 --- !u!1 &715247309
 GameObject:
   m_ObjectHideFlags: 0
@@ -4794,7 +4823,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: time remaining
+  m_text: friday
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 4d4666b39ec555740a4cf95b7324a9d5, type: 2}
   m_sharedMaterial: {fileID: 923871403520407743, guid: 4d4666b39ec555740a4cf95b7324a9d5, type: 2}
@@ -7506,7 +7535,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 0000
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1abba25f1948a094f88ffd10a04d3916, type: 2}
   m_sharedMaterial: {fileID: 9134812014732050744, guid: 1abba25f1948a094f88ffd10a04d3916, type: 2}

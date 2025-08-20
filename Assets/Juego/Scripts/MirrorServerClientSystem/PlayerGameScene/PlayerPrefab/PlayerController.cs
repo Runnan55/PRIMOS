@@ -202,8 +202,6 @@ public class PlayerController : NetworkBehaviour
 
     public void OnExitLeaderboardPressed()
     {
-        Debug.Log($"[ExitButton] isOwned: {isOwned}");
-        Debug.Log("[PlayerController] Botón de salida del leaderboard presionado.");
         CmdReturnToMenuScene();
     }
 
@@ -231,7 +229,6 @@ public class PlayerController : NetworkBehaviour
     [TargetRpc]
     private void TargetReturnToMainScene(NetworkConnection target)
     {
-        Debug.Log("[CLIENT] Cambiando escena visual a MainScene...");
         SceneManager.LoadScene("MainScene");
     }
 
@@ -341,21 +338,6 @@ public class PlayerController : NetworkBehaviour
 
     private void Start()
     {
-        if (GameManager.Instance != null)
-        {
-            Debug.Log("GameManager en Cliente inexistente, es lo correcto");
-        }
-
-        if (isLocalPlayer)
-        {
-            Debug.Log("El localPlayer tiene poder sobre este prefab, estaba previsto");
-        }
-
-        if (isOwned)
-        {
-            Debug.Log("El jugador tiene autoridad sobre este playerprefab, pero el Network de Mirror no lo detecta como Local Player, pero está bien");
-        }
-
         if (isOwned && CustomRoomPlayer.LocalInstance?.loadingCanvas != null)
         {
             CustomRoomPlayer.LocalInstance.loadingCanvas.SetActive(false);
@@ -453,7 +435,6 @@ public class PlayerController : NetworkBehaviour
 
         if (button == null || !button.interactable)
         {
-            Debug.Log($"Botón para acción {action} no interactuable, ignorando click.");
             return;
         }
 
@@ -573,15 +554,6 @@ public class PlayerController : NetworkBehaviour
             selectedAction = ActionType.None;
             return;
         }
-        /*
-        //Mover mirilla con mouse
-        if (isAiming && crosshairInstance)
-        {
-            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            mousePosition.z = 0;
-            crosshairInstance.transform.position = mousePosition;
-            Cursor.visible = false; // Ocultamos el cursor original
-        }*/
 
         //Detectar clics para seleccionar enemigos o cancelar apuntado
         if (Input.GetMouseButtonDown(0))
@@ -612,21 +584,17 @@ public class PlayerController : NetworkBehaviour
                         Debug.Log($"Objetivo seleccionado: {clickedPlayer.playerName}");
                         CmdRegisterAction(ActionType.SuperShoot, clickedPlayer);
                     }
-                    //Destroy(crosshairInstance);
                     CursorSetup.I?.UsePinkCursor();
                     isAiming = false;
                     selectedAction = ActionType.None;
-                    //ResetButtonHighlightLocally();
                 }
                 else
                 {
-                    Debug.Log("Clic en objeto no válido, Apuntado cancelado");
                     CancelCurrentAction();
                 }
             }
             else
             {
-                Debug.Log("Clic en ningún objeto, cancelado por chistoso ;)");
                 CancelCurrentAction();
             }
         }
@@ -661,12 +629,6 @@ public class PlayerController : NetworkBehaviour
     }
 
     [ClientRpc]
-    public void RpcSendLogToClients(string logMessage) //Recibir Debug.Log del server para mostrarlos en la DebugConsole
-    {
-        Debug.Log(logMessage);
-    }
-
-    [ClientRpc]
     public void RpcUpdateCoverProbabilityUI(float updatedProbability)
     {
         if (coverProbabilityText != null)
@@ -677,15 +639,12 @@ public class PlayerController : NetworkBehaviour
 
     void OnKillsChanged(int oldValue, int newValue)
     {
-        Debug.Log($"{playerName} ahora tiene {newValue} kills.");
+        //Debug.Log($"{playerName} ahora tiene {newValue} kills.");
     }
 
-    void OnNameConfirmedChanged(bool oldValue, bool newValue) //Indicar al server que este player eligio nombre
+    void OnNameConfirmedChanged(bool oldValue, bool newValue) 
     {
-        /*if ((isLocalPlayer || isOwned) && newValue)
-        {
-            canvasInicioPartida.SetActive(false);
-        }*/
+        //Indicar al server que este player eligio nombre dejar vacio pero sirve igual
     }
 
     void OnNameChanged(string oldName, string newName)
@@ -697,7 +656,7 @@ public class PlayerController : NetworkBehaviour
     public void OnIsVeryHealthyChanged(bool oldValue, bool newValue)
     {
         // Opcional: actualiza visualmente al jugador, muestra íconos, colores, etc.
-        Debug.Log($"{playerName}: isVeryHealthy cambió a {newValue}");
+        //Debug.Log($"{playerName}: isVeryHealthy cambió a {newValue}");
     }
 
     private void OnHealthChanged(int oldHealth, int newHealth)
@@ -1002,8 +961,6 @@ public class PlayerController : NetworkBehaviour
     {
         string animName = baseAnim + "_" + currentFacingDirection.ToString();
 
-        Debug.Log($"[Animación] Ejecutando {animName}");
-
         // Luego si estamos en el servidor, hacemos un Rpc para todos los clientes
         if (isServer)
         {
@@ -1194,7 +1151,6 @@ public class PlayerController : NetworkBehaviour
     public void RpcUpdateCover(bool coverState)
     {
         isCovering = coverState;
-        Debug.Log($"[CLIENT] {playerName} -> isCovering actualizado a {isCovering}");
     }
 
     #region UI Handling
@@ -1285,7 +1241,6 @@ public class PlayerController : NetworkBehaviour
     [Command]
     public void CmdRegisterAction(ActionType actionType, PlayerController target)
     {
-        if (GameManager.Instance == null) Debug.Log("No tienesGameManager pero registrasteaccion en server");
         selectedAction = actionType;//Enviar accion seleccionada al servidor
 
         GManager.RegisterAction(this, actionType, target);
@@ -1313,7 +1268,6 @@ public class PlayerController : NetworkBehaviour
         {
             damage = 2;
             hasDoubleDamage = false;
-            Debug.Log($"{playerName} tiene DAÑO DOBLE activo.");
         }
 
         if (selectedAction == ActionType.Shoot)
@@ -1322,7 +1276,6 @@ public class PlayerController : NetworkBehaviour
             FacingDirection shootDir = GetShootDirection(target);
 
             RpcPlayAnimation("Shoot_" + shootDir.ToString());
-            Debug.Log("Ejecutando animación de disparo de jugador");
 
             //PlayDirectionalAnimation("Shoot");
 
@@ -1332,7 +1285,6 @@ public class PlayerController : NetworkBehaviour
                 RpcPlayAnimation("ShootFail");
                 RpcPlayShootEffect(target.transform.position, "Fail"); // Efecto visual de bala oxidada (verde)
                 RpcPlaySFX("SlingShot");
-                Debug.Log($"{playerName} disparó, pero la bala falló debido a Balas Oxidadas.");
                 return; // Bala se gasta, pero no hace daño
             }
 
@@ -1355,7 +1307,6 @@ public class PlayerController : NetworkBehaviour
             {
                 RpcPlayAnimation("ShootFail");
                 RpcPlayShootEffect(target.transform.position, "Fail"); // Efecto visual de bala oxidada (verde)
-                Debug.Log($"{playerName} hizo un SUPERSHOOT, pero la bala falló debido a Balas Oxidadas.");
                 return; // Bala se gasta, pero no hace daño
             }
 
@@ -1364,7 +1315,6 @@ public class PlayerController : NetworkBehaviour
                 target.isCovering = false; //Desactiva la cobertura del objetivo en el servidor
                 target.RpcUpdateCover(false);// Sincroniza la cobertura con los demás clientes
                 target.RpcPlayAnimation("CoverBroken");
-                Debug.Log($"{playerName} usó SUPERSHOOT y forzó a {target.playerName} a salir de cobertura");
             }
 
             RpcPlayShootEffect(target.transform.position, "SuperShoot");
@@ -1374,20 +1324,17 @@ public class PlayerController : NetworkBehaviour
         if (target.isCovering)
         {
             target.wasShotBlockedThisRound = true;
-            Debug.Log($"[SERVER] {target.playerName} está cubierto. Disparo bloqueado..");
             return;
         }
 
         if (!target.isAlive)//Si el jugador estaba muerto antes de dispararle
         {
-            Debug.Log($"{playerName} le disparó al cadaver de {target.playerName}. Parece que le caía mal.");
             return;
         }
 
         //Importante, esto permite seleccionar al jugador con tiki para darle prioridad, y eliminar el disparo a los jugadores que no tienen Tiki
         if (!canDealDamageThisRound)
         {
-            Debug.Log($"[Talisman] {playerName} disparó a {target.playerName}, pero perdió prioridad. No se causa daño.");
             return;
         }
 
@@ -1397,7 +1344,6 @@ public class PlayerController : NetworkBehaviour
         hasDamagedAnotherPlayerThisRound = true;
         
         lastShotTarget = target; // Almacenar víctima de disparo
-        Debug.Log($"{playerName} disparó a {target.playerName}. Balas restantes: {ammo}");
     }
 
     [ClientRpc]
@@ -1409,7 +1355,6 @@ public class PlayerController : NetworkBehaviour
             return;
         }
 
-        Debug.Log($"[RpcForcePlayAnimation] {playerName} reproduce {animationName}");
         GetComponent<Animator>().Play(animationName);
     }
 
@@ -1422,7 +1367,6 @@ public class PlayerController : NetworkBehaviour
         {
             ammo++;
             ammo++;
-            Debug.Log($"{playerName} recargó 2 balas debido a Carga Oscura.");
             bulletsReloaded += 2;
 
             if (GStatistic != null && isServer) GStatistic.UpdatePlayerStats(this); // Actualizar en el GameStatistics
@@ -1443,7 +1387,6 @@ public class PlayerController : NetworkBehaviour
 
         if (!GManager.AllowAccumulatedDamage() && GManager.HasTakenDamage(this)) //Verificar si el daño se debe acumular o no
         {
-            Debug.Log($"{playerName} ya recibió daño en esta ronda, ignorando el ataque.");
             return;
         }
 
@@ -1461,8 +1404,6 @@ public class PlayerController : NetworkBehaviour
             if (!isAlive) return; // Segunda verificación para evitar doble ejecución
             isAlive = false;
             RpcPlaySFX("Death");
-
-            Debug.Log($"{playerName} ha sido eliminado.");
 
             // Detectar quién fue el asesino usando el mismo criterio que GameManager ya usa
             PlayerController killer = attacker;
@@ -1516,7 +1457,6 @@ public class PlayerController : NetworkBehaviour
                 return manager;
         }
 
-        Debug.LogWarning("[PlayerController] No se encontró RolesManager en esta escena.");
         return null;
     }
 
@@ -1525,14 +1465,12 @@ public class PlayerController : NetworkBehaviour
     public void ServerHeal(int amount)
     {
         health = Mathf.Min(health + amount, fullHealth);
-        Debug.Log($"{playerName} se ha curado {amount} de vida.");
     }
 
     [Server]
     public void ServerHealFull()
     {
         health = fullHealth; // Curación total
-        Debug.Log($"{playerName} se ha curado completamente.");
     }
 
     #endregion

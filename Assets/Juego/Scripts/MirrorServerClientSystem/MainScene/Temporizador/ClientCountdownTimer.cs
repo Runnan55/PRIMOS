@@ -11,14 +11,6 @@ public class ClientCountdownTimer : MonoBehaviour
     private bool timerStarted;
     public bool timerReachedZero = false;
 
-    private void Awake()
-    {
-#if UNITY_SERVER
-        Destroy(this);
-        return;
-#endif
-    }
-
     private void Start()
     {
         InvokeRepeating(nameof(RequestTimeFromServer), 1f, 30f); //Actualiza cada 30s

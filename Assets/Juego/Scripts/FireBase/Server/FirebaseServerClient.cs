@@ -272,8 +272,6 @@ public class FirebaseServerClient : MonoBehaviour
         int tickets = walletData["fields"]["gameBalance"]["mapValue"]["fields"]["ticketsAvailable"]["integerValue"].AsInt;
         int basicKeys = walletData["fields"]["gameBalance"]["mapValue"]["fields"]["keys"]["mapValue"]["fields"]["basic"]["integerValue"].AsInt;
 
-        Debug.Log($"[Firebase] Tickets: {tickets}, basicKeys: {basicKeys} para wallet: {walletAddress}");
-
         callback(tickets, basicKeys);
 
     }

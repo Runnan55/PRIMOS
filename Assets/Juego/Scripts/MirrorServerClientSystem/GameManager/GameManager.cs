@@ -113,7 +113,6 @@ public class GameManager : NetworkBehaviour
     private List<PlayerController> deathBuffer = new();
     private bool isProcessingDeath = false;
 
-
     private void IdentifyVeryHealthy()
     {
         try
@@ -222,8 +221,6 @@ public class GameManager : NetworkBehaviour
         roomPlayer.linkedPlayerController = controller;
 
         RegisterPlayer(controller);
-
-        Debug.Log($"[GameManager] PlayerController creado para {roomPlayer.playerName}");
     }
 
     [Server]
@@ -232,7 +229,6 @@ public class GameManager : NetworkBehaviour
         if (!players.Contains(player))
         {
             players.Add(player);
-            Debug.Log($"[GameManager] Jugador registrado: {player.playerName}");
 
             // Fallback de UID por si el ownerRoomPlayer desaparece más tarde
             string uid = player.firebaseUID;
@@ -254,7 +250,6 @@ public class GameManager : NetworkBehaviour
         Array values = Enum.GetValues(typeof(GameModifierType));
 
         SelectedModifier = (GameModifierType)values.GetValue(UnityEngine.Random.Range(0, values.Length));
-        Debug.Log($"[GameManager] Se ha elegido un modificador aleatorio: {SelectedModifier}");
     }
 
     private void ApplyGameModifier(GameModifierType modifier)
@@ -262,16 +257,13 @@ public class GameManager : NetworkBehaviour
         switch (modifier)
         {
             /*case GameModifierType.DobleAgente:
-                Debug.Log("Doble Agente activado: Los jugadores eligen a dos enemigos y el disparo cae aleatoriamente.");
                 foreach (var player in players) player.RpcPlayAnimation("GM_DobleAgente");
                 break;*/
             case GameModifierType.CaceriaDelLider:
-                Debug.Log("Cacería del Líder activado: El o los jugadores con más vidas pierden la capacidad de cubrirse.");
                 foreach (var player in players) player.RpcPlayAnimation("GM_CaceriaDelLider");
                 //Funciona pero en el inspector hay que seleccionar
                 break;
             case GameModifierType.GatilloFacil:
-                Debug.Log("Gatillo Fácil activado: Los jugadores obtienen una bala más al iniciar partida.");
                 foreach (var player in players)
                 {
                     player.RpcPlayAnimation("GM_GatilloFacil");
@@ -279,7 +271,6 @@ public class GameManager : NetworkBehaviour
                 }
                 break; 
             case GameModifierType.BalasOxidadas:
-                 Debug.Log("Balas Oxidadas activado: Todos los disparos tienen un 25% de fallar esta partida.");
                 foreach (var player in players)
                 {
                     player.RpcPlayAnimation("GM_BalasOxidadas");
@@ -287,11 +278,9 @@ public class GameManager : NetworkBehaviour
                 }
                  break;
              /*case GameModifierType.BendicionDelArsenal:
-                 Debug.Log("Bendición del Arsenal activado: Todos los jugadores reciben una bala gratis cada 3 rondas.");
                  foreach (var player in players) player.RpcPlayAnimation("GM_BendicionDelArsenal");
                  break;*/
             case GameModifierType.CargaOscura:
-                Debug.Log("Carga Oscura activado: Recarga 2 balas en lugar de 1.");
                 foreach (var player in players)
                 {
                     player.RpcPlayAnimation("GM_CargaOscura");
@@ -299,7 +288,6 @@ public class GameManager : NetworkBehaviour
                 }
                 break;
             default:
-                Debug.Log("No se ha seleccionado un modificador específico.");
                 break;
         }
     }
@@ -307,8 +295,6 @@ public class GameManager : NetworkBehaviour
     public void CheckAllPlayersReady()
     {
         if (!isServer || isGameStarted) return;
-
-        Debug.Log("[GameManager] Verificando jugadores conectados...");
 
         MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
         if (match == null) return;
@@ -362,7 +348,6 @@ public class GameManager : NetworkBehaviour
             yield return new WaitForSecondsRealtime(0.5f);
         }
 
-        Debug.LogWarning($"[GameManager] Timeout de {readyTimeoutSeconds}s esperando jugadores para {matchId}. Abortando partida.");
         MatchHandler.Instance.AbortMatch(matchId, "timeout_waiting_players");
 
         if (readyTimeoutCoroutine != null) { StopCoroutine(readyTimeoutCoroutine); readyTimeoutCoroutine = null; }
@@ -489,24 +474,16 @@ public class GameManager : NetworkBehaviour
                     p.TargetHideRouletteCanvas(p.connectionToClient);
         }
 
-        Debug.Log($"[GameManager] Modificador seleccionado: {SelectedModifier}");
         ApplyGameModifier(SelectedModifier);
 
-        Debug.Log("Todos los jugadores han ingresado su nombre. ¡La partida puede comenzar!");
         roundCycleCoroutine = StartCoroutine(RoundCycle());
 
         talismanHolder = players.FirstOrDefault(p => p.isAlive); // El primero con vida
-        Debug.Log($"[Talisman] Se asignó el talismán a {talismanHolder.playerName}");
 
         if (loadingScreen != null)
         {
             loadingScreen.HideLoading();
         }
-        else
-        {
-            Debug.LogWarning("No se encontró el LoadingScreenManager.");
-        }
-
     }
 
     #region AccumulatedDamageY/N
@@ -717,7 +694,6 @@ public class GameManager : NetworkBehaviour
             if (players.Where(p => p.isAlive).All(p => playersWhoHadMission.Contains(p)))
             {
                 playersWhoHadMission.Clear();
-                Debug.Log("[QuickMission] Todos los vivos ya recibieron misión. Reiniciando lista.");
             }
 
             if (missionQueue.Count == 0) //Llenamos la cola solo si está vacía
@@ -743,10 +719,6 @@ public class GameManager : NetworkBehaviour
                 AssignRandomQuickMission(selected);
                 playersWhoHadMission.Add(selected);
                 missionsGiven++;
-
-                Debug.Log($"[QuickMission] {selected.playerName} recibió misión en ronda {currentRound}");
-                selected.RpcSendLogToClients($"[QuickMission] {selected.playerName} recibió misión en ronda {currentRound}");
-
             }
         }
 
@@ -888,8 +860,6 @@ public class GameManager : NetworkBehaviour
 
         #endregion
 
-        Debug.Log("Comienza la fase de decisión. Jugadores decidiendo acciones");
-
         while (currentDecisionTime > 0)
         {
             yield return new WaitForSecondsRealtime(1f);
@@ -908,7 +878,6 @@ public class GameManager : NetworkBehaviour
         {
             p.clientDecisionPhase = false;
         }
-        Debug.Log("Finalizó el tiempo de decisión.");
 
         foreach (var player in players)
         {
@@ -927,8 +896,6 @@ public class GameManager : NetworkBehaviour
             if (!actionsQueue.ContainsKey(player)) // Si no se eligió acción alguna se llama a None
             {
                 actionsQueue[player] = new PlayerAction(ActionType.None);
-                Debug.Log($"[GameManager] {player.playerName} no eligió ninguna acción, registrando 'None'.");
-                player.RpcSendLogToClients($"{player.playerName} no eligió ninguna acción, registrando 'None'.");
             }
         }
 
@@ -976,14 +943,10 @@ public class GameManager : NetworkBehaviour
                         entry.Key.PlayDirectionalAnimation("Cover");
                         entry.Key.consecutiveCovers++;
                         entry.Key.timesCovered++; //Sumar el contador de vecescubierto
-                        Debug.Log($"[SERVER] {entry.Key.playerName} se cubrió con éxito en el intento {entry.Key.consecutiveCovers}");
-                        entry.Key.RpcSendLogToClients($"{entry.Key.playerName} se cubrió con éxito en el intento {entry.Key.consecutiveCovers}");
                     }
                     else
                     {
                         entry.Key.RpcPlayAnimation("CoverFail");
-                        Debug.Log($"[SERVER] {entry.Key.playerName} intento cubrirse, pero falló después del {entry.Key.consecutiveCovers + 1} intento");
-                        entry.Key.RpcSendLogToClients($"{entry.Key.playerName} intento cubrirse, pero falló después del {entry.Key.consecutiveCovers + 1} intento");
                     }
                     //El servidor envía la actualizacion de UI a cada cliente
                     float updatedProbability = entry.Key.coverProbabilities[Mathf.Min(entry.Key.consecutiveCovers, entry.Key.coverProbabilities.Length - 1)];
@@ -1078,7 +1041,6 @@ public class GameManager : NetworkBehaviour
                         {
                             shooter.canDealDamageThisRound = true;
                             shooter.ServerAttemptShoot(target);
-                            Debug.Log($"[Talisman] {chosenShooter.playerName} gana la prioridad para atacar a {target.playerName}"); //Los demás fallan el tiro pero no se muestra
                         }
                         else
                         {
@@ -1115,13 +1077,7 @@ public class GameManager : NetworkBehaviour
                     if (success)
                     {
                         ApplyQuickMissionReward(mission.type, player);
-                        player.RpcSendLogToClients($"{player.playerName}¡Completaste tu misión rápida!");
-
                         player.hasQMRewardThisRound = true;
-                    }
-                    else
-                    {
-                        player.RpcSendLogToClients($"{player.playerName} Fallaste tu misión rápida.");
                     }
 
                     // SIEMPRE limpiamos la misión al final de la ronda
@@ -1217,13 +1173,11 @@ public class GameManager : NetworkBehaviour
 
         if (currentIndex == -1)
         {
-            Debug.LogWarning("[Tiki] El portador murió. Buscando nuevo portador...");
             talismanHolder = alivePlayers[0];
             talismanHolderNetId = talismanHolder.netId;
             tikiHistory.Add(talismanHolder);
 
             UpdateTikiVisual(talismanHolder);
-            Debug.LogWarning("[Tiki] El portador actual no está entre los vivos.");
             return;
         }
 
@@ -1246,8 +1200,6 @@ public class GameManager : NetworkBehaviour
 
         if (tikiHistory.Count > 7)
             tikiHistory.RemoveAt(0);
-
-        Debug.Log($"[Talisman] Ahora lo tiene {talismanHolder.playerName}");
     }
 
 
@@ -1275,7 +1227,6 @@ public class GameManager : NetworkBehaviour
         //Si no queda nadie vivo, la partida se detiene
         if (alivePlayers == 0)
         {
-            Debug.Log("Todos los jugadores han muerto. Se declara empate");
             isDraw = true;
             isGameOver = true;
 
@@ -1306,7 +1257,52 @@ public class GameManager : NetworkBehaviour
 
             return;
         }
+
+        EnsureStartCheckForHumanOrAbort();
     }
+
+    #region Cerrar partida si no hay humanos
+
+    private float humanAbortCheckInterval = 10f;
+    private bool humanAbortWatcherStarted = false;
+
+    [Server]
+    public void EnsureStartCheckForHumanOrAbort()
+    {
+        if (humanAbortWatcherStarted) return;     // <- idempotente
+        humanAbortWatcherStarted = true;
+        StartCoroutine(StartCheckForHumanOrAbort());
+    }
+
+    [Server]
+    private IEnumerator StartCheckForHumanOrAbort()
+    {
+        var scene = gameObject.scene;
+        var wait = new WaitForSecondsRealtime(humanAbortCheckInterval);
+
+        while (true)
+        {
+            yield return wait;
+
+            bool hasRoomPlayersInMyScene = NetworkServer.connections.Values.Any(conn =>
+                conn?.identity != null &&
+                conn.identity.gameObject.scene == scene &&
+                conn.identity.GetComponent<CustomRoomPlayer>() != null
+            );
+
+            if (!hasRoomPlayersInMyScene)
+            {
+                var mh = MatchHandler.Instance;
+                if (mh != null)
+                {
+                    mh.DestroyGameScene(scene.name, "no_customroomplayers");
+                }
+                yield break; // la escena se va a cerrar; paramos el watcher
+            }
+        }
+    }
+
+    #endregion
 
     private IEnumerator StartGameStatistics()
     {
@@ -1318,14 +1314,7 @@ public class GameManager : NetworkBehaviour
         if (winner != null)
         {
             if (winner.deathOrder == 0) winner.deathOrder = ++deathCounter;
-            Debug.Log($"[GM][{gameObject.scene.name}] WINNER -> #{winner.deathOrder} {winner.playerName} (alive={winner.isAlive}, netId={winner.netId})");
         }
-        else
-        {
-            Debug.Log("[GM] WINNER -> ninguno (todos desconectados?)");
-        }
-
-        Debug.Log($"[GM][{gameObject.scene.name}] WINNER -> #{winner.deathOrder} {winner.playerName} (alive={winner.isAlive}, netId={winner.netId})");
 
         // --- 2) Construir la lista final: muertos (en su orden) + ganador ---
         List<PlayerController> leaderboardPlayers = new List<PlayerController>(deadPlayers);
@@ -1479,8 +1468,6 @@ public class GameManager : NetworkBehaviour
 
         if (todosMueren && tikiVaAMorir)
         {
-            Debug.Log("[Tiki] Todos murieron pero el poseedor del Tiki sobrevive.");
-
             // Revivir al poseedor del tiki
             talismanHolder.health = 1;
             talismanHolder.isAlive = true;
@@ -1507,7 +1494,6 @@ public class GameManager : NetworkBehaviour
 
             players.Remove(deadPlayer);
             if (!deadPlayers.Contains(deadPlayer)) deadPlayers.Add(deadPlayer);
-            Debug.Log($"[GM][{gameObject.scene.name}] DEATH  -> #{deadPlayer.deathOrder} {deadPlayer.playerName} (alive={deadPlayer.isAlive}, netId={deadPlayer.netId})");
 
             if (gameStatistic != null) gameStatistic.UpdatePlayerStats(deadPlayer);
 
@@ -1559,21 +1545,6 @@ public class GameManager : NetworkBehaviour
 
         actionsQueue[player] = new PlayerAction(actionType, target);
         player.selectedAction = actionType; //Con esto los bots y los players siempre marcarán su selectedAction igual al actionType
-
-        Debug.Log($"{player.playerName} ha elegido {actionType}");
-        player.RpcSendLogToClients($"{player.playerName} ha elegido {actionType}");
-
-        if (actionType == ActionType.SuperShoot)
-        {
-            Debug.Log($"{player.playerName} ha elegido SUPER SHOOT contra {target.playerName}");
-            player.RpcSendLogToClients($"{player.playerName} ha elegido SUPER SHOOT contra {target.playerName}");
-        }
-
-        if (actionType == ActionType.Shoot)
-        {
-            Debug.Log($"{player.playerName} ha elegido SHOOT contra {target.playerName}");
-            player.RpcSendLogToClients($"{player.playerName} ha elegido SHOOT contra {target.playerName}");
-        }
     }
 
     #endregion
@@ -1624,7 +1595,6 @@ public class GameManager : NetworkBehaviour
         if (player.deathOrder == 0) player.deathOrder = ++deathCounter;
         if (!deadPlayers.Contains(player)) deadPlayers.Add(player);
         if (gameStatistic != null) gameStatistic.UpdatePlayerStats(player, true);
-        Debug.Log($"[GM][{gameObject.scene.name}] QUIT   -> #{player.deathOrder} {player.playerName} (alive={player.isAlive}, netId={player.netId})");
 
         if (!isGameStarted) CheckAllPlayersReady();  // si ya estamos todos (tras restar), arranca.
 
@@ -1672,6 +1642,8 @@ public class GameManager : NetworkBehaviour
 
             // Descargar la escena aditiva
             SceneManager.UnloadSceneAsync(currentScene);
+
+            MatchHandler.Instance.DestroyGameScene(currentScene.name, "empty_scene");
         }
     }
 

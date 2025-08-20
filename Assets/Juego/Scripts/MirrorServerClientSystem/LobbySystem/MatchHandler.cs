@@ -62,7 +62,6 @@ public class MatchHandler : NetworkBehaviour
         int maxPlayers = 6;
         if (match.players.Count >= maxPlayers)
         {
-            Debug.LogWarning($"[SERVER] Sala {matchId} está llena. Rechazando a {player.playerName}");
             player.TargetReturnToLobbyScene(player.connectionToClient, match.mode);
             return false;
         }
@@ -217,7 +216,6 @@ public class MatchHandler : NetworkBehaviour
         GameObject template = Resources.Load<GameObject>("GameSceneTemplate");
         if (template == null)
         {
-            Debug.LogError("[MatchHandler] No se encontró el prefab GameSceneTemplate en Resources.");
             yield break;
         }
 
@@ -237,12 +235,9 @@ public class MatchHandler : NetworkBehaviour
             }
 
             player.isPlayingNow = true;
-
-            Debug.Log($"[MatchHandler] Player {player.name} está ahora en escena: {player.gameObject.scene.name}");
         }
 
         match.sceneName = newScene.name;
-        Debug.Log($"[MatchHandler] Escena creada para partida {match.matchId}: {newScene.name}");
 
         // Notificar a los clientes para que carguen GameScene
         NotifyPlayersToLoadGameScene(match.matchId);
@@ -264,8 +259,6 @@ public class MatchHandler : NetworkBehaviour
 
         NetworkServer.Spawn(gmInstance.gameObject);
         SceneManager.MoveGameObjectToScene(gmInstance.gameObject, matchScene);
-
-        Debug.Log($"[MatchHandler] GameManager spawn para {match.matchId}");
     }
 
     [Server]
@@ -331,8 +324,6 @@ public class MatchHandler : NetworkBehaviour
                 countdownCoroutines[player.currentMode] = StartCoroutine(StartCountdownForMode(player.currentMode));
             }
 
-            Debug.Log($"[Matchmaking] Jugador {player.playerName} agregado a la cola del modo {player.currentMode}. Total: {queue.Count}");
-
             // --- Iniciar partida inmediata si llegan a 6
             if (queue.Count == MATCH_SIZE)
             {
@@ -360,8 +351,6 @@ public class MatchHandler : NetworkBehaviour
                     countdownCoroutines.Remove(player.currentMode);
                     UpdateCountdownUIForMode(player.currentMode, -1); // Restablece a "Searching..."
                 }
-
-                Debug.Log($"[Matchmaking] Jugador {player.playerName} removido de la cola del modo {player.currentMode}.");
             }
         }
     }
@@ -428,8 +417,6 @@ public class MatchHandler : NetworkBehaviour
 
     private void CreateMatchNow(string mode)
     {
-        Debug.Log($"[RANKED] CreateMatchNow mode={mode} queueSize={matchQueue[mode].Count}");
-
         if (!matchQueue.TryGetValue(mode, out var queue)) return;
 
         int playersToUse = Mathf.Min(queue.Count, MATCH_SIZE);
@@ -445,8 +432,6 @@ public class MatchHandler : NetworkBehaviour
         }
 
         // ---------- RANKED: pre-check a TODOS, luego consumo a TODOS ----------
-
-        Debug.Log($"[RANKED] PreCheck -> players={string.Join(",", playersForMatch.Select(p => p?.playerId))}");
 
         var expelledOnCheck = new HashSet<CustomRoomPlayer>();
         bool finished = false;
@@ -595,8 +580,6 @@ public class MatchHandler : NetworkBehaviour
         matches.Add(matchId, match);
         partidasActivas++;
 
-        Debug.Log($"[Matchmaking] Partida automática creada con ID {matchId} en modo {mode}");
-
         NotifyPlayersToLoadGameScene(matchId);
         StartCoroutine(CreateRuntimeGameScene(match));
     }
@@ -621,6 +604,80 @@ public class MatchHandler : NetworkBehaviour
                 rp.TargetReturnToMainMenu(rp.connectionToClient);
             }
         }
+    }
+
+    [Server]
+    public void DestroyGameScene(string sceneName, string reason = "cleanup")
+    {
+        if (string.IsNullOrEmpty(sceneName)) return;
+
+        var scene = SceneManager.GetSceneByName(sceneName);
+        if (!scene.IsValid())
+        {
+            Debug.LogWarning($"[MatchHandler] DestroyGameScene: escena '{sceneName}' no válida.");
+            return;
+        }
+
+        // Seguridad: si aún hay CRP en la escena, no destruyas
+        bool hasRoomPlayers = NetworkServer.connections.Values.Any(conn =>
+            conn?.identity != null &&
+            conn.identity.gameObject.scene == scene &&
+            conn.identity.GetComponent<CustomRoomPlayer>() != null
+        );
+        if (hasRoomPlayers)
+        {
+            Debug.Log($"[MatchHandler] DestroyGameScene cancelado; aún hay CRP en '{sceneName}'.");
+            return;
+        }
+
+        // Localiza el match asociado (si existe)
+        MatchInfo match = null; string matchId = null;
+        foreach (var kv in matches)
+        {
+            if (kv.Value != null && kv.Value.sceneName == scene.name)
+            {
+                match = kv.Value; matchId = kv.Key; break;
+            }
+        }
+
+        // Limpia jugadores / referencias del match
+        if (match != null)
+        {
+            foreach (var rp in match.players.ToArray())
+            {
+                if (rp == null) continue;
+                rp.isPlayingNow = false;
+                rp.currentMatchId = null;
+
+                if (rp.connectionToClient != null)
+                    rp.TargetReturnToMainMenu(rp.connectionToClient);
+
+                if (rp.linkedPlayerController != null && rp.linkedPlayerController.gameObject != null)
+                {
+                    NetworkServer.Destroy(rp.linkedPlayerController.gameObject);
+                    rp.linkedPlayerController = null;
+                }
+            }
+
+            matches.Remove(matchId);
+            partidasActivas = Mathf.Max(0, partidasActivas - 1);
+            RefreshMatchListForMode(match.mode);
+        }
+
+        // Destruye objetos de red restantes y descarga escena
+        foreach (var root in scene.GetRootGameObjects())
+        {
+            var ni = root.GetComponent<NetworkIdentity>();
+            if (ni != null && NetworkServer.spawned.ContainsKey(ni.netId))
+                NetworkServer.Destroy(root);
+            else
+                Destroy(root);
+        }
+
+        SceneManager.UnloadSceneAsync(scene);
+        Resources.UnloadUnusedAssets();
+
+        Debug.Log($"[MatchHandler] Escena '{sceneName}' destruida. Motivo: {reason}");
     }
 
 }
