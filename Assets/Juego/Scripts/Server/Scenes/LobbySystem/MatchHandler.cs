@@ -46,7 +46,7 @@ public class MatchHandler : NetworkBehaviour
     private int GetCountdownSeconds(string mode)
         => modeConfig.TryGetValue(mode, out var cfg) ? cfg.CountdownSeconds : 30; // 30 segundos de fallback por si hay modos no configurados
 
-    #region Busqueda Automática
+    #region Área Mixta : Matchmaking (Colas, Countdown, Creación)
 
     private Dictionary<string, List<CustomRoomPlayer>> matchQueue = new();
     private Dictionary<string, Coroutine> countdownCoroutines = new();
@@ -171,7 +171,8 @@ public class MatchHandler : NetworkBehaviour
         List<CustomRoomPlayer> playersForMatch = queue.Take(playersToUse).ToList();
         queue.RemoveRange(0, playersToUse);
 
-        // CASUAL u otros modos: directo
+        #region Casual/Otros : Branch directo
+
         if (mode != "Ranked")
         {
             CreateAutoMatch(playersForMatch, mode);
@@ -179,7 +180,9 @@ public class MatchHandler : NetworkBehaviour
             return;
         }
 
-        // ---------- RANKED: pre-check a TODOS, luego consumo a TODOS ----------
+        #endregion
+
+        #region — Ranked: pre-check a TODOS, luego consumo a TODOS —
 
         var expelledOnCheck = new HashSet<CustomRoomPlayer>();
         bool finished = false;
@@ -285,9 +288,8 @@ public class MatchHandler : NetworkBehaviour
                 finished = true;
             }
         }
+        #endregion
     }
-
-
 
     [Server]
     private void UpdateSearchingUIForMode(string mode)
@@ -334,78 +336,7 @@ public class MatchHandler : NetworkBehaviour
 
     #endregion
 
-
-    #region Modulo_Ranked
-
-
-    #endregion
-
-
-    #region Modulo_Casual
-
-
-    #endregion
-
-
-    #region Salas_Legacy (Deprecated) Falta COMPLETAR AAAAAAAAAAAAAAA
-
-    public bool CreateMatch(string matchId, string mode, CustomRoomPlayer creator)
-    {
-        if (matches.ContainsKey(matchId)) return false;
-
-        MatchInfo newMatch = new MatchInfo
-        {
-            matchId = matchId,
-            mode = mode,
-            admin = creator,
-            sceneName = "Room_" + matchId
-        };
-        newMatch.players.Add(creator);
-
-        matches.Add(matchId, newMatch);
-        partidasActivas++;
-
-        Debug.Log($"[SERVER] Nueva partida creada. Total partidas activas: {partidasActivas}");
-
-        creator.currentMatchId = matchId;
-        creator.currentMode = mode;   // Agrega esto para que se sincronice al cliente
-        creator.isAdmin = true;
-
-        creator.RpcRefreshLobbyForAll();
-        SendLobbyUIUpdateToAll(newMatch);
-        RefreshMatchListForMode(mode);
-
-        return true;
-    }
-
-    public bool JoinMatch(string matchId, CustomRoomPlayer player)
-    {
-        if (!matches.ContainsKey(matchId)) return false;
-
-        MatchInfo match = matches[matchId];
-
-        int maxPlayers = 6;
-        if (match.players.Count >= maxPlayers)
-        {
-            player.TargetReturnToLobbyScene(player.connectionToClient, match.mode);
-            return false;
-        }
-
-        match.players.Add(player);
-
-        player.currentMatchId = matchId;
-        player.currentMode = match.mode; // Agrega esto para que al unirse también sepa el modo
-        player.isAdmin = false;
-
-        player.RpcRefreshLobbyForAll();
-        SendLobbyUIUpdateToAll(match);
-        RefreshMatchListForMode(match.mode); //Esta parte actualiza la info de la sala a los demas jugadores cuando entra a la partida, sino no se actualiza en los demás de 1/6 a 2/6 por ejemplo
-
-        return true;
-    }
-
-    #endregion
-
+    #region Área Mixta : Lobby, UI & Gestión de Escenas
 
     public MatchInfo GetMatchInfoByScene(Scene scene)
     {
@@ -623,8 +554,6 @@ public class MatchHandler : NetworkBehaviour
         }
     }
 
-    #endregion
-
     [Server]
     public void AbortMatch(string matchId, string reason = "")
     {
@@ -719,4 +648,87 @@ public class MatchHandler : NetworkBehaviour
         Debug.Log($"[MatchHandler] Escena '{sceneName}' destruida. Motivo: {reason}");
     }
 
+    #endregion
+
+    #endregion
+
+    #region Salas_Legacy (Deprecated) Falta COMPLETAR AAAAAAAAAAAAAAA
+
+    public bool CreateMatch(string matchId, string mode, CustomRoomPlayer creator)
+    {
+        if (matches.ContainsKey(matchId)) return false;
+
+        MatchInfo newMatch = new MatchInfo
+        {
+            matchId = matchId,
+            mode = mode,
+            admin = creator,
+            sceneName = "Room_" + matchId
+        };
+        newMatch.players.Add(creator);
+
+        matches.Add(matchId, newMatch);
+        partidasActivas++;
+
+        Debug.Log($"[SERVER] Nueva partida creada. Total partidas activas: {partidasActivas}");
+
+        creator.currentMatchId = matchId;
+        creator.currentMode = mode;   // Agrega esto para que se sincronice al cliente
+        creator.isAdmin = true;
+
+        creator.RpcRefreshLobbyForAll();
+        SendLobbyUIUpdateToAll(newMatch);
+        RefreshMatchListForMode(mode);
+
+        return true;
+    }
+
+    public bool JoinMatch(string matchId, CustomRoomPlayer player)
+    {
+        if (!matches.ContainsKey(matchId)) return false;
+
+        MatchInfo match = matches[matchId];
+
+        int maxPlayers = 6;
+        if (match.players.Count >= maxPlayers)
+        {
+            player.TargetReturnToLobbyScene(player.connectionToClient, match.mode);
+            return false;
+        }
+
+        match.players.Add(player);
+
+        player.currentMatchId = matchId;
+        player.currentMode = match.mode; // Agrega esto para que al unirse también sepa el modo
+        player.isAdmin = false;
+
+        player.RpcRefreshLobbyForAll();
+        SendLobbyUIUpdateToAll(match);
+        RefreshMatchListForMode(match.mode); //Esta parte actualiza la info de la sala a los demas jugadores cuando entra a la partida, sino no se actualiza en los demás de 1/6 a 2/6 por ejemplo
+
+        return true;
+    }
+
+    #endregion
+}
+
+public class MatchInfo
+{
+    public string matchId;
+    public string mode;
+    public bool isStarted;
+    public string sceneName;
+
+    public CustomRoomPlayer admin;
+    public List<CustomRoomPlayer> players = new List<CustomRoomPlayer>();
+    public int playerCount;
+
+    public MatchInfo() { }
+
+    public MatchInfo(string matchId, string mode, bool isStarted)
+    {
+        this.matchId = matchId;
+        this.mode = mode;
+        this.isStarted = isStarted;
+    }
 }
