@@ -92,7 +92,7 @@ public class GameStatistic : NetworkBehaviour
         foreach (var pc in playerList.Where(p => p != null))
         {
             bool wasDiscBefore = prevByName.TryGetValue(pc.playerName, out var prevInfo) && prevInfo.isDisconnected;
-            bool isDiscNow = (!pc.isAlive && pc.connectionToClient == null && !pc.isBot) || wasDiscBefore;
+            bool isDiscNow = (!pc.isAlive && pc.connectionToClient == null && !pc.isBot);
 
             rows.Add(new PlayerInfo(
                 pc.playerName,

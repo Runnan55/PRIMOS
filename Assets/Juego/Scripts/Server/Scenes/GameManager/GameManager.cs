@@ -1337,10 +1337,9 @@ public class GameManager : NetworkBehaviour
 
         leaderboardPlayers = leaderboardPlayers
             .Where(p => p != null)
-            .GroupBy(p => p.playerName)   // clave visible y estable para el cierre
-            .Select(g => g.First())
+            .GroupBy(p => string.IsNullOrEmpty(p.firebaseUID) ? p.playerName : p.firebaseUID)
+            .Select(g => g.OrderByDescending(p => p.deathOrder).First())
             .ToList();
-
 
         // DEBUG: imprime el orden final tal como saldrá en el leaderboard (solo por deathOrder desc)
         var finalOrdered = leaderboardPlayers

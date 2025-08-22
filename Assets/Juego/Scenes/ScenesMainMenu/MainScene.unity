@@ -2881,6 +2881,46 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: lunesEnabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: juevesEnabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: martesEnabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: sabadoEndHour
+      value: 18
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: domingoEndHour
+      value: 18
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: viernesEndHour
+      value: 18
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: sabadoStartHour
+      value: 14
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: domingoStartHour
+      value: 14
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: miercolesEnabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: viernesStartHour
+      value: 14
+      objectReference: {fileID: 0}
     - target: {fileID: 6933785750339662254, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: sceneId
       value: 3261658162
