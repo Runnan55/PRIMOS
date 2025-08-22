@@ -355,6 +355,8 @@ MonoBehaviour:
     clip: {fileID: 8300000, guid: af0a0c870cb8ee6408d2f4b563befd97, type: 3}
   - name: SlingShot_4
     clip: {fileID: 8300000, guid: 1fa4a835e897d9545b9715c1877c50ad, type: 3}
+  - name: StoneCrack
+    clip: {fileID: 8300000, guid: 8ae91e64fac04394c8d65bbf8f06b59c, type: 3}
   musicSource: {fileID: 8667795040168531451}
   sfxSource: {fileID: 7138314209850784980}
 --- !u!114 &4559572081030079154

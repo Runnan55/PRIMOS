@@ -1574,16 +1574,16 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1670410039716225900}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: 0.008152833, w: 0.9999668}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1862435236029501973}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0.934}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 21}
+  m_AnchoredPosition: {x: 16, y: 2}
   m_SizeDelta: {x: 550, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3086221940502864885
@@ -1616,8 +1616,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: LEADERBOARD
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: cc02ce9bf79c91044b0d01dd383e7787, type: 2}
-  m_sharedMaterial: {fileID: 4237759466974108300, guid: cc02ce9bf79c91044b0d01dd383e7787, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 1abba25f1948a094f88ffd10a04d3916, type: 2}
+  m_sharedMaterial: {fileID: 9134812014732050744, guid: 1abba25f1948a094f88ffd10a04d3916, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -1641,8 +1641,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 120
-  m_fontSizeBase: 120
+  m_fontSize: 87.69
+  m_fontSizeBase: 87.69
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -6764,7 +6764,7 @@ MonoBehaviour:
   firebaseUID: 
   leaderboardCanvas: {fileID: 5425550610921173356}
   leaderboardContent: {fileID: 1628792646861002936}
-  leaderboardEntryPrefab: {fileID: 5744724382073687794, guid: 1e3836d2c05766147a439e2191571cd7, type: 3}
+  leaderboardEntryPrefab: {fileID: 5744724382073687794, guid: 878564ea453a9d744b63881246b30b18, type: 3}
   gameManagerNetId: 0
   gameStatisticNetId: 0
   playerId: 

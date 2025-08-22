@@ -11,6 +11,14 @@ public class ClientCountdownTimer : MonoBehaviour
     private bool timerStarted;
     public bool timerReachedZero = false;
 
+    void Awake()
+    {
+#if UNITY_SERVER
+    enabled = false; // o Destroy(this);
+    return;
+#endif
+    }
+
     private void Start()
     {
         InvokeRepeating(nameof(RequestTimeFromServer), 1f, 30f); //Actualiza cada 30s
@@ -77,7 +85,7 @@ public void RequestTimeFromServer()
         }
         else
         {
-            Debug.LogWarning("[ClientCountdownTimer] No conectado, no se envió EmptyTimerMessage.");
+            Debug.LogWarning("[ClientCountdownTimer] No conectado, no se envio EmptyTimerMessage.");
         }
     }
 }

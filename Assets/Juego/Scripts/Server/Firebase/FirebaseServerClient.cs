@@ -452,52 +452,126 @@ public class FirebaseServerClient : MonoBehaviour
         callback?.Invoke(0);
     }
 
-    // Devuelve un JSON string con el Top-100: [{ "name": "...", "points": 123 }, ...]
+    // Devuelve: { "top":[{name,points}...], "self":{uid,name,points,rank} }
     public static IEnumerator FetchTop100Leaderboard(string requesterUid, Action<string> onJsonReady)
     {
-        // 1) Garantizar que el que solicita tenga rankedPoints
+        // Asegura que el solicitante tenga el campo rankedPoints
         yield return EnsureRankedPointsField(requesterUid, _ => { });
 
-        // 2) Descargar users (page grande) y ordenar localmente por rankedPoints desc
         var idToken = Instance.GetIdToken();
-        string url = GetUsersCollectionUrl(1000);
-        var req = UnityWebRequest.Get(url);
-        req.SetRequestHeader("Authorization", $"Bearer {idToken}");
-        yield return req.SendWebRequest();
 
-        var arr = new JSONArray();
+        // --- CONFIG ---
+        const int PAGE_SIZE = 300;   // límite duro de Firestore REST
+        const int SCAN_LIMIT = 1200;  // sube/baja esto: 300, 600, 900, 1200...
+        const int TOP_N = 100;
 
-        if (req.result != UnityWebRequest.Result.Success)
+        // --- Paginación: lee hasta SCAN_LIMIT usuarios ---
+        var all = new List<(string uid, string name, int points)>(SCAN_LIMIT);
+        string pageToken = null;
+        int fetched = 0;
+
+        do
         {
-            Debug.LogError("[Firebase] Leaderboard GET error: " + req.downloadHandler.text);
-            onJsonReady?.Invoke(arr.ToString());
-            yield break;
-        }
+            string url = GetUsersCollectionUrl(PAGE_SIZE);
+            if (!string.IsNullOrEmpty(pageToken)) url += $"&pageToken={pageToken}";
 
-        var root = JSON.Parse(req.downloadHandler.text);
-        var docs = root["documents"]?.AsArray;
-        if (docs == null) { onJsonReady?.Invoke(arr.ToString()); yield break; }
+            var req = UnityWebRequest.Get(url);
+            req.SetRequestHeader("Authorization", $"Bearer {idToken}");
+            yield return req.SendWebRequest();
 
-        var rows = new List<(string name, int points)>(docs.Count);
-        foreach (var d in docs)
+            if (req.result != UnityWebRequest.Result.Success)
+            {
+                Debug.LogError("[Firebase] Leaderboard GET error: " + req.downloadHandler.text);
+                var fail = new JSONObject();
+                fail["top"] = new JSONArray();
+                var selfFail = new JSONObject();
+                selfFail["uid"] = requesterUid;
+                selfFail["name"] = "You";
+                selfFail["points"] = 0;
+                selfFail["rank"] = -1;
+                fail["self"] = selfFail;
+                onJsonReady?.Invoke(fail.ToString());
+                yield break;
+            }
+
+            var root = JSON.Parse(req.downloadHandler.text);
+            var docs = root?["documents"]?.AsArray;
+
+            if (docs != null)
+            {
+                foreach (var d in docs)
+                {
+                    var doc = d.Value;
+                    string fullDocName = doc["name"]; // .../documents/users/{uid}
+                    string uid = "";
+                    if (!string.IsNullOrEmpty(fullDocName))
+                    {
+                        int slash = fullDocName.LastIndexOf('/');
+                        uid = (slash >= 0 && slash + 1 < fullDocName.Length)
+                            ? fullDocName.Substring(slash + 1)
+                            : fullDocName;
+                    }
+
+                    string name = doc["fields"]?["nickname"]?["stringValue"];
+                    if (string.IsNullOrWhiteSpace(name)) name = "Unknown";
+
+                    int points = 0;
+                    var pNode = doc["fields"]?["rankedPoints"]?["integerValue"];
+                    if (pNode != null) points = pNode.AsInt;
+
+                    all.Add((uid, name, points));
+                    fetched++;
+                    if (fetched >= SCAN_LIMIT) break;
+                }
+            }
+
+            pageToken = root?["nextPageToken"];
+            if (fetched >= SCAN_LIMIT) break;
+
+        } while (!string.IsNullOrEmpty(pageToken));
+
+        // --- Orden por puntos (desc). Empates: orden arbitrario estable por uid para consistencia.
+        all.Sort((a, b) =>
         {
-            var doc = d.Value;
-            string name = doc["fields"]?["nickname"]?["stringValue"] ?? "Unknown";
-            int points = doc["fields"]?["rankedPoints"]?["integerValue"].AsInt ?? 0;
-            rows.Add((name, points));
-        }
-        rows.Sort((a, b) => b.points.CompareTo(a.points));
+            int cmp = b.points.CompareTo(a.points);
+            return (cmp != 0) ? cmp : string.CompareOrdinal(a.uid, b.uid);
+        });
 
-        int count = Math.Min(100, rows.Count);
-        for (int i = 0; i < count; i++)
+        // --- Top-N para la lista visible ---
+        var result = new JSONObject();
+        var topArr = new JSONArray();
+        int topCount = Math.Min(TOP_N, all.Count);
+        for (int i = 0; i < topCount; i++)
         {
             var o = new JSONObject();
-            o["name"] = rows[i].name;
-            o["points"] = rows[i].points;
-            arr.Add(o);
+            o["name"] = all[i].name;
+            o["points"] = all[i].points;
+            topArr.Add(o);
+        }
+        result["top"] = topArr;
+
+        // --- Self (rank global simple: índice+1) ---
+        int selfIdx = all.FindIndex(r => r.uid == requesterUid);
+        var selfObj = new JSONObject();
+
+        if (selfIdx >= 0)
+        {
+            var r = all[selfIdx];
+            selfObj["uid"] = r.uid;
+            selfObj["name"] = string.IsNullOrWhiteSpace(r.name) ? "Unknown" : r.name;
+            selfObj["points"] = r.points;
+            selfObj["rank"] = selfIdx + 1; // sin compartir puestos
+        }
+        else
+        {
+            selfObj["uid"] = requesterUid;
+            selfObj["name"] = "You";
+            selfObj["points"] = 0;
+            selfObj["rank"] = -1;
         }
 
-        onJsonReady?.Invoke(arr.ToString());
+        result["self"] = selfObj;
+        onJsonReady?.Invoke(result.ToString());
     }
 
     #endregion

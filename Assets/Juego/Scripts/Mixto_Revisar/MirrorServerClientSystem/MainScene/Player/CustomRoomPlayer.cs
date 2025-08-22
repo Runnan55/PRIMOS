@@ -701,6 +701,15 @@ public class CustomRoomPlayer : NetworkBehaviour
 
     #region Enviar o Pedir Nombre a Server
 
+    private string GenerateDefaultNickname()
+    {
+        const string chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+        var rng = new System.Random(System.Guid.NewGuid().GetHashCode());
+        var buf = new char[5];
+        for (int i = 0; i < buf.Length; i ++) buf[i] = chars[rng.Next(chars.Length)];
+        return "MrNobody_" + new string(buf);
+    }
+
     [Command]
     public void CmdRequestNicknameFromFirestore()
     {
@@ -710,39 +719,46 @@ public class CustomRoomPlayer : NetworkBehaviour
 
             StartCoroutine(FirebaseServerClient.GetNicknameFromFirestore(uid, (nicknameInFirestore) =>
             {
-                if (!string.IsNullOrEmpty(nicknameInFirestore))
+                string finalName = string.IsNullOrWhiteSpace(nicknameInFirestore)
+                    ? GenerateDefaultNickname()
+                    : nicknameInFirestore.Trim();
+
+                // Si estaba vacío en Firestore, lo creamos allí también
+                if (string.IsNullOrWhiteSpace(nicknameInFirestore))
                 {
-                    playerName = nicknameInFirestore;
-                    TargetReceiveNickname(connectionToClient, nicknameInFirestore);
+                    StartCoroutine(FirebaseServerClient.UpdateNickname(uid, finalName));
                 }
-                else
-                {
-                    Debug.LogWarning("[SERVER] No hay nickname en Firestore para UID: " + uid);
-                    TargetReceiveNickname(connectionToClient, "");
-                }
+
+
+                playerName = finalName;                                   // SyncVar
+                TargetReceiveNickname(connectionToClient, finalName);     // refleja en UI
             }));
         }
         else
         {
-            Debug.LogWarning("[CustomRoomPlayer] No se encontró UID para conexión.");
-            TargetReceiveNickname(connectionToClient, "");
+            Debug.LogWarning("[CustomRoomPlayer] No se encontró UID para conexión. Asignando un nickname temporal para no quedar vacío");
+            string finalName = GenerateDefaultNickname();
+            playerName = finalName;
+            TargetReceiveNickname(connectionToClient, finalName);
         }
     }
 
     [Command]
     public void CmdUpdateNickname(string newName)
     {
-        playerName = newName;
+        string clean = (newName ?? "").Trim();
+        if (string.IsNullOrEmpty(clean))
+            clean = GenerateDefaultNickname();
+
+        playerName = clean;
 
         if (AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
         {
-            StartCoroutine(FirebaseServerClient.UpdateNickname(creds.uid, newName));
+            StartCoroutine(FirebaseServerClient.UpdateNickname(creds.uid, clean));
         }
-        else
-        {
-            Debug.LogWarning("[CustomRoomPlayer] No se encontró UID para actualizar nickname.");
-            return;
-        }
+
+        // Refleja en el cliente (actualiza InputField sin disparar onValueChanged)
+        TargetReceiveNickname(connectionToClient, clean);
     }
 
     [TargetRpc]

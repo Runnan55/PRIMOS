@@ -83,6 +83,8 @@ public class MainLobbyUI : MonoBehaviour
         nameInputField.characterLimit = 14;
 
         nameInputField.onEndEdit.AddListener(OnNameEntered);
+        nameInputField.onValueChanged.AddListener(OnNameChangedLive);
+
         playButton.onClick.AddListener(() => StartGameSelectionMenu());
         backToStartMenuButton.onClick.AddListener(() => BackToStartMenu());
 
@@ -100,8 +102,6 @@ public class MainLobbyUI : MonoBehaviour
 
         //Llamar a ocultar la pantalla de carga cuando el server nos de el OK
         StartCoroutine(HideLoadingWhenLoginAccepted());
-
-        //nameInputField.onValueChanged.AddListener(OnNameChangedLive);
 
         rankedButton.onClick.AddListener(() => JoinMode("Ranked")); 
         comingSoonButton.onClick.AddListener(() => Debug.Log("Este modo aún no está disponible."));
@@ -181,26 +181,32 @@ public class MainLobbyUI : MonoBehaviour
     {
         string enteredName = nameInputField.text.Trim();
 
+        if (CustomRoomPlayer.LocalInstance != null)
+            CustomRoomPlayer.LocalInstance.CmdUpdateNickname(enteredName);
+
+        // Activar el botón solo si hay nombre
+        playButton.interactable = true;
+
+        Debug.Log("Nombre confirmado: " + enteredName);
+    }
+
+    private void OnNameChangedLive(string playerName)
+    {
+        string enteredName = nameInputField.text.Trim();
+
         if (string.IsNullOrEmpty(enteredName))
         {
             Debug.LogWarning("El nombre no puede estar vacío");
             nameInputField.text = "";
             nameInputField.placeholder.GetComponent<TMP_Text>().text = "Enter name first!";
             playButton.interactable = false;
-            return;
         }
-
-        // Activar el botón solo si hay nombre
-        playButton.interactable = true;
-
-        if (CustomRoomPlayer.LocalInstance != null)
-            CustomRoomPlayer.LocalInstance.CmdUpdateNickname(enteredName);
-
-
-
-        Debug.Log("Nombre confirmado: " + enteredName);
+        else
+        {
+            playButton.interactable = true;
+        }
     }
-    
+
     #region Opciones Y Audio
 
     private void OpenSettingsPanel()
@@ -391,18 +397,34 @@ public class MainLobbyUI : MonoBehaviour
             yield break;
         }
 
-        // 3) Parsear JSON y pintar UI
-        var arr = JSON.Parse(_serverLeaderboardJson)?.AsArray;
+        // 3) Parsear JSON (nuevo: {top,self} | viejo: array plano)
+        var root = JSON.Parse(_serverLeaderboardJson);
         var users = new List<(string name, int points)>();
-        if (arr != null)
+        JSONArray top = null;
+        JSONObject self = null;
+
+        if (root != null && root.IsObject)
         {
-            foreach (var n in arr)
+            top = root["top"]?.AsArray;
+            self = root["self"]?.AsObject;
+        }
+        if (top == null && root != null && root.IsArray)
+        {
+            top = root.AsArray;
+        }
+
+        if (top != null)
+        {
+            foreach (var n in top)
             {
                 var v = n.Value;
-                users.Add((v["name"], v["points"].AsInt));
+                string nName = v["name"];
+                int pts = v["points"]?.AsInt ?? 0;
+                users.Add((nName, pts));
             }
         }
 
+        // 4) Pintar lista Top-N
         foreach (Transform child in leaderboardContentContainer)
             Destroy(child.gameObject);
 
@@ -413,39 +435,46 @@ public class MainLobbyUI : MonoBehaviour
             if (ui != null) ui.SetEntry(i + 1, users[i].name, users[i].points);
         }
 
-        // Tu fila (como antes: solo si entras en el Top-100; si no, “No Rank”)
+        // 5) Fila local (usa "self" por UID; si no viene, fallback por nombre)
         if (localPlayerRankedEntry != null)
         {
-            string localName = nameInputField?.text?.Trim();
             var ui = localPlayerRankedEntry.GetComponent<LeaderboardEntryUI>();
             if (ui != null)
             {
-                int idx = users.FindIndex(u => u.name.Trim()
-                    .Equals(localName, StringComparison.OrdinalIgnoreCase));
-                if (idx != -1)
+                if (self != null)
                 {
+                    int selfRank = self["rank"]?.AsInt ?? -1;
+                    string selfName = self["name"] ?? "You";
+                    int selfPoints = self["points"]?.AsInt ?? 0;
+
                     localPlayerRankedEntry.SetActive(true);
-                    ui.SetEntry(idx + 1, users[idx].name, users[idx].points);
+                    if (selfRank > 0) ui.SetEntry(selfRank, selfName, selfPoints);
+                    else ui.SetEntry(-1, selfName + " (No Rank)", selfPoints);
                 }
                 else
                 {
+                    // Legacy: buscar por nombre del InputField
+                    string localName = nameInputField?.text?.Trim();
+                    int idx = users.FindIndex(u => u.name.Trim()
+                        .Equals(localName, StringComparison.OrdinalIgnoreCase));
+
                     localPlayerRankedEntry.SetActive(true);
-                    ui.SetEntry(-1, string.IsNullOrEmpty(localName) ? "You" : localName + " (No Rank)", 0);
+                    if (idx != -1) ui.SetEntry(idx + 1, users[idx].name, users[idx].points);
+                    else ui.SetEntry(-1, string.IsNullOrEmpty(localName) ? "You" : localName + " (No Rank)", 0);
                 }
             }
         }
 
-        // --- Forzar layout limpio y reset de scroll/offset ---
+        // 6) Forzar layout limpio y reset de scroll/offset
         Canvas.ForceUpdateCanvases();
 
         var rt = leaderboardContentContainer as RectTransform;
         if (rt != null)
         {
             UnityEngine.UI.LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
-            rt.anchoredPosition = Vector2.zero; // evita “corrimiento” lateral
+            rt.anchoredPosition = Vector2.zero;
         }
 
-        // Si tu panel usa ScrollRect, resetea la posición arriba
         var scroll = leaderboardPanel != null
             ? leaderboardPanel.GetComponentInChildren<UnityEngine.UI.ScrollRect>(true)
             : null;

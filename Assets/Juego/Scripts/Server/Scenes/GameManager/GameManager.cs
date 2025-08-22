@@ -308,6 +308,13 @@ public class GameManager : NetworkBehaviour
         // ⬇️ NUEVO: cancelar el timeout si seguía corriendo
         if (readyTimeoutCoroutine != null) { StopCoroutine(readyTimeoutCoroutine); readyTimeoutCoroutine = null; }
 
+        // Snapshot de humanos que empiezan
+        startingHumans = new HashSet<string>(
+            MatchHandler.Instance.GetMatch(matchId).players
+                .Where(p => !string.IsNullOrEmpty(p.firebaseUID))
+                .Select(p => p.firebaseUID)
+        );
+
         isGameStarted = true;
         FillBotsIfNeeded();
 
@@ -363,7 +370,10 @@ public class GameManager : NetworkBehaviour
         MatchInfo match = MatchHandler.Instance.GetMatch(matchId);
         if (match == null) return;
 
-        int needed = MatchHandler.MATCH_SIZE - players.Count;
+        // Calcular bots según humanos esperados (no instanciados)
+        int humanExpected = match.players.Count;                              // humanos asignados a la sala
+        int currentBots = players.Count(p => p.isBot);                        // bots ya creados (por seguridad)
+        int needed = MatchHandler.MATCH_SIZE - humanExpected - currentBots;
         if (needed <= 0) return;
 
         List<Vector3> spawnPositions = gameObject.scene.GetRootGameObjects()
@@ -399,18 +409,21 @@ public class GameManager : NetworkBehaviour
     private string[] prefixes = {
     "Zan", "Kor", "Vel", "Thar", "Lum", "Nex", "Mal", "Run", "Luc", "Put",
     "Vor", "Xel", "Dro", "Gar", "Kel", "Mor", "Sar", "Tor", "Val", "Yor",
-    "Zer", "Alk", "Bren", "Cyn", "Del", "Ekr", "Fal", "Gor", "Hul", "Irn"
+    "Zer", "Alk", "Bren", "Cyn", "Del", "Ekr", "Fal", "Gor", "Hul", "Irn",
+    "Aza"
     };
 
     private string[] suffixes = {
     "trik", "vel", "dor", "gorn", "ion", "rax", "mir", "nan", "ius", "in",
     "gath", "nor", "zoth", "arn", "vex", "mon", "zul", "grim", "ros", "ther",
-    "vek", "lorn", "drix", "zor", "thus", "kan", "jorn", "mok", "thar", "quinn"
+    "vek", "lorn", "drix", "zor", "thus", "kan", "jorn", "mok", "thar", "quinn",
+    "thot"
     };
 
     private string[] fullNames = {
         "Cazaputas42", "Jajaja", "Jejeje", "Jijiji", "DonComedia", "MataPanchos", "ChamucoReload",
-        "CasiTeDoy", "TukiReload", "XDxdxDxd", "lolarion", "Terreneitor", "TengoHambre", "pichulaTriste"
+        "CasiTeDoy", "TukiReload", "XDxdxDxd", "lolarion", "Terreneitor", "TengoHambre", "pichulaTriste",
+        "CryBaby", "WannaCry", "RobertScranton"
     };
 
     public string NameGenerator()
@@ -1621,10 +1634,13 @@ public class GameManager : NetworkBehaviour
             gameStatistic.UpdatePlayerStats(p, disconnected: true);
     }
 
+    private bool _closingScene = false;
 
     [Server]
     private void CheckIfSceneShouldClose()
     {
+        if (_closingScene == true) return;
+
         Scene currentScene = gameObject.scene;
 
         bool hasRoomPlayers = NetworkServer.connections.Values.Any(conn =>
@@ -1644,6 +1660,8 @@ public class GameManager : NetworkBehaviour
             SceneManager.UnloadSceneAsync(currentScene);
 
             MatchHandler.Instance.DestroyGameScene(currentScene.name, "empty_scene");
+
+            _closingScene = true;
         }
     }
 
