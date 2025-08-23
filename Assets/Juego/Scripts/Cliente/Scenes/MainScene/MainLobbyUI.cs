@@ -93,6 +93,8 @@ public class MainLobbyUI : MonoBehaviour
         backFromSettingsButton.onClick.AddListener(CloseSettingsPanel);
         backFromAudioButton.onClick.AddListener(CloseAudioPanel);
 
+        CursorSetup.I?.UsePinkCursor();
+
         SetupLeaderboardButtons();
 
         playButton.interactable = false;

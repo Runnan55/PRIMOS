@@ -115,6 +115,10 @@ public class GameManager : NetworkBehaviour
     private bool endGraceActive = false;
     private bool statsStarted = false;
 
+    [Header("Tiempo de gracia para primero mostrar animación de victoria")]
+    [SerializeField] private float leaderboardDelaySeconds = 2.0f;
+
+
     private void IdentifyVeryHealthy()
     {
         try
@@ -373,7 +377,11 @@ public class GameManager : NetworkBehaviour
         if (match == null) return;
 
         // Calcular bots según humanos esperados (no instanciados)
-        int humanExpected = match.players.Count;                              // humanos asignados a la sala
+        int humanExpected =
+        (startingHumans != null && startingHumans.Count > 0)
+        ? startingHumans.Count
+        : match.players.Count; // fallback humanos asignados a la sala
+
         int currentBots = players.Count(p => p.isBot);                        // bots ya creados (por seguridad)
         int needed = MatchHandler.MATCH_SIZE - humanExpected - currentBots;
         if (needed <= 0) return;
@@ -1345,6 +1353,12 @@ public class GameManager : NetworkBehaviour
 
         // --- 0) Cerrar partida en server ---
         isGameOver = true;
+
+        // 0.b) Tiempo de gracia para procesos secundarios, desconexión, banderas, victoria, etc
+        if (leaderboardDelaySeconds > 0f)
+        {
+            yield return new WaitForSeconds(leaderboardDelaySeconds);
+        }
 
         // --- 1) Asignar deathOrder al ganador (último número) ---
         var winner = players.FirstOrDefault(p => p != null && p.isAlive);

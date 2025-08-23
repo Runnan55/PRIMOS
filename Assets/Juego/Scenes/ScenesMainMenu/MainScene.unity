@@ -2895,7 +2895,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: sabadoEndHour
-      value: 18
+      value: 23
       objectReference: {fileID: 0}
     - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: domingoEndHour
@@ -2904,6 +2904,10 @@ PrefabInstance:
     - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: viernesEndHour
       value: 18
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: sabadoEndMinute
+      value: 59
       objectReference: {fileID: 0}
     - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: sabadoStartHour

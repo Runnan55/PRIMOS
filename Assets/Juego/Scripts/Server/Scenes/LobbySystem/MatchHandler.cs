@@ -71,13 +71,6 @@ public class MatchHandler : NetworkBehaviour
             {
                 countdownCoroutines[player.currentMode] = StartCoroutine(StartCountdownForMode(player.currentMode));
             }
-
-            // --- Iniciar partida inmediata si llegan a 6
-            if (queue.Count == MATCH_SIZE)
-            {
-                CreateMatchNow(player.currentMode); // Ranked se gestiona dentro de CreateMatchNow
-            }
-
         }
     }
 
@@ -108,40 +101,46 @@ public class MatchHandler : NetworkBehaviour
     {
         int seconds = GetCountdownSeconds(mode);
 
-        while (seconds > 0)
+        try
         {
-            // Actualiza la UI en todos los jugadores de ese modo
-            UpdateCountdownUIForMode(mode, seconds);
-
-            yield return new WaitForSecondsRealtime(1f);
-            seconds--;
-
-            // Verifica si llegaron a 6 para empezar ya
-            var queue = matchQueue[mode];
-            if (queue.Count >= MATCH_SIZE)
+            while (seconds > 0)
             {
-                break;
+                // Actualiza la UI en todos los jugadores de ese modo
+                UpdateCountdownUIForMode(mode, seconds);
+
+                yield return new WaitForSecondsRealtime(1f);
+                seconds--;
+
+                // Verifica si llegaron a 6 para empezar ya
+                var queue = matchQueue[mode];
+                if (queue.Count >= MATCH_SIZE)
+                {
+                    break;
+                }
+                // Si bajan del mínimo por modo cortamos
+                if (queue.Count < GetMinPlayers(mode))
+                {
+                    UpdateCountdownUIForMode(mode, -1); // Reset UI
+                    yield break;
+                }
             }
-            // Si bajan del mínimo por modo cortamos
-            if (queue.Count < GetMinPlayers(mode))
+
+            // Si hay el mínimo de jugadores por modo, inicia partida
+            var queueAfter = matchQueue[mode];
+            if (queueAfter.Count >= GetMinPlayers(mode))
+            {
+                CreateMatchNow(mode);
+            }
+            else
             {
                 UpdateCountdownUIForMode(mode, -1); // Reset UI
-                yield break;
             }
         }
-
-        // Si hay el mínimo de jugadores por modo, inicia partida
-        var queueAfter = matchQueue[mode];
-        if (queueAfter.Count >= GetMinPlayers(mode))
+        finally
         {
-            CreateMatchNow(mode);
-        }
-        else
-        {
-            UpdateCountdownUIForMode(mode, -1); // Reset UI
-        }
+            countdownCoroutines.Remove(mode);
 
-        countdownCoroutines.Remove(mode);
+        }
     }
 
     private void UpdateCountdownUIForMode(string mode, int secondsLeft)
@@ -177,6 +176,13 @@ public class MatchHandler : NetworkBehaviour
         {
             CreateAutoMatch(playersForMatch, mode);
             UpdateCountdownUIForMode(mode, -1);
+            
+            if (matchQueue.TryGetValue(mode, out var q) &&
+                q.Count >= GetMinPlayers(mode) &&
+                !countdownCoroutines.ContainsKey(mode))
+                {
+                    countdownCoroutines[mode] = StartCoroutine(StartCountdownForMode(mode));
+                }
             return;
         }
 
@@ -224,6 +230,15 @@ public class MatchHandler : NetworkBehaviour
                     EnqueueForMatchmaking(ok); // reutilizamos tu método existente
 
                 UpdateCountdownUIForMode(mode, -1);
+
+                if (matchQueue.TryGetValue(mode, out var q) &&
+                q.Count >= GetMinPlayers(mode) &&
+                !countdownCoroutines.ContainsKey(mode))
+                {
+                    countdownCoroutines[mode] = StartCoroutine(StartCountdownForMode(mode));
+                }
+                return;
+
                 finished = true;
                 return;
             }

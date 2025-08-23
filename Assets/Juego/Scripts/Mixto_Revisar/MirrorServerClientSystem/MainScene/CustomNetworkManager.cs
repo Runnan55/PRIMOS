@@ -201,11 +201,35 @@ public class CustomNetworkManager : NetworkManager
             return;
         }
 
-        if (AccountManager.Instance.IsUidInUse(msg.uid, out var existing) && existing != conn)
+        // Si ya existe el UID en otra conexion, reasigna el player al nuevo socket
+        if (AccountManager.Instance.IsUidInUse(msg.uid, out var oldConn) && oldConn != conn)
         {
-            // <- Duplicado: avisamos y desconectamos en el próximo frame
+            var oldIdentity = oldConn.identity;
+            if (oldIdentity != null)
+            {
+                // API nueva con enum
+                NetworkServer.ReplacePlayerForConnection(
+                    conn,
+                    oldIdentity.gameObject,
+                    ReplacePlayerOptions.KeepAuthority // mantiene activo y con autoridad
+                );
+
+                oldConn.Disconnect();
+                AccountManager.Instance.RemoveConnection(oldConn);
+                AccountManager.Instance.RegisterFirebaseCredentials(conn, msg.uid);
+
+                Debug.Log("[Auth] Reclaim OK -> uid=" + msg.uid +
+                          " newConn=" + conn.connectionId +
+                          " tookOverOldConn=" + oldConn.connectionId);
+                return; // no instancies un CRP nuevo
+            }
+
+            // Fallback: no hay identity anterior, rechazo el nuevo
             conn.Send(new LoginResultMessage { ok = false, reason = "duplicate" });
             StartCoroutine(DisconnectNextFrame(conn));
+            Debug.Log("[Auth] Duplicate login rejected -> uid=" + msg.uid +
+                      " connId=" + conn.connectionId +
+                      " reason=no-old-identity-to-reclaim");
             return;
         }
 
@@ -225,7 +249,8 @@ public class CustomNetworkManager : NetworkManager
 
     private System.Collections.IEnumerator DisconnectNextFrame(NetworkConnectionToClient c)
     {
-        yield return null; // garantiza que el LoginResult llegue
+        yield return null;
+        Debug.Log("[Auth] DisconnectNextFrame -> connId=" + c.connectionId + " cause=duplicate");
         c.Disconnect();
     }
 
