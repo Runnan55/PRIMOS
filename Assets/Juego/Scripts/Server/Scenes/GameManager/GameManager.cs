@@ -72,9 +72,6 @@ public class GameManager : NetworkBehaviour
     private int currentRound = 0; // Contador de rondas
                                   //[SerializeField] private TMP_Text roundText; // Texto en UI para mostrar la ronda
 
-    [Header("LoadingScreen")]
-    private LoadingScreenManager loadingScreen;
-
     [Header("StartEndDraw")]
     private bool isDraw = false;
     private bool isGameStarted = false;
@@ -112,6 +109,11 @@ public class GameManager : NetworkBehaviour
     [Header("Orden de muerte para el Leaderboard")]
     private List<PlayerController> deathBuffer = new();
     private bool isProcessingDeath = false;
+
+    [Header("Tiempo de gracia para eliminar partida pero primero colocar puntos")]
+    private float endGraceSeconds = 5f; // tuneable 2..5
+    private bool endGraceActive = false;
+    private bool statsStarted = false;
 
     private void IdentifyVeryHealthy()
     {
@@ -453,11 +455,6 @@ public class GameManager : NetworkBehaviour
             gameStatistic.Initialize(players);
         }
 
-        foreach (var p in players)
-        {
-            p.RpcHideLoadingScreen();
-        }
-
         if (talismanHolder != null)
         {
             talismanHolderNetId = talismanHolder.netId;
@@ -483,8 +480,13 @@ public class GameManager : NetworkBehaviour
 
             // Failsafe #1: fuerza cerrar la ruleta en todos los clientes por si algún cliente aún estaba resync
             foreach (var p in players)
+            {
+                p.isRouletteOpen = false;
                 if (!p.isBot && p.connectionToClient != null)
+                {
                     p.TargetHideRouletteCanvas(p.connectionToClient);
+                }
+            }
         }
 
         ApplyGameModifier(SelectedModifier);
@@ -492,11 +494,6 @@ public class GameManager : NetworkBehaviour
         roundCycleCoroutine = StartCoroutine(RoundCycle());
 
         talismanHolder = players.FirstOrDefault(p => p.isAlive); // El primero con vida
-
-        if (loadingScreen != null)
-        {
-            loadingScreen.HideLoading();
-        }
     }
 
     #region AccumulatedDamageY/N
@@ -1276,7 +1273,7 @@ public class GameManager : NetworkBehaviour
 
     #region Cerrar partida si no hay humanos
 
-    private float humanAbortCheckInterval = 10f;
+    private float humanAbortCheckInterval = 3f;
     private bool humanAbortWatcherStarted = false;
 
     [Server]
@@ -1305,12 +1302,36 @@ public class GameManager : NetworkBehaviour
 
             if (!hasRoomPlayersInMyScene)
             {
-                var mh = MatchHandler.Instance;
-                if (mh != null)
+                // No humans (no CRP) -> force a clean end instead of destroying now
+                if (!isGameOver)
                 {
-                    mh.DestroyGameScene(scene.name, "no_customroomplayers");
+                    // mark disconnected humans as dead for ordering
+                    foreach (var h in players.Where(p => !p.isBot && p.isAlive).ToList())
+                        MarkDisconnected(h);
+
+                    // kill bots leaving one alive
+                    var botsAlive = players.Where(p => p.isBot && p.isAlive).ToList();
+                    if (botsAlive.Count > 1)
+                    {
+                        for (int i = 0; i < botsAlive.Count - 1; i++)
+                            PlayerDied(botsAlive[i]);
+                    }
+
+                    // if still more than 1 alive for some reason, fallback to draw
+                    int alive = players.Count(p => p.isAlive);
+                    if (alive > 1)
+                    {
+                        // declare draw
+                        foreach (var p in players) p.isAlive = false;
+                    }
+
+                    isGameOver = true;
+                    StopGamePhases();
+
+                    yield return StartCoroutine(StartGameStatistics());
                 }
-                yield break; // la escena se va a cerrar; paramos el watcher
+
+                yield break;
             }
         }
     }
@@ -1319,6 +1340,9 @@ public class GameManager : NetworkBehaviour
 
     private IEnumerator StartGameStatistics()
     {
+        if (statsStarted) yield break; // idempotente
+        statsStarted = true;
+
         // --- 0) Cerrar partida en server ---
         isGameOver = true;
 
@@ -1343,7 +1367,7 @@ public class GameManager : NetworkBehaviour
 
         // DEBUG: imprime el orden final tal como saldrá en el leaderboard (solo por deathOrder desc)
         var finalOrdered = leaderboardPlayers
-            .OrderByDescending(p => p.deathOrder)
+            .OrderByDescending(p => p.isAlive).ThenByDescending(p => p.deathOrder)
             .ToList();
 
         var lines = finalOrdered
@@ -1384,11 +1408,10 @@ public class GameManager : NetworkBehaviour
                 if (gameStatistic.TryGetPointsForPlayer(pc.playerName, out int delta))
                 {
                     updatedUids.Add(uid);
-                    StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, delta, ok =>
-                    {
+                    yield return StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, delta, ok => {
                         Debug.Log(ok
-                            ? $"[RankedPoints] OK connected -> {pc.playerName} ({uid}) Δ{delta}"
-                            : $"[RankedPoints] FAIL connected -> {pc.playerName} ({uid}) Δ{delta}");
+                            ? $"[RankedPoints] OK connected -> {pc.playerName} ({uid}) delta={delta}"
+                            : $"[RankedPoints] FAIL connected -> {pc.playerName} ({uid}) delta={delta}");
                     }));
                 }
                 else
@@ -1421,9 +1444,61 @@ public class GameManager : NetworkBehaviour
                     Debug.LogWarning($"[RankedPoints] Nick {nick} ({uid}) no está en snapshot final (¿bot o no empezó?).");
                 }
             }
+
+            // 2.1 Grant a basic key to the winner (Ranked only, human only)
+            {
+                // winner is the top by deathOrder (already built above)
+                var winnerForKey = finalOrdered
+                    .OrderByDescending(p => p.deathOrder)
+                    .FirstOrDefault();
+
+                if (winnerForKey != null && !winnerForKey.isBot)
+                {
+                    string wuid = winnerForKey.firebaseUID;
+                    if (string.IsNullOrEmpty(wuid) && winnerForKey.ownerRoomPlayer != null)
+                        wuid = winnerForKey.ownerRoomPlayer.firebaseUID;
+
+                    if (!string.IsNullOrEmpty(wuid))
+                    {
+                        yield return StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(wuid, ok =>
+                        {
+                            Debug.Log(ok
+                                ? $"[Key] OK -> {winnerForKey.playerName} ({wuid})"
+                                : $"[Key] FAIL -> {winnerForKey.playerName} ({wuid})");
+                        }));
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[Key] Winner has no UID, skip key grant.");
+                    }
+                }
+                else
+                {
+                    Debug.Log("[Key] Winner is a bot or null, skip key grant.");
+                }
+            }
         }
 
+        yield return new WaitForSecondsRealtime(1f);
+
+        // schedule scene destroy after grace window
+        StartCoroutine(DestroySceneAfterGrace("end_grace"));
         yield break;
+    }
+
+    [Server]
+    private IEnumerator DestroySceneAfterGrace(string reason)
+    {
+        if (endGraceActive) yield break;
+        endGraceActive = true;
+
+        var sceneName = gameObject.scene.name;
+        Debug.Log($"[Grace] Esperando {endGraceSeconds:F1}s antes de destruir '{sceneName}' ({reason})...");
+        yield return new WaitForSecondsRealtime(endGraceSeconds);
+        Debug.Log($"[Grace] Tiempo cumplido. Destruyendo '{sceneName}' ahora ({reason}).");
+
+        _closingScene = true;
+        MatchHandler.Instance?.DestroyGameScene(sceneName, reason);
     }
 
     private void StopGamePhases()
@@ -1571,6 +1646,7 @@ public class GameManager : NetworkBehaviour
 
         foreach (var player in players)
         {
+            player.isRouletteOpen = true;
             if (!player.isBot && player.connectionToClient != null)
                 player.TargetStartRouletteWithWinner(player.connectionToClient, rouletteDuration, winnerIndex);
         }
@@ -1579,8 +1655,11 @@ public class GameManager : NetworkBehaviour
 
         foreach (var player in players)
         {
+            player.isRouletteOpen = false;
             if (!player.isBot && player.connectionToClient != null)
+            {
                 player.TargetHideRouletteCanvas(player.connectionToClient);
+            }
         }
     }
 
@@ -1610,7 +1689,6 @@ public class GameManager : NetworkBehaviour
 
         if (!isGameStarted) CheckAllPlayersReady();  // si ya estamos todos (tras restar), arranca.
 
-        CheckIfSceneShouldClose();
         CheckGameOver();
     }
 
@@ -1638,7 +1716,10 @@ public class GameManager : NetworkBehaviour
     [Server]
     private void CheckIfSceneShouldClose()
     {
-        if (_closingScene == true) return;
+        if (_closingScene) return;
+
+        // si estamos en gracia o ya marcamos fin, no cierres por aqui
+        if (endGraceActive || isGameOver) return;
 
         Scene currentScene = gameObject.scene;
 
@@ -1650,18 +1731,20 @@ public class GameManager : NetworkBehaviour
 
         if (!hasRoomPlayers)
         {
-            Debug.Log($"[GameManager] No quedan CustomRoomPlayers en {currentScene.name}. Cerrando escena.");
-
-            // Destruir objetos clave como el GameManager
-            NetworkServer.Destroy(gameObject);
-
-            // Descargar la escena aditiva
-            SceneManager.UnloadSceneAsync(currentScene);
-
-            MatchHandler.Instance.DestroyGameScene(currentScene.name, "empty_scene");
-
-            _closingScene = true;
+            // Si la partida todavia NO empezo, limpia de inmediato (setup abortado)
+            if (!isGameStarted)
+            {
+                Debug.Log($"[GameManager] No CRP before game start in {currentScene.name}. Closing scene.");
+                NetworkServer.Destroy(gameObject);
+                SceneManager.UnloadSceneAsync(currentScene);
+                MatchHandler.Instance.DestroyGameScene(currentScene.name, "empty_scene_not_started");
+                _closingScene = true;
+            }
+            // Si ya empezo, NO destruyas aqui; el watcher de 'no humanos' cerrara con gracia.
+            return;
         }
+
+        // Si hay humanos, nunca cierres aqui.
     }
 
     #endregion

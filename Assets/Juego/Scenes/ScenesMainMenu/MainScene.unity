@@ -2907,11 +2907,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: sabadoStartHour
-      value: 14
+      value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: domingoStartHour
-      value: 14
+      value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: miercolesEnabled
@@ -2919,7 +2919,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: viernesStartHour
-      value: 14
+      value: 12
       objectReference: {fileID: 0}
     - target: {fileID: 6933785750339662254, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: sceneId

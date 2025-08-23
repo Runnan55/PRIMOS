@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Mirror;
@@ -75,23 +76,32 @@ public class GameStatistic : NetworkBehaviour
     [Server]
     public void Initialize(List<PlayerController> playerList)
     {
-        // 0) Tomar el snapshot previo (tenía a los que se desconectaron)
-        var prev = players.ToList(); // copia
+        // 0) Prior snapshot (kept disconnected players)
+        var prev = players.ToList();
         var prevByName = prev.ToDictionary(p => p.playerName, p => p);
         players.Clear();
 
-        // 1) Determinar si es Ranked
-        var match = MatchHandler.Instance?.GetMatch(gameManager.matchId);
-        bool isRanked = match != null && match.mode == "Ranked";
+        // 1) Is Ranked?
+        var gm = gameManager;
+        bool isRanked = false;
 
-        // 2) Construir la UNIÓN: controllers vivos/muertos + entradas previas (quitados)
+        if (gm != null && !string.IsNullOrEmpty(gm.mode))
+            isRanked = gm.mode.Equals("Ranked", StringComparison.OrdinalIgnoreCase);
+
+        if (!isRanked)
+        {
+            var match = MatchHandler.Instance?.GetMatch(gm != null ? gm.matchId : string.Empty);
+            if (match != null && match.mode == "Ranked")
+                isRanked = true;
+        }
+
+        // 2) Union: incoming controllers + previous disconnected rows
         var rows = new List<PlayerInfo>();
         var seen = new HashSet<string>();
 
-        // 2.a) De los PlayerController que recibimos
+        // 2.a) From current PlayerControllers
         foreach (var pc in playerList.Where(p => p != null))
         {
-            bool wasDiscBefore = prevByName.TryGetValue(pc.playerName, out var prevInfo) && prevInfo.isDisconnected;
             bool isDiscNow = (!pc.isAlive && pc.connectionToClient == null && !pc.isBot);
 
             rows.Add(new PlayerInfo(
@@ -101,7 +111,7 @@ public class GameStatistic : NetworkBehaviour
                 pc.bulletsFired,
                 pc.damageDealt,
                 pc.timesCovered,
-                0,                 // puntos se calculan más abajo
+                0,                  // points calculated later
                 isDiscNow,
                 pc.deathOrder,
                 pc.isAlive
@@ -109,7 +119,7 @@ public class GameStatistic : NetworkBehaviour
             seen.Add(pc.playerName);
         }
 
-        // 2.b) Agregar los que estaban en el snapshot previo y YA NO tienen PlayerController (desconectados)
+        // 2.b) Add snapshot-only (already disconnected) players not present now
         foreach (var pi in prev)
         {
             if (seen.Contains(pi.playerName)) continue;
@@ -120,12 +130,14 @@ public class GameStatistic : NetworkBehaviour
             ));
         }
 
-        // 3) Orden FINAL: una sola cola por deathOrder (ganador arriba)
+        // 3) Final order: winner first (higher deathOrder first)
         var ordered = rows
-            .OrderByDescending(r => r.deathOrder)
+            .OrderByDescending(r => r.isAlive).ThenByDescending(r => r.deathOrder)
             .ToList();
 
-        // 4) Recalcular puntos (Ranked = tabla + kills*5; Casual = tu fórmula)
+        // 4) Recompute points:
+        // Ranked uses ONLY the placement table you asked for.
+        // Casual keeps your custom formula.
         for (int i = 0; i < ordered.Count; i++)
         {
             var r = ordered[i];
@@ -142,7 +154,7 @@ public class GameStatistic : NetworkBehaviour
             ));
         }
 
-        Debug.Log($"[GameStatistic] Inicializado con {players.Count} jugadores (incluye desconectados previos).");
+        Debug.Log("[GameStatistic] Snapshot built for leaderboard with " + players.Count + " rows.");
     }
 
 
@@ -240,7 +252,7 @@ public class GameStatistic : NetworkBehaviour
 
         // antes hacía: players.OrderByDescending(p => p.deathOrder)
         List<PlayerInfo> copy = players
-            .OrderByDescending(p => p.deathOrder)  // mayor deathOrder arriba
+            .OrderByDescending(p => p.isAlive).ThenByDescending(p => p.deathOrder)
             .ToList();
 
         Debug.Log("[GameStatistics] === ORDEN FINAL PARA LEADERBOARD ===");

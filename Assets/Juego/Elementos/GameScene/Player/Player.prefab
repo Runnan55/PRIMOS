@@ -6703,7 +6703,8 @@ MonoBehaviour:
   - 0.01
   consecutiveCovers: 0
   selectedAction: 0
-  playerCanvas: {fileID: 6763009721230364306}
+  botonesYTimerCanvas: {fileID: 6763009721230364306}
+  missions_Reward_GlobalMode: {fileID: 7514501746560552766}
   deathCanvas: {fileID: 393881727458850209}
   victoryCanvas: {fileID: 8439898598870495268}
   drawCanvas: {fileID: 1549753443528293973}
@@ -6757,7 +6758,7 @@ MonoBehaviour:
   sucessfulShots: 0
   tikiSprite: {fileID: 3753055010008439951}
   roulette: {fileID: 438625208929732015}
-  gameModifierCanvas: {fileID: 6183842888619299736}
+  gameModeCanvas: {fileID: 6183842888619299736}
   waitingPlayers_Anim: {fileID: 2316613237392070076}
   isBot: 0
   botPersonality: 0
@@ -7213,7 +7214,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &6712038891528626624
 RectTransform:
   m_ObjectHideFlags: 0
@@ -7891,7 +7892,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &3450758332802465915
 RectTransform:
   m_ObjectHideFlags: 0

@@ -337,12 +337,21 @@ public class CustomRoomPlayer : NetworkBehaviour
 
             if (loadingCanvas != null)
             {
-                loadingCanvas.SetActive(true);
+                StartCoroutine(StartLoadingCanvasForAWhile());
             }
 
             SceneManager.sceneLoaded += OnGameSceneLoaded;
             SceneLoaderManager.Instance.LoadScene(clientSceneName);
         }
+    }
+
+    private IEnumerator StartLoadingCanvasForAWhile()
+    {
+        loadingCanvas.SetActive(true);
+
+        yield return new WaitForSecondsRealtime(2f);
+
+        loadingCanvas.SetActive(false);
     }
 
     private void OnGameSceneLoaded(Scene scene, LoadSceneMode mode)

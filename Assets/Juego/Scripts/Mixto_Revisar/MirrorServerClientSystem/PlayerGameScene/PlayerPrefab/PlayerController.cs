@@ -57,7 +57,8 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public ActionType selectedAction = ActionType.None;
 
     [Header("UI Elements")]
-    public GameObject playerCanvas;
+    public GameObject botonesYTimerCanvas;
+    public GameObject missions_Reward_GlobalMode;
     public GameObject deathCanvas;
     public GameObject victoryCanvas;
     public GameObject drawCanvas;
@@ -142,8 +143,9 @@ public class PlayerController : NetworkBehaviour
 
     [Header("Game Roulette Modifier")]
     public GameModifierRoulette roulette;
-    public GameObject gameModifierCanvas;
+    public GameObject gameModeCanvas;
     public GameObject waitingPlayers_Anim;
+    [SyncVar(hook = nameof(OnRouletteOpenChanged))] public bool isRouletteOpen;
 
     [Header("Bot Bot Bot")]
     [SyncVar] public bool isBot = false;
@@ -355,17 +357,21 @@ public class PlayerController : NetworkBehaviour
             deathCanvas.SetActive(false);
             victoryCanvas.SetActive(false);
             drawCanvas.SetActive(false);
-            targetIndicator.SetActive(false);
-            playerCanvas.SetActive(true);
-            gameModifierCanvas.SetActive(true);
             leaderboardCanvas.SetActive(false);
+
+            targetIndicator.SetActive(false);
+
+            gameModeCanvas.SetActive(true);
+
+            botonesYTimerCanvas.SetActive(true);
+            missions_Reward_GlobalMode.SetActive(true);
 
             /*if (shootButton) shootButton.onClick.AddListener(() => OnShootButton());
             if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());
             if (coverButton) coverButton.onClick.AddListener(() => OnCoverButton());
             if (superShootButton) superShootButton.onClick.AddListener(() => OnSuperShootButton());*/
 
-            if(exitGameButton) exitGameButton.onClick.AddListener(() => OnExitLeaderboardPressed());
+            if (exitGameButton) exitGameButton.onClick.AddListener(() => OnExitLeaderboardPressed());
 
             AddPointerDownEvent(shootButton, ActionType.Shoot);
 
@@ -391,9 +397,9 @@ public class PlayerController : NetworkBehaviour
             parcaAzul.SetActive(false);
             parcaRojo.SetActive(false);
 
-            playerCanvas.SetActive(false);
+            botonesYTimerCanvas.SetActive(false);
             localPlayerIndicator.SetActive(false);
-            gameModifierCanvas.SetActive(false);
+            gameModeCanvas.SetActive(false);
         }
 
         fullHealth = health; //guardamos el valor inicial de health
@@ -1504,8 +1510,8 @@ public class PlayerController : NetworkBehaviour
         waitingPlayers_Anim.SetActive(false);
         AudioManager.Instance.PlayMusic("Spinning_Loop");
 
-        if (gameModifierCanvas != null)
-            gameModifierCanvas.SetActive(true);
+        if (gameModeCanvas != null)
+            gameModeCanvas.SetActive(true);
 
         if (roulette != null)
         {
@@ -1518,31 +1524,19 @@ public class PlayerController : NetworkBehaviour
     [TargetRpc]
     public void TargetHideRouletteCanvas(NetworkConnection target)
     {
-        if (gameModifierCanvas != null)
-            gameModifierCanvas.SetActive(false);
+        if (gameModeCanvas != null)
+            gameModeCanvas.SetActive(false);
 
         AudioManager.Instance.PlayMusic("CasualGameSceneTheme");
     }
 
-    #endregion
-
-    [ClientRpc]
-    public void RpcHideLoadingScreen()
+    private void OnRouletteOpenChanged(bool oldV, bool newV)
     {
-        if (isOwned)
-        {
-            Debug.Log("Clienteeeeeeeeeeeeeeeeeeeee");
-        }
+        // Solo tocar la UI del jugador local
+        if (!isLocalPlayer && !isOwned) return;
 
-        var screen = FindFirstObjectByType<LoadingScreenManager>();
-        if (screen != null)
-        {
-            screen.HideLoading();
-            Debug.Log("[CLIENT] Canvas de carga ocultado por GameManager");
-        }
-        else
-        {
-            Debug.LogWarning("[CLIENT] No se encontró LoadingScreenManager para ocultar");
-        }
+        if (gameModeCanvas != null) gameModeCanvas.SetActive(newV);
     }
+
+    #endregion
 }
