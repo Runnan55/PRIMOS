@@ -36,7 +36,7 @@ public class MatchHandler : NetworkBehaviour
     private readonly Dictionary<string, ModeConfig> modeConfig = new()
     {
         ["Casual"] = new ModeConfig { MinPlayersToStart = 1, CountdownSeconds = 40},
-        ["Ranked"] = new ModeConfig { MinPlayersToStart = 3, CountdownSeconds = 30},
+        ["Ranked"] = new ModeConfig { MinPlayersToStart = 1, CountdownSeconds = 30},
         // Podemos seguir añadiendo otros modos aquí sin enredarnos
     };
 
@@ -238,58 +238,44 @@ public class MatchHandler : NetworkBehaviour
                     countdownCoroutines[mode] = StartCoroutine(StartCountdownForMode(mode));
                 }
                 return;
-
-                finished = true;
-                return;
             }
 
-            // 2) Todos tienen ticket -> CONSUMIR a todos
-            var expelledOnConsume = new HashSet<CustomRoomPlayer>();
-            int pendingConsume = playersForMatch.Count;
+            // 2) Todos pasaron pre-check -> solo verificar de nuevo que tickets > 0 (sin consumir)
+            var expelledOnSecondCheck = new HashSet<CustomRoomPlayer>();
+            int pendingVerify = playersForMatch.Count;
 
             foreach (var p in playersForMatch)
             {
                 var playerRef = p;
                 if (!AccountManager.Instance.TryGetFirebaseCredentials(playerRef.connectionToClient, out var creds2))
                 {
-                    expelledOnConsume.Add(playerRef);
+                    expelledOnSecondCheck.Add(playerRef);
                     playerRef.TargetReturnToMainMenu(playerRef.connectionToClient);
-                    if (--pendingConsume == 0) AfterConsume();
+                    if (--pendingVerify == 0) AfterSecondCheck();
                     continue;
                 }
 
-                playerRef.StartCoroutine(FirebaseServerClient.TryConsumeTicket(creds2.uid, success =>
+                playerRef.StartCoroutine(FirebaseServerClient.CheckTicketAvailable(creds2.uid, hasTicket =>
                 {
-                    if (!success)
+                    if (!hasTicket)
                     {
-                        // Raro que falle aquí tras el pre-check, pero lo contemplamos
-                        expelledOnConsume.Add(playerRef);
+                        expelledOnSecondCheck.Add(playerRef);
                         playerRef.TargetReturnToMainMenu(playerRef.connectionToClient);
                     }
-                    else
-                    {
-                        // Refrescar UI de wallet en el acto para que vea el -1
-                        playerRef.StartCoroutine(
-                            FirebaseServerClient.FetchTicketAndKeyInfoFromWallet(creds2.uid, (t, k) =>
-                            {
-                                playerRef.TargetReceiveWalletData(playerRef.connectionToClient, t, k);
-                            })
-                        );
-                    }
 
-                    if (--pendingConsume == 0) AfterConsume();
+                    if (--pendingVerify == 0) AfterSecondCheck();
                 }));
             }
 
-            // local: tras consumo
-            void AfterConsume()
+            // local: tras segunda verificación
+            void AfterSecondCheck()
             {
                 if (finished) return;
 
-                // Si algún consumo falló -> cancelar y re-encolar a los OK
-                if (expelledOnConsume.Count > 0)
+                // Si alguien falló -> cancelar y re-encolar a los OK
+                if (expelledOnSecondCheck.Count > 0)
                 {
-                    foreach (var ok in playersForMatch.Where(x => !expelledOnConsume.Contains(x)))
+                    foreach (var ok in playersForMatch.Where(x => !expelledOnSecondCheck.Contains(x)))
                         EnqueueForMatchmaking(ok);
 
                     UpdateCountdownUIForMode(mode, -1);
@@ -297,7 +283,7 @@ public class MatchHandler : NetworkBehaviour
                     return;
                 }
 
-                // Todo OK -> arrancar la partida
+                // Todo OK -> arrancar la partida (tickets se cobrarán más tarde en GameManager)
                 CreateAutoMatch(playersForMatch, mode);
                 UpdateCountdownUIForMode(mode, -1);
                 finished = true;
@@ -377,7 +363,7 @@ public class MatchHandler : NetworkBehaviour
             matches.Remove(player.currentMatchId);
             partidasActivas--; // <--- restamos
             RefreshMatchListForMode(match.mode);
-            Debug.Log($"[SERVER] Partida eliminada. Total partidas activas: {partidasActivas}");
+            LogWithTime.Log($"[SERVER] Partida eliminada. Total partidas activas: {partidasActivas}");
         }
         else
         {
@@ -465,7 +451,7 @@ public class MatchHandler : NetworkBehaviour
 
         if (AreAllPlayersReady(matchId))
         {
-            Debug.Log($"[SERVER] Todos los jugadores listos en {matchId}, empezando partida.");
+            LogWithTime.Log($"[SERVER] Todos los jugadores listos en {matchId}, empezando partida.");
             match.isStarted = true;
 
             StartCoroutine(CreateRuntimeGameScene(match));
@@ -574,7 +560,7 @@ public class MatchHandler : NetworkBehaviour
     {
         if (!matches.TryGetValue(matchId, out var match)) return;
 
-        Debug.LogWarning($"[MatchHandler] Abortando match {matchId}. Razón: {reason}");
+        LogWithTime.LogWarning($"[MatchHandler] Abortando match {matchId}. Razón: {reason}");
 
         // 1) Enviar a todos los jugadores al MainMenu
         foreach (var rp in match.players.ToArray())
@@ -597,7 +583,7 @@ public class MatchHandler : NetworkBehaviour
         var scene = SceneManager.GetSceneByName(sceneName);
         if (!scene.IsValid())
         {
-            Debug.LogWarning($"[MatchHandler] DestroyGameScene: escena '{sceneName}' no válida.");
+            LogWithTime.LogWarning($"[MatchHandler] DestroyGameScene: escena '{sceneName}' no válida.");
             return;
         }
 
@@ -609,7 +595,7 @@ public class MatchHandler : NetworkBehaviour
         );
         if (hasRoomPlayers)
         {
-            Debug.Log($"[MatchHandler] DestroyGameScene cancelado; aún hay CRP en '{sceneName}'.");
+            LogWithTime.Log($"[MatchHandler] DestroyGameScene cancelado; aún hay CRP en '{sceneName}'.");
             return;
         }
 
@@ -660,7 +646,7 @@ public class MatchHandler : NetworkBehaviour
         SceneManager.UnloadSceneAsync(scene);
         Resources.UnloadUnusedAssets();
 
-        Debug.Log($"[MatchHandler] Escena '{sceneName}' destruida. Motivo: {reason}");
+        LogWithTime.Log($"[MatchHandler] Escena '{sceneName}' destruida. Motivo: {reason}");
     }
 
     #endregion
@@ -685,7 +671,7 @@ public class MatchHandler : NetworkBehaviour
         matches.Add(matchId, newMatch);
         partidasActivas++;
 
-        Debug.Log($"[SERVER] Nueva partida creada. Total partidas activas: {partidasActivas}");
+        LogWithTime.Log($"[SERVER] Nueva partida creada. Total partidas activas: {partidasActivas}");
 
         creator.currentMatchId = matchId;
         creator.currentMode = mode;   // Agrega esto para que se sincronice al cliente

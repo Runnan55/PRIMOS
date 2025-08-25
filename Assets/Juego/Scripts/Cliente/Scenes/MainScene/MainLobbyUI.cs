@@ -106,7 +106,7 @@ public class MainLobbyUI : MonoBehaviour
         StartCoroutine(HideLoadingWhenLoginAccepted());
 
         rankedButton.onClick.AddListener(() => JoinMode("Ranked")); 
-        comingSoonButton.onClick.AddListener(() => Debug.Log("Este modo aún no está disponible."));
+        comingSoonButton.onClick.AddListener(() => LogWithTime.Log("Este modo aún no está disponible."));
         casualButton.onClick.AddListener(() => JoinMode("Casual"));
         //exitButton.onClick.AddListener(() => Application.Quit());
         //Desactivé el exit button por mientras pq bugea en la web
@@ -166,7 +166,7 @@ public class MainLobbyUI : MonoBehaviour
 
         if (CustomRoomPlayer.LocalInstance != null && CustomRoomPlayer.LocalInstance.isLocalPlayer)
         {
-            Debug.Log("[MainLobbyUI] CustomRoomPlayer listo, solicitando nickname y wallet.");
+            LogWithTime.Log("[MainLobbyUI] CustomRoomPlayer listo, solicitando nickname y wallet.");
             CustomRoomPlayer.LocalInstance.CmdRequestNicknameFromFirestore();
             CustomRoomPlayer.LocalInstance.CmdRequestTicketAndKeyStatus();
             //Ticket y llaves
@@ -175,7 +175,7 @@ public class MainLobbyUI : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[MainLobbyUI] No se encontró un CustomRoomPlayer válido tras 5s.");
+            LogWithTime.LogWarning("[MainLobbyUI] No se encontró un CustomRoomPlayer válido tras 5s.");
         }
     }
 
@@ -189,7 +189,7 @@ public class MainLobbyUI : MonoBehaviour
         // Activar el botón solo si hay nombre
         playButton.interactable = true;
 
-        Debug.Log("Nombre confirmado: " + enteredName);
+        LogWithTime.Log("Nombre confirmado: " + enteredName);
     }
 
     private void OnNameChangedLive(string playerName)
@@ -198,7 +198,7 @@ public class MainLobbyUI : MonoBehaviour
 
         if (string.IsNullOrEmpty(enteredName))
         {
-            Debug.LogWarning("El nombre no puede estar vacío");
+            LogWithTime.LogWarning("El nombre no puede estar vacío");
             nameInputField.text = "";
             nameInputField.placeholder.GetComponent<TMP_Text>().text = "Enter name first!";
             playButton.interactable = false;
@@ -274,7 +274,7 @@ public class MainLobbyUI : MonoBehaviour
         // Verificamos que el modo exista en el diccionario
         if (!modeToScene.TryGetValue(mode, out string sceneName))
         {
-            Debug.LogError($"[MainLobbyUI] Modo '{mode}' no tiene una escena asignada.");
+            LogWithTime.LogError($"[MainLobbyUI] Modo '{mode}' no tiene una escena asignada.");
             return;
         }
 
@@ -395,7 +395,7 @@ public class MainLobbyUI : MonoBehaviour
         }
         if (_serverLeaderboardJson == null)
         {
-            Debug.LogWarning("[Leaderboard] Timeout esperando datos del server.");
+            LogWithTime.LogWarning("[Leaderboard] Timeout esperando datos del server.");
             yield break;
         }
 

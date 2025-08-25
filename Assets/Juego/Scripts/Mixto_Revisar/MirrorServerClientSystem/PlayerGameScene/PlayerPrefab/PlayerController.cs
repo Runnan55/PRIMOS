@@ -179,7 +179,7 @@ public class PlayerController : NetworkBehaviour
             var texts = entry.GetComponentsInChildren<TMP_Text>();
             if (texts.Length < 7)
             {
-                Debug.LogError("[Leaderboard] No se encontraron suficientes TMP_Text en el prefab.");
+                LogWithTime.LogError("[Leaderboard] No se encontraron suficientes TMP_Text en el prefab.");
                 continue;
             }
 
@@ -582,12 +582,12 @@ public class PlayerController : NetworkBehaviour
                     //Verifica que la acción seleccionada sea Shoot o SuperShoot antes de registrar la acción
                     if (selectedAction == ActionType.Shoot)
                     {
-                        Debug.Log($"Objetivo seleccionado: {clickedPlayer.playerName}");
+                        LogWithTime.Log($"Objetivo seleccionado: {clickedPlayer.playerName}");
                         CmdRegisterAction(ActionType.Shoot, clickedPlayer);
                     }
                     if (selectedAction == ActionType.SuperShoot)
                     {
-                        Debug.Log($"Objetivo seleccionado: {clickedPlayer.playerName}");
+                        LogWithTime.Log($"Objetivo seleccionado: {clickedPlayer.playerName}");
                         CmdRegisterAction(ActionType.SuperShoot, clickedPlayer);
                     }
                     CursorSetup.I?.UsePinkCursor();
@@ -645,7 +645,7 @@ public class PlayerController : NetworkBehaviour
 
     void OnKillsChanged(int oldValue, int newValue)
     {
-        //Debug.Log($"{playerName} ahora tiene {newValue} kills.");
+        //LogWithTime.Log($"{playerName} ahora tiene {newValue} kills.");
     }
 
     void OnNameConfirmedChanged(bool oldValue, bool newValue) 
@@ -662,7 +662,7 @@ public class PlayerController : NetworkBehaviour
     public void OnIsVeryHealthyChanged(bool oldValue, bool newValue)
     {
         // Opcional: actualiza visualmente al jugador, muestra íconos, colores, etc.
-        //Debug.Log($"{playerName}: isVeryHealthy cambió a {newValue}");
+        //LogWithTime.Log($"{playerName}: isVeryHealthy cambió a {newValue}");
     }
 
     private void OnHealthChanged(int oldHealth, int newHealth)
@@ -1357,7 +1357,7 @@ public class PlayerController : NetworkBehaviour
     {
         if (animator == null)
         {
-            Debug.LogWarning($"[RpcForcePlayAnimation] {playerName} no tiene Animator.");
+            LogWithTime.LogWarning($"[RpcForcePlayAnimation] {playerName} no tiene Animator.");
             return;
         }
 
@@ -1424,7 +1424,7 @@ public class PlayerController : NetworkBehaviour
                     rolesManager.RegisterKill(killer, this); // Aquí se asigna la muerte en el rolManager para el tema de Parca
                 }
 
-                Debug.Log($"[Kills] {killer.playerName} mató a {playerName} en la escena {gameObject.scene.name}, es un HOMICIDA, un SIKOPATA, un ASESINO, llamen a la POLIZIA por el AMOR DE DIOS.");
+                LogWithTime.Log($"[Kills] {killer.playerName} mató a {playerName} en la escena {gameObject.scene.name}, es un HOMICIDA, un SIKOPATA, un ASESINO, llamen a la POLIZIA por el AMOR DE DIOS.");
 
                 if (GStatistic != null && isServer)
                 {

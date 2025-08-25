@@ -69,7 +69,7 @@ public class GameStatistic : NetworkBehaviour
     {
         foreach (var p in players)
         {
-            Debug.Log($"{p.playerName}: {p.kills} kills, {p.points} puntos.");
+            LogWithTime.Log($"{p.playerName}: {p.kills} kills, {p.points} puntos.");
         }
     }
 
@@ -154,7 +154,7 @@ public class GameStatistic : NetworkBehaviour
             ));
         }
 
-        Debug.Log("[GameStatistic] Snapshot built for leaderboard with " + players.Count + " rows.");
+        LogWithTime.Log("[GameStatistic] Snapshot built for leaderboard with " + players.Count + " rows.");
     }
 
 
@@ -248,18 +248,18 @@ public class GameStatistic : NetworkBehaviour
     [Server]
     public void ShowLeaderboard()
     {
-        Debug.Log("[GameStatistic] Mostrando Leaderboard desde el servidor...");
+        LogWithTime.Log("[GameStatistic] Mostrando Leaderboard desde el servidor...");
 
         // antes hacía: players.OrderByDescending(p => p.deathOrder)
         List<PlayerInfo> copy = players
             .OrderByDescending(p => p.isAlive).ThenByDescending(p => p.deathOrder)
             .ToList();
 
-        Debug.Log("[GameStatistics] === ORDEN FINAL PARA LEADERBOARD ===");
+        LogWithTime.Log("[GameStatistics] === ORDEN FINAL PARA LEADERBOARD ===");
         for (int i = 0; i < copy.Count; i++)
         {
             var p = copy[i];
-            Debug.Log($"#{i + 1} -> {p.playerName} | deathOrder: {p.deathOrder} | kills: {p.kills} | alive: {!p.isDisconnected}");
+            LogWithTime.Log($"#{i + 1} -> {p.playerName} | deathOrder: {p.deathOrder} | kills: {p.kills} | alive: {!p.isDisconnected}");
         }
 
         int count = copy.Count;
@@ -294,7 +294,7 @@ public class GameStatistic : NetworkBehaviour
                 player.connectionToClient != null &&
                 player.gameObject.scene == gameObject.scene)
             {
-                Debug.Log($"[Server] Enviando leaderboard a {player.playerName} con NetId {player.netId}");
+                LogWithTime.Log($"[Server] Enviando leaderboard a {player.playerName} con NetId {player.netId}");
                 player.RpcShowLeaderboard(names, kills, reloaded, fired, damage, covered, points, orders, disconnected);
             }
         }

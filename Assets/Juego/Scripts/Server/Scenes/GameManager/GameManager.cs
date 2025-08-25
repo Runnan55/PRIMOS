@@ -135,7 +135,7 @@ public class GameManager : NetworkBehaviour
                 player.isVeryHealthy = shouldBeHealthy;
             }
         }
-        catch (Exception e) { Debug.LogError($"[GM] IdentifyVeryHealthy() fallo: {e}"); }
+        catch (Exception e) { LogWithTime.LogError($"[GM] IdentifyVeryHealthy() fallo: {e}"); }
     }
 
     void OnDisable()
@@ -176,7 +176,7 @@ public class GameManager : NetworkBehaviour
 
         base.OnStartServer();
 
-        Debug.Log("[GameManager] Iniciado en servidor.");
+        LogWithTime.Log("[GameManager] Iniciado en servidor.");
 
         readyTimeoutCoroutine = StartCoroutine(WaitPlayersOrAbort());
     }
@@ -186,7 +186,7 @@ public class GameManager : NetworkBehaviour
     {
         if (players.Any(p => p.connectionToClient == roomPlayer.connectionToClient))
         {
-            Debug.Log($"[GameManager] El jugador {roomPlayer.playerName} ya tiene un PlayerController instanciado.");
+            LogWithTime.Log($"[GameManager] El jugador {roomPlayer.playerName} ya tiene un PlayerController instanciado.");
             return;
         }
 
@@ -307,7 +307,7 @@ public class GameManager : NetworkBehaviour
 
         if (match.players.Count != players.Count)
         {
-            Debug.Log($"[GameManager] Esperando... esperados: {match.players.Count}, instanciados: {players.Count}");
+            LogWithTime.Log($"[GameManager] Esperando... esperados: {match.players.Count}, instanciados: {players.Count}");
             return;
         }
 
@@ -322,6 +322,38 @@ public class GameManager : NetworkBehaviour
         );
 
         isGameStarted = true;
+
+        if (mode == "Ranked")
+        {
+            foreach (var pc in players.Where(p => !p.isBot))
+            {
+                string uid = pc.firebaseUID;
+                if (string.IsNullOrEmpty(uid) && pc.ownerRoomPlayer != null)
+                    uid = pc.ownerRoomPlayer.firebaseUID;
+
+                if (!string.IsNullOrEmpty(uid))
+                {
+                    StartCoroutine(FirebaseServerClient.TryConsumeTicket(uid, success =>
+                    {
+                        if (!success)
+                        {
+                            LogWithTime.LogWarning($"[Ticket] FALLO al cobrar ticket de {pc.playerName} ({uid})");
+                            // Aqui puedes decidir si expulsar al jugador o marcarlo como invalido
+                        }
+                        else
+                        {
+                            LogWithTime.Log($"[Ticket] Cobrado ticket de {pc.playerName} ({uid})");
+                            StartCoroutine(FirebaseServerClient.FetchTicketAndKeyInfoFromWallet(uid, (t, k) =>
+                            {
+                                pc.ownerRoomPlayer?.TargetReceiveWalletData(pc.ownerRoomPlayer.connectionToClient, t, k);
+                            }));
+                        }
+                    }));
+                }
+            }
+        }
+
+
         FillBotsIfNeeded();
 
         // Puntuar solo a los que estaban al inicio del juego, si se van antes de empezar no suman ni restan RP
@@ -537,7 +569,7 @@ public class GameManager : NetworkBehaviour
             {
                 bool moveNext;
                 try { moveNext = phase.MoveNext(); }
-                catch (Exception ex) { done = true; Debug.LogWarning($"{label} throw: {ex}"); yield break; }
+                catch (Exception ex) { done = true; LogWithTime.LogWarning($"{label} throw: {ex}"); yield break; }
                 if (!moveNext) break;
                 yield return phase.Current;
             }
@@ -553,7 +585,7 @@ public class GameManager : NetworkBehaviour
         if (!done)
         {
             StopCoroutine(handle);
-            Debug.LogError($"[Timeout] {label} superó {maxSeconds:F1}s. Forzando avance.");
+            LogWithTime.LogError($"[Timeout] {label} superó {maxSeconds:F1}s. Forzando avance.");
             onTimeout?.Invoke();
         }
     }
@@ -574,7 +606,7 @@ public class GameManager : NetworkBehaviour
                 actionsQueue[p] = new PlayerAction(ActionType.None);
         }
 
-        Debug.LogWarning("[GM] DecisionPhase forzado por timeout (faltantes -> None).");
+        LogWithTime.LogWarning("[GM] DecisionPhase forzado por timeout (faltantes -> None).");
     }
 
 
@@ -677,7 +709,7 @@ public class GameManager : NetworkBehaviour
             AdvanceTalisman();
             UpdateTikiVisual(talismanHolder);
         }
-        catch (Exception e) { Debug.LogWarning($"[GM] Decision.1(Talisman/Visual): {e}"); }
+        catch (Exception e) { LogWithTime.LogWarning($"[GM] Decision.1(Talisman/Visual): {e}"); }
 
         isDecisionPhase = true;
 
@@ -686,7 +718,7 @@ public class GameManager : NetworkBehaviour
             foreach (var p in players)
                 p.clientDecisionPhase = true;
         }
-        catch (Exception e) { Debug.LogWarning($"[GM] Decision.2(SetClientFlag): {e}"); }
+        catch (Exception e) { LogWithTime.LogWarning($"[GM] Decision.2(SetClientFlag): {e}"); }
 
         currentRound++;
 
@@ -699,7 +731,7 @@ public class GameManager : NetworkBehaviour
                 player.hasDamagedAnotherPlayerThisRound = false;
             }
         }
-        catch (Exception e) { Debug.LogWarning($"[GM] Decision.3(InitPlayers): {e}"); }
+        catch (Exception e) { LogWithTime.LogWarning($"[GM] Decision.3(InitPlayers): {e}"); }
 
         if (SelectedModifier == GameModifierType.CaceriaDelLider)
         {
@@ -888,7 +920,7 @@ public class GameManager : NetworkBehaviour
                 foreach (var player in players.Concat(deadPlayers))
                     player.syncedTimer = currentDecisionTime;
             }
-            catch (Exception e) { Debug.LogWarning($"[GM] Decision.9(UpdateTimers): {e}"); }
+            catch (Exception e) { LogWithTime.LogWarning($"[GM] Decision.9(UpdateTimers): {e}"); }
         }
 
         isDecisionPhase = false;
@@ -933,7 +965,7 @@ public class GameManager : NetworkBehaviour
                 player.RpcSetTargetIndicator(player, null);//Quitar targets marcados en los jugadores
                 player.RpcResetButtonHightLight();//Quitar Highlights en botones
             }
-        }catch (Exception e) { Debug.LogWarning($"[GM] Exec.1(PreResetUI): {e}"); }
+        }catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.1(PreResetUI): {e}"); }
 
         #endregion
 
@@ -971,7 +1003,7 @@ public class GameManager : NetworkBehaviour
                     entry.Key.RpcUpdateCoverProbabilityUI(updatedProbability); //Actualizar UI de probabilidad de cubrirse
                 }
             }
-        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.2(Cover): {e}"); }
+        } catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.2(Cover): {e}"); }
 
         #endregion
 
@@ -995,7 +1027,7 @@ public class GameManager : NetworkBehaviour
                     targetToShooters[target].Add(shooter);
                 }
             }
-        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.3(TargetMap): {e}"); }
+        } catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.3(TargetMap): {e}"); }
 
         #endregion
 
@@ -1027,7 +1059,7 @@ public class GameManager : NetworkBehaviour
                     entry.Key.RpcUpdateCoverProbabilityUI(entry.Key.coverProbabilities[0]); //Actualizar UI de probabilidad de cubrirse
                 }
             }
-        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.4(Reload/None): {e}"); }
+        } catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.4(Reload/None): {e}"); }
 
         #endregion
 
@@ -1069,7 +1101,7 @@ public class GameManager : NetworkBehaviour
                     }
                 }
             }
-        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.5(Shoots): {e}"); }
+        } catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.5(Shoots): {e}"); }
 
         #endregion
 
@@ -1110,7 +1142,7 @@ public class GameManager : NetworkBehaviour
                     }
                 }
             }
-        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.6(QM): {e}"); }
+        } catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.6(QM): {e}"); }
 
         #endregion
 
@@ -1141,7 +1173,7 @@ public class GameManager : NetworkBehaviour
                     }
                 }
             }
-        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.7(BotMemory): {e}"); }
+        } catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.7(BotMemory): {e}"); }
 
         #endregion
 
@@ -1158,7 +1190,7 @@ public class GameManager : NetworkBehaviour
                     player.RpcShowCountdown(executionTime);
                 }
             }
-        } catch (Exception e) { Debug.LogWarning($"[GM] Exec.8(Countdown): {e}"); }
+        } catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.8(Countdown): {e}"); }
 
         #endregion
 
@@ -1387,7 +1419,7 @@ public class GameManager : NetworkBehaviour
         var lines = finalOrdered
             .Select((p, idx) => $"{idx + 1}: {p.playerName}  (deathOrder={p.deathOrder}, alive={p.isAlive}, netId={p.netId})");
 
-        Debug.Log("[GM] === ORDEN FINAL PARA LEADERBOARD ===\n" + string.Join("\n", lines));
+        LogWithTime.Log("[GM] === ORDEN FINAL PARA LEADERBOARD ===\n" + string.Join("\n", lines));
 
         // --- 3) Empujar snapshot final a GameStatistics (sin reindexar) ---
         if (gameStatistic != null)
@@ -1423,14 +1455,14 @@ public class GameManager : NetworkBehaviour
                 {
                     updatedUids.Add(uid);
                     yield return StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, delta, ok => {
-                        Debug.Log(ok
+                        LogWithTime.Log(ok
                             ? $"[RankedPoints] OK connected -> {pc.playerName} ({uid}) delta={delta}"
                             : $"[RankedPoints] FAIL connected -> {pc.playerName} ({uid}) delta={delta}");
                     }));
                 }
                 else
                 {
-                    Debug.LogWarning($"[RankedPoints] No points in snapshot for connected {pc.playerName}");
+                    LogWithTime.LogWarning($"[RankedPoints] No points in snapshot for connected {pc.playerName}");
                 }
             }
 
@@ -1448,14 +1480,14 @@ public class GameManager : NetworkBehaviour
                 {
                     yield return StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, delta, ok =>
                     {
-                        Debug.Log(ok
+                        LogWithTime.Log(ok
                             ? $"[RankedPoints] OK offline -> {nick} ({uid}) Δ{delta}"
                             : $"[RankedPoints] FAIL offline -> {nick} ({uid}) Δ{delta}");
                     }));
                 }
                 else
                 {
-                    Debug.LogWarning($"[RankedPoints] Nick {nick} ({uid}) no está en snapshot final (¿bot o no empezó?).");
+                    LogWithTime.LogWarning($"[RankedPoints] Nick {nick} ({uid}) no está en snapshot final (¿bot o no empezó?).");
                 }
             }
 
@@ -1476,19 +1508,19 @@ public class GameManager : NetworkBehaviour
                     {
                         yield return StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(wuid, ok =>
                         {
-                            Debug.Log(ok
+                            LogWithTime.Log(ok
                                 ? $"[Key] OK -> {winnerForKey.playerName} ({wuid})"
                                 : $"[Key] FAIL -> {winnerForKey.playerName} ({wuid})");
                         }));
                     }
                     else
                     {
-                        Debug.LogWarning("[Key] Winner has no UID, skip key grant.");
+                        LogWithTime.LogWarning("[Key] Winner has no UID, skip key grant.");
                     }
                 }
                 else
                 {
-                    Debug.Log("[Key] Winner is a bot or null, skip key grant.");
+                    LogWithTime.Log("[Key] Winner is a bot or null, skip key grant.");
                 }
             }
         }
@@ -1507,9 +1539,9 @@ public class GameManager : NetworkBehaviour
         endGraceActive = true;
 
         var sceneName = gameObject.scene.name;
-        Debug.Log($"[Grace] Esperando {endGraceSeconds:F1}s antes de destruir '{sceneName}' ({reason})...");
+        LogWithTime.Log($"[Grace] Esperando {endGraceSeconds:F1}s antes de destruir '{sceneName}' ({reason})...");
         yield return new WaitForSecondsRealtime(endGraceSeconds);
-        Debug.Log($"[Grace] Tiempo cumplido. Destruyendo '{sceneName}' ahora ({reason}).");
+        LogWithTime.Log($"[Grace] Tiempo cumplido. Destruyendo '{sceneName}' ahora ({reason}).");
 
         _closingScene = true;
         MatchHandler.Instance?.DestroyGameScene(sceneName, reason);
@@ -1610,18 +1642,6 @@ public class GameManager : NetworkBehaviour
         deathBuffer.Clear();
         isProcessingDeath = false;
     }
-
-    [SerializeField] private bool mostrarDebugDeMuertesEnInspector = true;
-    [SerializeField] private List<string> ordenDeMuertesInspector = new();
-
-    private void RegistrarMuerteDebug(PlayerController muerto)
-    {
-        if (!mostrarDebugDeMuertesEnInspector) return;
-
-        string entrada = $"#{deathCounter} -> {muerto.playerName}";
-        ordenDeMuertesInspector.Add(entrada);
-    }
-
 
     [Server]
     private void ResetAllCovers()//Elimina coberturas al finalizar una ronda
@@ -1748,7 +1768,7 @@ public class GameManager : NetworkBehaviour
             // Si la partida todavia NO empezo, limpia de inmediato (setup abortado)
             if (!isGameStarted)
             {
-                Debug.Log($"[GameManager] No CRP before game start in {currentScene.name}. Closing scene.");
+                LogWithTime.Log($"[GameManager] No CRP before game start in {currentScene.name}. Closing scene.");
                 NetworkServer.Destroy(gameObject);
                 SceneManager.UnloadSceneAsync(currentScene);
                 MatchHandler.Instance.DestroyGameScene(currentScene.name, "empty_scene_not_started");

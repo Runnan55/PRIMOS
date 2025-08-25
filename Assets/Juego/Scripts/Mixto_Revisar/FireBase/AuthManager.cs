@@ -84,7 +84,7 @@ public class AuthManager : MonoBehaviour
             !string.IsNullOrEmpty(savedRefresh) &&
             !string.IsNullOrEmpty(savedUid))
         {
-            Debug.Log("[AuthManager] Token encontrado, iniciando login silencioso...");
+            LogWithTime.Log("[AuthManager] Token encontrado, iniciando login silencioso...");
             idToken = savedToken;
             refreshToken = savedRefresh;
             userId = savedUid;
@@ -102,7 +102,7 @@ public class AuthManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("[AuthManager] No se encontró token guardado, se requeriría login manual.");
+            LogWithTime.LogWarning("[AuthManager] No se encontró token guardado, se requeriría login manual.");
             //ShowLoginPanel();
             //De momento desactivamos lo de token manual
         }
@@ -180,7 +180,7 @@ public class AuthManager : MonoBehaviour
 
     public void OnFirebaseLoginError(string message)
     {
-        Debug.LogWarning("[AuthManager] JS auth error: " + message);
+        LogWithTime.LogWarning("[AuthManager] JS auth error: " + message);
         //ShowLoginPanel();
         if (feedbackText != null) feedbackText.text = "Error de login: " + message;
     }
@@ -449,17 +449,17 @@ public class AuthManager : MonoBehaviour
             var parsedJson = JSON.Parse(errorJson);
             string errorMessage = parsedJson?["error"]?["message"];
 
-            Debug.LogError($"[AuthManager] LoginHeadless FALLÓ: {errorMessage ?? errorJson}");
+            LogWithTime.LogError($"[AuthManager] LoginHeadless FALLÓ: {errorMessage ?? errorJson}");
         }
         else
         {
             var response = JsonUtility.FromJson<FirebaseLoginResponse>(request.downloadHandler.text);
-            Debug.Log("[AuthManager] LoginHeadless exitoso.");
+            LogWithTime.Log("[AuthManager] LoginHeadless exitoso.");
             idToken = response.idToken;
             refreshToken = response.refreshToken;
             userId = response.localId;
 
-            Debug.Log("[AuthManager] UID recibido del servidor: " + response.localId);
+            LogWithTime.Log("[AuthManager] UID recibido del servidor: " + response.localId);
             FirebaseServerClient.SetServerCredentials(response.idToken, response.localId);
 
             StartCoroutine(RefreshTokenLoop());
@@ -501,11 +501,11 @@ public class AuthManager : MonoBehaviour
 #if UNITY_SERVER
                 FirebaseServerClient.SetServerCredentials(idToken, userId);
 #endif
-                Debug.Log("[AuthManager] Token refrescado correctamente.");
+                LogWithTime.Log("[AuthManager] Token refrescado correctamente.");
             }
             else
             {
-                Debug.LogError("[AuthManager] Error al refrescar token: " + request.downloadHandler.text);
+                LogWithTime.LogError("[AuthManager] Error al refrescar token: " + request.downloadHandler.text);
             }
         }
     }
@@ -540,7 +540,7 @@ public class AuthManager : MonoBehaviour
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"[AuthManager] Error al iniciar cliente: {ex.Message}");
+                LogWithTime.LogError($"[AuthManager] Error al iniciar cliente: {ex.Message}");
                 OnConnectionFailed();
                 yield break;
             }
@@ -557,7 +557,7 @@ public class AuthManager : MonoBehaviour
 
         if (!NetworkClient.isConnected)
         {
-            Debug.LogError("[AuthManager] Timeout de conexión a Mirror.");
+            LogWithTime.LogError("[AuthManager] Timeout de conexión a Mirror.");
             NetworkManager.singleton.StopClient();
             OnConnectionFailed();
             yield break;
@@ -567,7 +567,7 @@ public class AuthManager : MonoBehaviour
         var conn = NetworkClient.connection;
         if (conn == null)
         {
-            Debug.LogError("[AuthManager] NetworkClient.connection es null.");
+            LogWithTime.LogError("[AuthManager] NetworkClient.connection es null.");
             OnConnectionFailed();
             yield break;
         }
@@ -578,7 +578,7 @@ public class AuthManager : MonoBehaviour
 
         if (string.IsNullOrEmpty(uid))
         {
-            Debug.LogError("[AuthManager] UID vacío; abortando envío de credenciales.");
+            LogWithTime.LogError("[AuthManager] UID vacío; abortando envío de credenciales.");
             NetworkManager.singleton.StopClient();
             OnConnectionFailed();
             yield break;
@@ -588,11 +588,11 @@ public class AuthManager : MonoBehaviour
         try
         {
             conn.Send(new FirebaseCredentialMessage { uid = uid });
-            Debug.Log($"[CLIENT] FirebaseCredentialMessage enviado (UID={uid}).");
+            LogWithTime.Log($"[CLIENT] FirebaseCredentialMessage enviado (UID={uid}).");
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"[AuthManager] Error enviando credenciales: {ex.Message}");
+            LogWithTime.LogError($"[AuthManager] Error enviando credenciales: {ex.Message}");
             NetworkManager.singleton.StopClient();
             OnConnectionFailed();
             yield break;

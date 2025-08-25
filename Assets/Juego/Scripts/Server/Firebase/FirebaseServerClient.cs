@@ -36,7 +36,7 @@ public class FirebaseServerClient : MonoBehaviour
 #if UNITY_SERVER
         StartCoroutine(WaitForAuthManagerAndLogin()); // SOLO en build de servidor
 #else
-    Debug.Log("[FirebaseServerClient] Client build: sin login headless.");
+    LogWithTime.Log("[FirebaseServerClient] Client build: sin login headless.");
     Destroy(gameObject);
 #endif
     }
@@ -50,12 +50,12 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (AuthManager.Instance != null)
         {
-            Debug.Log("[FirebaseServerClient] Llamando a login headless...");
+            LogWithTime.Log("[FirebaseServerClient] Llamando a login headless...");
             yield return AuthManager.Instance.StartCoroutine(AuthManager.Instance.LoginHeadlessForServer(adminEmail, adminPassword));
         }
         else
         {
-            Debug.LogError("[FirebaseServerClient] AuthManager no disponible tras el timeout.");
+            LogWithTime.LogError("[FirebaseServerClient] AuthManager no disponible tras el timeout.");
         }
     }
 #endif
@@ -64,8 +64,8 @@ public class FirebaseServerClient : MonoBehaviour
     {
         idToken = token;
         adminUid = uid;
-        Debug.Log("[FirebaseServerClient] Token recibido directamente del AuthManager: " + token.Substring(0, 15) + "...");
-        Debug.Log("[FirebaseServerClient] UID asignado al servidor: " + uid);
+        LogWithTime.Log("[FirebaseServerClient] Token recibido directamente del AuthManager: " + token.Substring(0, 15) + "...");
+        LogWithTime.Log("[FirebaseServerClient] UID asignado al servidor: " + uid);
     }
 
     // Actualizar rankedPoints
@@ -88,9 +88,9 @@ public class FirebaseServerClient : MonoBehaviour
         yield return req.SendWebRequest();
 
         if (req.result == UnityWebRequest.Result.Success)
-            Debug.Log($"[FirebaseServerClient] Puntos de {uid} actualizados.");
+            LogWithTime.Log($"[FirebaseServerClient] Puntos de {uid} actualizados.");
         else
-            Debug.LogError("[FirebaseServerClient] Error actualizando puntos: " + req.downloadHandler.text);
+            LogWithTime.LogError("[FirebaseServerClient] Error actualizando puntos: " + req.downloadHandler.text);
     }
 
     public static IEnumerator TryConsumeTicket(string uid, Action<bool> callback)
@@ -105,7 +105,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getUser.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] TryConsumeTicket: error getUser " + getUser.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] TryConsumeTicket: error getUser " + getUser.downloadHandler.text);
             callback(false);
             yield break;
         }
@@ -114,7 +114,7 @@ public class FirebaseServerClient : MonoBehaviour
         string walletAddress = userData["fields"]["walletAddress"]["stringValue"];
         if (string.IsNullOrEmpty(walletAddress))
         {
-            Debug.LogError("[Firebase] TryConsumeTicket: walletAddress vacío.");
+            LogWithTime.LogError("[Firebase] TryConsumeTicket: walletAddress vacío.");
             callback(false);
             yield break;
         }
@@ -127,7 +127,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getWallet.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] TryConsumeTicket: error getWallet " + getWallet.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] TryConsumeTicket: error getWallet " + getWallet.downloadHandler.text);
             callback(false);
             yield break;
         }
@@ -137,7 +137,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (tickets <= 0)
         {
-            Debug.LogWarning("[Firebase] TryConsumeTicket: sin tickets.");
+            LogWithTime.LogWarning("[Firebase] TryConsumeTicket: sin tickets.");
             callback(false);
             yield break;
         }
@@ -173,7 +173,7 @@ public class FirebaseServerClient : MonoBehaviour
         yield return patch.SendWebRequest();
 
         bool ok = (patch.result == UnityWebRequest.Result.Success);
-        if (!ok) Debug.LogError("[Firebase] TryConsumeTicket PATCH error: " + patch.downloadHandler.text);
+        if (!ok) LogWithTime.LogError("[Firebase] TryConsumeTicket PATCH error: " + patch.downloadHandler.text);
         callback(ok);
     }
 
@@ -192,7 +192,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getUser.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error al obtener documento del usuario: " + getUser.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] Error al obtener documento del usuario: " + getUser.downloadHandler.text);
             callback(false);
             yield break;
         }
@@ -201,7 +201,7 @@ public class FirebaseServerClient : MonoBehaviour
         string walletAddress = userData["fields"]["walletAddress"]?["stringValue"];
         if (string.IsNullOrEmpty(walletAddress))
         {
-            Debug.LogError("[Firebase] walletAddress no encontrado para UID: " + uid);
+            LogWithTime.LogError("[Firebase] walletAddress no encontrado para UID: " + uid);
             callback(false);
             yield break;
         }
@@ -215,7 +215,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getWallet.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error al obtener wallet: " + getWallet.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] Error al obtener wallet: " + getWallet.downloadHandler.text);
             callback(false);
             yield break;
         }
@@ -223,7 +223,7 @@ public class FirebaseServerClient : MonoBehaviour
         var walletData = JSON.Parse(getWallet.downloadHandler.text);
         int tickets = walletData["fields"]["gameBalance"]["mapValue"]["fields"]["ticketsAvailable"]["integerValue"].AsInt;
 
-        Debug.Log($"[Firebase] CheckTicketAvailable: Wallet {walletAddress}, tickets = {tickets}");
+        LogWithTime.Log($"[Firebase] CheckTicketAvailable: Wallet {walletAddress}, tickets = {tickets}");
 
         callback(tickets > 0);
     }
@@ -241,7 +241,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getUser.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error al obtener tickets y llaves: " + getUser.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] Error al obtener tickets y llaves: " + getUser.downloadHandler.text);
             callback(0, 0);
             yield break;
         }
@@ -250,7 +250,7 @@ public class FirebaseServerClient : MonoBehaviour
         string walletAddress = data["fields"]["walletAddress"]["stringValue"];
         if (string.IsNullOrEmpty(walletAddress))
         {
-            Debug.LogError("[Firebase] walletAddress no encontrado.");
+            LogWithTime.LogError("[Firebase] walletAddress no encontrado.");
             callback(0, 0);
             yield break;
         }
@@ -263,7 +263,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getWallet.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error obteniendo wallet: " + getWallet.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] Error obteniendo wallet: " + getWallet.downloadHandler.text);
             callback(0, 0);
             yield break;
         }
@@ -288,7 +288,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getUser.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] GrantKeyToPlayer: error getUser " + getUser.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] GrantKeyToPlayer: error getUser " + getUser.downloadHandler.text);
             callback(false);
             yield break;
         }
@@ -297,7 +297,7 @@ public class FirebaseServerClient : MonoBehaviour
         string walletAddress = userData["fields"]["walletAddress"]["stringValue"];
         if (string.IsNullOrEmpty(walletAddress))
         {
-            Debug.LogError("[Firebase] GrantKeyToPlayer: walletAddress vacío.");
+            LogWithTime.LogError("[Firebase] GrantKeyToPlayer: walletAddress vacío.");
             callback(false);
             yield break;
         }
@@ -310,7 +310,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getWallet.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] GrantKeyToPlayer: error getWallet " + getWallet.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] GrantKeyToPlayer: error getWallet " + getWallet.downloadHandler.text);
             callback(false);
             yield break;
         }
@@ -357,7 +357,7 @@ public class FirebaseServerClient : MonoBehaviour
         yield return patch.SendWebRequest();
 
         bool ok = (patch.result == UnityWebRequest.Result.Success);
-        if (!ok) Debug.LogError("[Firebase] GrantKeyToPlayer PATCH error: " + patch.downloadHandler.text);
+        if (!ok) LogWithTime.LogError("[Firebase] GrantKeyToPlayer PATCH error: " + patch.downloadHandler.text);
 
         callback(ok);
     }
@@ -379,7 +379,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getReq.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] Error obteniendo rankedPoints: " + getReq.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] Error obteniendo rankedPoints: " + getReq.downloadHandler.text);
             callback(false);
             yield break;
         }
@@ -400,7 +400,7 @@ public class FirebaseServerClient : MonoBehaviour
         yield return patch.SendWebRequest();
 
         if (patch.result != UnityWebRequest.Result.Success)
-            Debug.LogError("[Firebase][UpdateRP] PATCH error: " + patch.downloadHandler.text);
+            LogWithTime.LogError("[Firebase][UpdateRP] PATCH error: " + patch.downloadHandler.text);
 
         callback(patch.result == UnityWebRequest.Result.Success);
     }
@@ -419,7 +419,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getReq.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[Firebase] (EnsureRankedPoints) GET error: " + getReq.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] (EnsureRankedPoints) GET error: " + getReq.downloadHandler.text);
             callback?.Invoke(0);
             yield break;
         }
@@ -447,7 +447,7 @@ public class FirebaseServerClient : MonoBehaviour
         yield return patch.SendWebRequest();
 
         if (patch.result != UnityWebRequest.Result.Success)
-            Debug.LogError("[Firebase] (EnsureRankedPoints) PATCH error: " + patch.downloadHandler.text);
+            LogWithTime.LogError("[Firebase] (EnsureRankedPoints) PATCH error: " + patch.downloadHandler.text);
 
         callback?.Invoke(0);
     }
@@ -481,7 +481,7 @@ public class FirebaseServerClient : MonoBehaviour
 
             if (req.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError("[Firebase] Leaderboard GET error: " + req.downloadHandler.text);
+                LogWithTime.LogError("[Firebase] Leaderboard GET error: " + req.downloadHandler.text);
                 var fail = new JSONObject();
                 fail["top"] = new JSONArray();
                 var selfFail = new JSONObject();
@@ -597,11 +597,11 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (req.result == UnityWebRequest.Result.Success)
         {
-            Debug.Log($"[FirebaseServerClient] Nombre actualizado exitosamente en Firestore para UID {uid}: {newName}");
+            LogWithTime.Log($"[FirebaseServerClient] Nombre actualizado exitosamente en Firestore para UID {uid}: {newName}");
         }
         else
         {
-            Debug.LogError($"[FirebaseServerClient] Error al actualizar nombre para UID {uid}: {req.downloadHandler.text}");
+            LogWithTime.LogError($"[FirebaseServerClient] Error al actualizar nombre para UID {uid}: {req.downloadHandler.text}");
         }
     }
 
@@ -617,7 +617,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (req.result != UnityWebRequest.Result.Success)
         {
-            Debug.LogError("[FirebaseServerClient] Error al obtener nickname: " + req.downloadHandler.text);
+            LogWithTime.LogError("[FirebaseServerClient] Error al obtener nickname: " + req.downloadHandler.text);
             callback?.Invoke(null);
             yield break;
         }

@@ -6912,14 +6912,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 233103716309713200, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: noDelay
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 233103716309713200, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
-      propertyPath: sendTimeout
-      value: 60000
-      objectReference: {fileID: 0}
     - target: {fileID: 3124671724160179898, guid: 2a486ac00e193af4eb38112fb17cf5ae, type: 3}
       propertyPath: m_Name
       value: CustomNetworkManager

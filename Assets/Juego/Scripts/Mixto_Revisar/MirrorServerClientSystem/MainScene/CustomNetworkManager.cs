@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using Mirror;
 using UnityEngine;
@@ -44,7 +45,7 @@ public class CustomNetworkManager : NetworkManager
         _instance = this;
         DontDestroyOnLoad(gameObject);
 
-        Debug.Log($"[CustomNetworkManager] Instancia creada en scene {gameObject.scene.name}, path: {GetPath(transform)}");
+        LogWithTime.Log($"[CustomNetworkManager] Instancia creada en scene {gameObject.scene.name}, path: {GetPath(transform)}");
 
         base.Awake();
     }
@@ -78,15 +79,15 @@ public class CustomNetworkManager : NetworkManager
 
     private void OnClientRequestedTime(NetworkConnectionToClient conn, EmptyTimerMessage msg)
     {
-        Debug.Log("[SERVER] Recibido EmptyTimerMessage desde cliente.");
+        LogWithTime.Log("[SERVER] Recibido EmptyTimerMessage desde cliente.");
 
         if (EventTimeManager.Instance == null)
         {
-            Debug.LogError("[SERVER] EventTimeManager.Instance es NULL. No puedo responder.");
+            LogWithTime.LogError("[SERVER] EventTimeManager.Instance es NULL. No puedo responder.");
         }
         else
         {
-            Debug.Log("[SERVER] Llamando a EventTimeManager.HandleTimeRequest...");
+            LogWithTime.Log("[SERVER] Llamando a EventTimeManager.HandleTimeRequest...");
             EventTimeManager.Instance.HandleTimeRequest(conn);
         }
     }
@@ -142,13 +143,13 @@ public class CustomNetworkManager : NetworkManager
 
         if (!AccountManager.Instance.TryGetFirebaseCredentials(conn, out var creds))
         {
-            Debug.LogWarning("[CustomNetworkManager] No hay credenciales para esta conexión.");
+            LogWithTime.LogWarning("[CustomNetworkManager] No hay credenciales para esta conexión.");
             return;
         }
 
         if (string.IsNullOrEmpty(creds.uid))
         {
-            Debug.LogWarning("[CustomNetworkManager] UID vacío, no se puede asignar nombre.");
+            LogWithTime.LogWarning("[CustomNetworkManager] UID vacío, no se puede asignar nombre.");
             return;
         }
 
@@ -161,7 +162,7 @@ public class CustomNetworkManager : NetworkManager
             roomPlayer.playerName = finalName;
             AccountManager.Instance.UpdatePlayerName(conn, finalName);
 
-            Debug.Log($"[SERVER] Nombre asignado al jugador con UID {creds.uid}: {finalName}");
+            LogWithTime.Log($"[SERVER] Nombre asignado al jugador con UID {creds.uid}: {finalName}");
 
             // Si no había nombre en Firestore, lo guardamos
             if (string.IsNullOrEmpty(nicknameInFirestore))
@@ -173,14 +174,28 @@ public class CustomNetworkManager : NetworkManager
 
     public override void OnServerDisconnect(NetworkConnectionToClient conn)
     {
-        // Limpiar índices de sesión para no dejar “fantasmas”
+        // limpia tus indices primero (no toca el diccionario de Mirror)
         AccountManager.Instance.RemoveConnection(conn);
 
-        Debug.Log($"[SERVER] jugador desconectado. Quedan {NetworkServer.connections.Count - 1} conexiones activas");
+        int before = NetworkServer.connections.Count;
 
-        // Llamar a base para destruir objetos asociados
+        // base.OnServerDisconnect hace la parte importante:
+        // - destruye player objects
+        // - remueve la conn de NetworkServer.connections
         base.OnServerDisconnect(conn);
+
+        int after = NetworkServer.connections.Count;
+
+        LogWithTime.Log($"[SERVER] disconnect id={conn.connectionId}. now_active={after} (was {before})");
     }
+
+    public override void OnServerConnect(NetworkConnectionToClient conn)
+    {
+        base.OnServerConnect(conn);
+        int after = NetworkServer.connections.Count;
+        LogWithTime.Log($"[SERVER] connect id={conn.connectionId}. now_active={after}");
+    }
+
 
     private void OnReceiveNameMessage(NetworkConnectionToClient conn, NameMessage msg)
     {
@@ -192,7 +207,7 @@ public class CustomNetworkManager : NetworkManager
     // Antes de crear el roomPlayer en OnFirebaseCredentialsReceived, corta si el UID ya está logueado.
     private void OnFirebaseCredentialsReceived(NetworkConnectionToClient conn, FirebaseCredentialMessage msg)
     {
-        Debug.Log($"[SERVER] FirebaseCredentialMessage recibido: UID = {msg.uid}");
+        LogWithTime.Log($"[SERVER] FirebaseCredentialMessage recibido: UID = {msg.uid}");
 
         if (string.IsNullOrWhiteSpace(msg.uid))
         {
@@ -218,7 +233,7 @@ public class CustomNetworkManager : NetworkManager
                 AccountManager.Instance.RemoveConnection(oldConn);
                 AccountManager.Instance.RegisterFirebaseCredentials(conn, msg.uid);
 
-                Debug.Log("[Auth] Reclaim OK -> uid=" + msg.uid +
+                LogWithTime.Log("[Auth] Reclaim OK -> uid=" + msg.uid +
                           " newConn=" + conn.connectionId +
                           " tookOverOldConn=" + oldConn.connectionId);
                 return; // no instancies un CRP nuevo
@@ -227,7 +242,7 @@ public class CustomNetworkManager : NetworkManager
             // Fallback: no hay identity anterior, rechazo el nuevo
             conn.Send(new LoginResultMessage { ok = false, reason = "duplicate" });
             StartCoroutine(DisconnectNextFrame(conn));
-            Debug.Log("[Auth] Duplicate login rejected -> uid=" + msg.uid +
+            LogWithTime.Log("[Auth] Duplicate login rejected -> uid=" + msg.uid +
                       " connId=" + conn.connectionId +
                       " reason=no-old-identity-to-reclaim");
             return;
@@ -250,10 +265,35 @@ public class CustomNetworkManager : NetworkManager
     private System.Collections.IEnumerator DisconnectNextFrame(NetworkConnectionToClient c)
     {
         yield return null;
-        Debug.Log("[Auth] DisconnectNextFrame -> connId=" + c.connectionId + " cause=duplicate");
+        LogWithTime.Log("[Auth] DisconnectNextFrame -> connId=" + c.connectionId + " cause=duplicate");
         c.Disconnect();
     }
 
     #endregion
 
 }
+
+public static class LogWithTime
+{
+    public static void Log(string msg)
+    {
+        Debug.Log(Format("INFO", msg));
+    }
+
+    public static void LogWarning(string msg)
+    {
+        Debug.LogWarning(Format("WARN", msg));
+    }
+
+    public static void LogError(string msg)
+    {
+        Debug.LogError(Format("ERROR", msg));
+    }
+
+    private static string Format(string level, string msg)
+    {
+        DateTime localNow = DateTime.Now; // Hora local del sistema
+        return $"[{level}] {localNow:yyyy-MM-dd HH:mm:ss} {msg}";
+    }
+}
+
