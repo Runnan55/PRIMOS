@@ -141,6 +141,9 @@ public class PlayerController : NetworkBehaviour
     [Header("TikiVisualIndicator")]
     public GameObject tikiSprite;
 
+    [Header("Shadow Offset")]
+    public GameObject shadowObject;
+
     [Header("Game Roulette Modifier")]
     public GameModifierRoulette roulette;
     public GameObject gameModeCanvas;
@@ -151,90 +154,11 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public bool isBot = false;
     [SyncVar] public BotPersonality botPersonality;
 
+    [Header("HideNameInranked")]
+    [SyncVar(hook = nameof(OnHideNameChanged))] public bool hideNameInRanked;
+
     //Información relevante para Firebase
     [SyncVar] public string firebaseUID;
-
-    #region Leaderboard
-
-    [SerializeField] private GameObject leaderboardCanvas;
-    [SerializeField] private Transform leaderboardContent;
-    [SerializeField] private GameObject leaderboardEntryPrefab;
-
-    [ClientRpc]
-    public void RpcShowLeaderboard(string[] names, int[] kills, int[] reloaded, int[] fired, int[] damage, int[] covered, int[] points, int[] orders, bool[] disconnected)
-    {
-        if (!isOwned) return;
-
-        leaderboardCanvas.SetActive(true);
-        ClearLeaderboard();
-
-        int count = names.Length;
-
-        for (int i = 0; i < count; i++)
-        {
-            GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContent);
-            entry.transform.SetParent(leaderboardContent, false);
-            entry.transform.localScale = Vector3.one;
-
-            var texts = entry.GetComponentsInChildren<TMP_Text>();
-            if (texts.Length < 7)
-            {
-                LogWithTime.LogError("[Leaderboard] No se encontraron suficientes TMP_Text en el prefab.");
-                continue;
-            }
-
-            string displayName = $"{i + 1}. {names[i]}" + (disconnected[i] ? " (Offline)" : "");
-            texts[0].text = displayName;
-            texts[1].text = kills[i].ToString();
-            texts[2].text = reloaded[i].ToString();
-            texts[3].text = fired[i].ToString();
-            texts[4].text = damage[i].ToString();
-            texts[5].text = covered[i].ToString();
-            texts[6].text = points[i].ToString();
-        }
-    }
-
-    private void ClearLeaderboard()
-    {
-        foreach (Transform child in leaderboardContent)
-        {
-            Destroy(child.gameObject);
-        }
-    }
-
-    public void OnExitLeaderboardPressed()
-    {
-        CmdReturnToMenuScene();
-    }
-
-    [Command]
-    private void CmdReturnToMenuScene()
-    {
-        // Delegamos TODO al CRP dueño
-        if (ownerRoomPlayer != null)
-        {
-            ownerRoomPlayer.ServerReturnToMainMenu();
-        }
-        else
-        {
-            // Failsafe: si no hay CRP (no debería pasar), destruye este PlayerController para no dejar HUD colgado
-            if (gameObject != null) NetworkServer.Destroy(gameObject);
-        }
-    }
-
-    private IEnumerator DestroyMe()
-    {
-        yield return new WaitForSecondsRealtime(1f);
-        NetworkServer.Destroy(gameObject);
-    }
-
-    [TargetRpc]
-    private void TargetReturnToMainScene(NetworkConnection target)
-    {
-        SceneManager.LoadScene("MainScene");
-    }
-
-    #endregion
 
     #region GameManager y GameStatistics de tu propia escena, para que no cruces datos con otras
 
@@ -277,6 +201,13 @@ public class PlayerController : NetworkBehaviour
     private void Awake()
     {
         animator = GetComponent<Animator>();
+    }
+    public void OnExitLeaderboardPressed()
+    {
+        if (isOwned && CustomRoomPlayer.LocalInstance)
+        {
+            CustomRoomPlayer.LocalInstance.CmdReturnToMenuScene();
+        }
     }
 
     #region Vida UI Local y NoLocal
@@ -357,7 +288,6 @@ public class PlayerController : NetworkBehaviour
             deathCanvas.SetActive(false);
             victoryCanvas.SetActive(false);
             drawCanvas.SetActive(false);
-            leaderboardCanvas.SetActive(false);
 
             targetIndicator.SetActive(false);
 
@@ -370,8 +300,6 @@ public class PlayerController : NetworkBehaviour
             if (reloadButton) reloadButton.onClick.AddListener(() => OnReloadButton());
             if (coverButton) coverButton.onClick.AddListener(() => OnCoverButton());
             if (superShootButton) superShootButton.onClick.AddListener(() => OnSuperShootButton());*/
-
-            if (exitGameButton) exitGameButton.onClick.AddListener(() => OnExitLeaderboardPressed());
 
             AddPointerDownEvent(shootButton, ActionType.Shoot);
 
@@ -524,11 +452,11 @@ public class PlayerController : NetworkBehaviour
     public override void OnStartClient()
     {
         base.OnStartClient();
-        OnHealthChanged(health, health); //Forzamos mostrar vida al inicio aunque no cambie
-        OnAmmoChanged(ammo, ammo); //Forzamos mostrar munición al inicio aunque no cambie
-        //No forzamos un OnNameChanged porque el nombre se actualiza al inicio de la partida
-
+        OnHealthChanged(health, health);
+        OnAmmoChanged(ammo, ammo);
+        ApplyShadowOffsetForFacing();   // <= asegura posicion inicial de la sombra
         PlayDirectionalAnimation("Idle");
+        OnHideNameChanged(false, hideNameInRanked);
     }
 
     public override void OnStartServer()
@@ -657,6 +585,14 @@ public class PlayerController : NetworkBehaviour
     {
         if (playerNameText != null)
             playerNameText.text = newName;
+    }
+
+    private void OnHideNameChanged(bool oldV, bool newV)
+    {
+        if (playerNameText != null)
+        {
+            playerNameText.gameObject.SetActive(!newV);
+        }
     }
 
     public void OnIsVeryHealthyChanged(bool oldValue, bool newValue)
@@ -919,6 +855,7 @@ public class PlayerController : NetworkBehaviour
             playerPosition = 6;
 
         UpdateFacingDirectionFromPosition();
+        ApplyShadowOffsetForFacing();
         ApplyVisualFlipFromDirection();
     }
 
@@ -944,6 +881,8 @@ public class PlayerController : NetworkBehaviour
 
     void OnDirectionChanged(FacingDirection oldDir, FacingDirection newDir)
     {
+        ApplyShadowOffsetForFacing();   // <= mover shadow segun direccion
+
         PlayDirectionalAnimation("Idle");
     }
 
@@ -961,6 +900,27 @@ public class PlayerController : NetworkBehaviour
             6 => FacingDirection.UpLeft,
             _ => FacingDirection.UpRight //Fallback
         };
+    }
+
+    public void ApplyShadowOffsetForFacing()
+    {
+        if (shadowObject == null) return;
+
+        Vector2 off;
+        switch (currentFacingDirection)
+        {
+            case FacingDirection.UpRight: off = new Vector2(-0.25f, -1.45f); break;
+            case FacingDirection.Right: off = new Vector2(-0.25f, -1.65f); break;
+            case FacingDirection.DownRight: off = new Vector2(-0.25f, -1.85f); break;
+            case FacingDirection.DownLeft: off = new Vector2(0.25f, -1.85f); break;
+            case FacingDirection.Left: off = new Vector2(0.25f, -1.65f); break;
+            case FacingDirection.UpLeft: off = new Vector2(0.25f, -1.45f); break;
+            default: off = new Vector2(0.22f, 0.02f); break;
+        }
+
+        // Sombra como hijo del player -> localPosition
+        var t = shadowObject.transform;
+        t.localPosition = new Vector3(off.x, off.y, t.localPosition.z);
     }
 
     public void PlayDirectionalAnimation(string baseAnim)
@@ -1199,6 +1159,9 @@ public class PlayerController : NetworkBehaviour
         corazonAzul?.SetActive(false);
         corazonRojo?.SetActive(false);
 
+        parcaAzul?.SetActive(false);
+        parcaRojo?.SetActive(false);
+
         bulletSprite?.SetActive(false);
         targetIndicator?.SetActive(false);
     }
@@ -1228,6 +1191,9 @@ public class PlayerController : NetworkBehaviour
         vidaRojaBarra?.SetActive(false);
         corazonAzul?.SetActive(false);
         corazonRojo?.SetActive(false);
+
+        parcaAzul?.SetActive(false);
+        parcaRojo?.SetActive(false);
 
         bulletSprite?.SetActive(false);
         targetIndicator?.SetActive(false);

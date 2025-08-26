@@ -16,6 +16,7 @@ public class GameStatistic : NetworkBehaviour
 
     public struct PlayerInfo
     {
+        public string uid;
         public string playerName;
         public int kills;
         public int bulletsReloaded;
@@ -27,8 +28,9 @@ public class GameStatistic : NetworkBehaviour
         public int deathOrder;
         public bool isAlive;
 
-        public PlayerInfo(string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered, int customPoints, bool isDisconnected = false, int deathOrder = 0, bool isAlive = true)
+        public PlayerInfo(string uid, string name, int kills, int bulletsReloaded, int bulletsFired, int damageDealt, int timesCovered, int customPoints, bool isDisconnected = false, int deathOrder = 0, bool isAlive = true)
         {
+            this.uid = uid;
             playerName = name;
             this.kills = kills;
             this.bulletsReloaded = bulletsReloaded;
@@ -74,10 +76,10 @@ public class GameStatistic : NetworkBehaviour
     }
 
     [Server]
-    public void Initialize(List<PlayerController> playerList)
+    public void Initialize(List<PlayerController> playerList, bool isFinal = false)
     {
         // 0) Prior snapshot (kept disconnected players)
-        var prev = players.ToList();
+        var prev = isFinal ? new List<PlayerInfo>() : players.ToList();
         var prevByName = prev.ToDictionary(p => p.playerName, p => p);
         players.Clear();
 
@@ -104,7 +106,12 @@ public class GameStatistic : NetworkBehaviour
         {
             bool isDiscNow = (!pc.isAlive && pc.connectionToClient == null && !pc.isBot);
 
+            string uid = !string.IsNullOrEmpty(pc.firebaseUID)
+                ? pc.firebaseUID
+                : (pc.ownerRoomPlayer != null ? pc.ownerRoomPlayer.firebaseUID : null);
+
             rows.Add(new PlayerInfo(
+                uid,
                 pc.playerName,
                 pc.kills,
                 pc.bulletsReloaded,
@@ -116,14 +123,19 @@ public class GameStatistic : NetworkBehaviour
                 pc.deathOrder,
                 pc.isAlive
             ));
-            seen.Add(pc.playerName);
+
+            var key = string.IsNullOrEmpty(uid) ? pc.playerName : uid;
+            seen.Add(key);
         }
 
         // 2.b) Add snapshot-only (already disconnected) players not present now
         foreach (var pi in prev)
         {
-            if (seen.Contains(pi.playerName)) continue;
+            var key = string.IsNullOrEmpty(pi.uid) ? pi.playerName : pi.uid;
+            if (seen.Contains(key)) continue;
+
             rows.Add(new PlayerInfo(
+                pi.uid,
                 pi.playerName, pi.kills, pi.bulletsReloaded, pi.bulletsFired,
                 pi.damageDealt, pi.timesCovered, pi.points,
                 pi.isDisconnected, pi.deathOrder, pi.isAlive
@@ -148,6 +160,7 @@ public class GameStatistic : NetworkBehaviour
                 : PlayerInfo.CalculatePoints(r.kills, r.bulletsReloaded, r.bulletsFired, r.damageDealt, r.timesCovered);
 
             players.Add(new PlayerInfo(
+                r.uid,
                 r.playerName, r.kills, r.bulletsReloaded, r.bulletsFired,
                 r.damageDealt, r.timesCovered, pts,
                 r.isDisconnected, r.deathOrder, r.isAlive
@@ -202,13 +215,22 @@ public class GameStatistic : NetworkBehaviour
               );
 
         // --- Actualizar si ya existe la entrada ---
+        string uid = !string.IsNullOrEmpty(player.firebaseUID)
+            ? player.firebaseUID
+            : (player.ownerRoomPlayer != null ? player.ownerRoomPlayer.firebaseUID : null);
+
         for (int i = 0; i < players.Count; i++)
         {
-            if (players[i].playerName == player.playerName)
+            bool match =
+                (!string.IsNullOrEmpty(uid) && players[i].uid == uid) ||
+                (string.IsNullOrEmpty(uid) && players[i].playerName == player.playerName);
+
+            if (match)
             {
                 bool preservedDisconnected = players[i].isDisconnected || disconnected;
 
                 players[i] = new PlayerInfo(
+                    uid,
                     player.playerName,
                     player.kills,
                     player.bulletsReloaded,
@@ -226,6 +248,7 @@ public class GameStatistic : NetworkBehaviour
 
         // --- O agregar una nueva entrada ---
         players.Add(new PlayerInfo(
+            uid,
             player.playerName,
             player.kills,
             player.bulletsReloaded,
@@ -259,7 +282,7 @@ public class GameStatistic : NetworkBehaviour
         for (int i = 0; i < copy.Count; i++)
         {
             var p = copy[i];
-            LogWithTime.Log($"#{i + 1} -> {p.playerName} | deathOrder: {p.deathOrder} | kills: {p.kills} | alive: {!p.isDisconnected}");
+            LogWithTime.Log($"#{i + 1} -> {p.playerName} | deathOrder: {p.deathOrder} | kills: {p.kills} | alive: {p.isAlive}");
         }
 
         int count = copy.Count;
@@ -286,27 +309,32 @@ public class GameStatistic : NetworkBehaviour
             disconnected[i] = copy[i].isDisconnected;
         }
 
-        var playerControllers = UnityEngine.Object.FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
+        // GameStatistics.cs
+        var crps = UnityEngine.Object.FindObjectsByType<CustomRoomPlayer>(FindObjectsSortMode.None);
 
-        foreach (var player in playerControllers)
+        foreach (var crp in crps)
         {
-            if (player != null &&
-                player.connectionToClient != null &&
-                player.gameObject.scene == gameObject.scene)
+            if (crp != null &&
+                crp.connectionToClient != null &&
+                crp.gameObject.scene == gameObject.scene)
             {
-                LogWithTime.Log($"[Server] Enviando leaderboard a {player.playerName} con NetId {player.netId}");
-                player.RpcShowLeaderboard(names, kills, reloaded, fired, damage, covered, points, orders, disconnected);
+                LogWithTime.Log($"[Server] Enviando leaderboard a {crp.playerName} (conn {crp.connectionToClient.connectionId})");
+                crp.RpcShowLeaderboard(names, kills, reloaded, fired, damage, covered, points, orders, disconnected);
             }
         }
     }
 
     [Server]
-    public bool TryGetPointsForPlayer(string playerName, out int points)
+    public bool TryGetPointsByUid(string uid, out int points)
     {
-        // Busca la entrada ya calculada en 'players' (usa el nombre que muestras en leaderboard)
+        if (string.IsNullOrEmpty(uid))
+        {
+            points = 0;
+            return false;
+        }
         foreach (var p in players)
         {
-            if (p.playerName == playerName)
+            if (p.uid == uid)
             {
                 points = p.points;
                 return true;
@@ -316,4 +344,8 @@ public class GameStatistic : NetworkBehaviour
         return false;
     }
 
+    private void OnDestroy()
+    {
+        players.Clear();
+    }
 }

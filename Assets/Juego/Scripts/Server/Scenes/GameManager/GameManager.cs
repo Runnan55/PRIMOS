@@ -162,7 +162,6 @@ public class GameManager : NetworkBehaviour
             if (talismanHolder != null)
             {
                 talismanHolderNetId = talismanHolder.netId;
-                //RpcSpawnTalisman(talismanHolderNetId);
                 UpdateTikiVisual(talismanHolder);
             }
         }
@@ -243,6 +242,13 @@ public class GameManager : NetworkBehaviour
 
             if (!string.IsNullOrEmpty(uid) && !string.IsNullOrEmpty(player.playerId))
                 playerIdToUid[player.playerId] = uid;
+
+            bool isRanked = false;
+            var match = MatchHandler.Instance?.GetMatch(matchId);
+            if (match != null) isRanked = string.Equals(match.mode, "Ranked", StringComparison.OrdinalIgnoreCase);
+            else if (!string.IsNullOrEmpty(mode)) isRanked = string.Equals(mode, "Ranked", StringComparison.OrdinalIgnoreCase);
+
+            player.hideNameInRanked = isRanked;
 
             // Verificar si podemos empezar la partida
             CheckAllPlayersReady();
@@ -1282,6 +1288,7 @@ public class GameManager : NetworkBehaviour
 
             foreach (var player in players)
             {
+                CerrarAnimacionesMision(player);
                 player.RpcOnDeathOrDraw();
             }
 
@@ -1424,7 +1431,7 @@ public class GameManager : NetworkBehaviour
         // --- 3) Empujar snapshot final a GameStatistics (sin reindexar) ---
         if (gameStatistic != null)
         {
-            gameStatistic.Initialize(leaderboardPlayers);
+            gameStatistic.Initialize(leaderboardPlayers, true);
 
             // --- 4) Mostrar leaderboard (ordenará por deathOrder desc) ---
             gameStatistic.ShowLeaderboard();
@@ -1450,11 +1457,15 @@ public class GameManager : NetworkBehaviour
                     uid = pc.ownerRoomPlayer.firebaseUID;
                 if (string.IsNullOrEmpty(uid)) continue;
 
-                // Toma los puntos EXACTOS que calculó GameStatistic (los del leaderboard)
-                if (gameStatistic.TryGetPointsForPlayer(pc.playerName, out int delta))
+                // mark played-ranked always
+                yield return StartCoroutine(FirebaseServerClient.SetHasPlayedRanked(uid, true, null));
+
+                int delta;
+                if (gameStatistic.TryGetPointsByUid(uid, out delta))
                 {
                     updatedUids.Add(uid);
-                    yield return StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, delta, ok => {
+                    yield return StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, delta, ok =>
+                    {
                         LogWithTime.Log(ok
                             ? $"[RankedPoints] OK connected -> {pc.playerName} ({uid}) delta={delta}"
                             : $"[RankedPoints] FAIL connected -> {pc.playerName} ({uid}) delta={delta}");
@@ -1462,32 +1473,31 @@ public class GameManager : NetworkBehaviour
                 }
                 else
                 {
-                    LogWithTime.LogWarning($"[RankedPoints] No points in snapshot for connected {pc.playerName}");
+                    LogWithTime.LogWarning($"[RankedPoints] No points for UID {uid} (connected: {pc.playerName})");
                 }
             }
 
             // 2) Fallback: también actualiza a los humanos que empezaron pero ya no están conectados
             foreach (var uid in startingHumans)
             {
-                if (updatedUids.Contains(uid)) continue; // ya procesado arriba
+                if (updatedUids.Contains(uid)) continue;
 
-                string nick = null;
-                yield return StartCoroutine(FirebaseServerClient.GetNicknameFromFirestore(uid, n => nick = n));
+                // mark played-ranked always
+                yield return StartCoroutine(FirebaseServerClient.SetHasPlayedRanked(uid, true, null));
 
-                if (string.IsNullOrWhiteSpace(nick)) continue;
-
-                if (gameStatistic.TryGetPointsForPlayer(nick, out int delta))
+                int delta;
+                if (gameStatistic.TryGetPointsByUid(uid, out delta))
                 {
                     yield return StartCoroutine(FirebaseServerClient.UpdateRankedPoints(uid, delta, ok =>
                     {
                         LogWithTime.Log(ok
-                            ? $"[RankedPoints] OK offline -> {nick} ({uid}) Δ{delta}"
-                            : $"[RankedPoints] FAIL offline -> {nick} ({uid}) Δ{delta}");
+                            ? $"[RankedPoints] OK offline -> ({uid}) delta={delta}"
+                            : $"[RankedPoints] FAIL offline -> ({uid}) delta={delta}");
                     }));
                 }
                 else
                 {
-                    LogWithTime.LogWarning($"[RankedPoints] Nick {nick} ({uid}) no está en snapshot final (¿bot o no empezó?).");
+                    LogWithTime.LogWarning($"[RankedPoints] UID {uid} not found in final snapshot.");
                 }
             }
 
@@ -1522,6 +1532,18 @@ public class GameManager : NetworkBehaviour
                 {
                     LogWithTime.Log("[Key] Winner is a bot or null, skip key grant.");
                 }
+            }
+        }
+
+        yield return new WaitForSecondsRealtime(0.2f); // darle 1-2 frames al RPC del leaderboard
+
+        var myScene = gameObject.scene;
+        foreach (var crp in UnityEngine.Object.FindObjectsByType<CustomRoomPlayer>(FindObjectsSortMode.None))
+        {
+            if (crp != null && crp.gameObject.scene == myScene)
+            {
+                // Esto mueve el CRP a MainScene, destruye su PlayerController y mantiene visible el canvas del CRP
+                crp.ServerReturnToMainMenu();
             }
         }
 
@@ -1635,12 +1657,43 @@ public class GameManager : NetworkBehaviour
 
             if (!isDraw)
             {
+                CerrarAnimacionesMision(deadPlayer);
                 deadPlayer.RpcOnDeath();
             }
         }
 
         deathBuffer.Clear();
         isProcessingDeath = false;
+    }
+
+    // NUEVO: cierre genérico de overlays/animaciones “transitorias”
+    [Server]
+    private void CerrarAnimacionesMision(PlayerController p)
+    {
+        if (p == null || p.isBot) return;
+
+        try
+        {
+            // 1) Si estaba abierto el reward de QM, cerrarlo
+            if (p.hasQMRewardThisRound)
+            {
+                p.hasQMRewardThisRound = false;
+                p.TargetPlayAnimation("QM_Reward_Exit"); // cierra el reward suavemente
+            }
+
+            // 2) Si la QM de este round estaba activa, disparar su Exit y limpiar
+            var mission = p.currentQuickMission;
+            if (mission != null && mission.assignedRound == currentRound)
+            {
+                string animName = $"QM_Exit_{mission.type}";
+                p.currentQuickMission = null; // no evaluamos ni damos recompensa al morir
+                p.TargetPlayAnimation(animName);
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning($"[GM] ForceCloseTransientUI: {e}");
+        }
     }
 
     [Server]

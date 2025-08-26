@@ -1325,7 +1325,7 @@ Transform:
   m_GameObject: {fileID: 1517585521867548469}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.075, y: -1.9, z: 0}
+  m_LocalPosition: {x: -0.25, y: -1.9, z: 0}
   m_LocalScale: {x: 0.5, y: 0.5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6757,9 +6757,11 @@ MonoBehaviour:
   canDealDamageThisRound: 1
   sucessfulShots: 0
   tikiSprite: {fileID: 3753055010008439951}
+  shadowObject: {fileID: 1517585521867548469}
   roulette: {fileID: 438625208929732015}
   gameModeCanvas: {fileID: 6183842888619299736}
   waitingPlayers_Anim: {fileID: 2316613237392070076}
+  isRouletteOpen: 0
   isBot: 0
   botPersonality: 0
   firebaseUID: 
@@ -7214,7 +7216,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &6712038891528626624
 RectTransform:
   m_ObjectHideFlags: 0

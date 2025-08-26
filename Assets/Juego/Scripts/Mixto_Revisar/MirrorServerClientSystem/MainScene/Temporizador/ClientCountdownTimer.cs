@@ -42,9 +42,11 @@ public class ClientCountdownTimer : MonoBehaviour
                 timerReachedZero = false;
                 lobbyUI.OnRankedTimeForPlay();
 
-                // si target es “lejano”, no mostrar countdown
+                // si target es lejano (override siempre activo), NO mostrar countdown
                 if ((eventTime - serverNow).TotalDays < 365)
                     lobbyUI.UpdateRankedRemainingTime(remaining);
+                else
+                    lobbyUI.OnRankedAlwaysAvailableNoCountdown(); // nuevo
             }
             else
             {

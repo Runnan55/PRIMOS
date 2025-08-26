@@ -5,6 +5,8 @@ using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Linq;
 using System.Collections;
+using TMPro;
+using UnityEngine.UI;
 
 public class CustomRoomPlayer : NetworkBehaviour
 {
@@ -37,9 +39,11 @@ public class CustomRoomPlayer : NetworkBehaviour
     [SyncVar] public string firebaseUID;
 
     [Header("Ticket y Llaves sincronizados")]
-
     [SyncVar] public int syncedTickets;
     [SyncVar] public int syncedKeys;
+
+    [Header("LeaderboardUI")]
+    public Button exitGameButton;
 
     #region ConectWithClient
 
@@ -55,6 +59,9 @@ public class CustomRoomPlayer : NetworkBehaviour
         LocalInstance = this;
         DontDestroyOnLoad(gameObject);
         Debug.Log($"[CustomRoomPlayer] Soy el LocalPlayer en lobby. Mi ID es {playerId}");
+
+        leaderboardCanvas.SetActive(false);
+        if (exitGameButton) exitGameButton.onClick.AddListener(() => OnExitLeaderboardPressed());
     }
 
     //Usar sismpre on StopClient para lógica frontEnd (UI,Elementos,Botones,AudioManager, referencias locales)
@@ -327,6 +334,11 @@ public class CustomRoomPlayer : NetworkBehaviour
     [TargetRpc]
     public void TargetStartGame(NetworkConnectionToClient conn, string sceneName)
     {
+        if (loadingCanvas != null)
+        {
+            StartCoroutine(StartLoadingCanvasForAWhile());
+        }
+
         // SIEMPRE cargar la plantilla en cliente
         string clientSceneName = "GameScene";
 
@@ -334,11 +346,6 @@ public class CustomRoomPlayer : NetworkBehaviour
         {
             Debug.Log($"[CLIENT] Cargando escena (plantilla): {clientSceneName}");
             currentMatchId = sceneName; // GUARDAMOS la partida real (ejemplo "GameScene_7cddf7")
-
-            if (loadingCanvas != null)
-            {
-                StartCoroutine(StartLoadingCanvasForAWhile());
-            }
 
             SceneManager.sceneLoaded += OnGameSceneLoaded;
             SceneLoaderManager.Instance.LoadScene(clientSceneName);
@@ -873,6 +880,84 @@ public class CustomRoomPlayer : NetworkBehaviour
                     Mirror.NetworkServer.RebuildObservers(ni, false);
             }
         }
+    }
+
+    #endregion
+
+    #region Leaderboard
+
+    [SerializeField] private GameObject leaderboardCanvas;
+    [SerializeField] private Transform leaderboardContent;
+    [SerializeField] private GameObject leaderboardEntryPrefab;
+
+    [ClientRpc]
+    public void RpcShowLeaderboard(string[] names, int[] kills, int[] reloaded, int[] fired, int[] damage, int[] covered, int[] points, int[] orders, bool[] disconnected)
+    {
+        if (!isOwned) return;
+
+        leaderboardCanvas.SetActive(true);
+        ClearLeaderboard();
+
+        int count = names.Length;
+
+        for (int i = 0; i < count; i++)
+        {
+            GameObject entry = Instantiate(leaderboardEntryPrefab, leaderboardContent);
+            entry.transform.SetParent(leaderboardContent, false);
+            entry.transform.localScale = Vector3.one;
+
+            var texts = entry.GetComponentsInChildren<TMP_Text>();
+            if (texts.Length < 7)
+            {
+                LogWithTime.LogError("[Leaderboard] No se encontraron suficientes TMP_Text en el prefab.");
+                continue;
+            }
+
+            string displayName = $"{i + 1}. {names[i]}" + (disconnected[i] ? " (Offline)" : "");
+            texts[0].text = displayName;
+            texts[1].text = kills[i].ToString();
+            texts[2].text = reloaded[i].ToString();
+            texts[3].text = fired[i].ToString();
+            texts[4].text = damage[i].ToString();
+            texts[5].text = covered[i].ToString();
+            texts[6].text = points[i].ToString();
+        }
+    }
+
+    private void ClearLeaderboard()
+    {
+        foreach (Transform child in leaderboardContent)
+        {
+            Destroy(child.gameObject);
+        }
+    }
+
+    public void OnExitLeaderboardPressed()
+    {
+        CloseLeaderboardCanvas();
+    }
+
+    [Command]
+    public void CmdReturnToMenuScene()
+    {
+        ServerReturnToMainMenu();
+    }
+
+    public void CloseLeaderboardCanvas()
+    {
+        leaderboardCanvas.SetActive(false);
+    }
+
+private IEnumerator DestroyMe()
+    {
+        yield return new WaitForSecondsRealtime(1f);
+        NetworkServer.Destroy(gameObject);
+    }
+
+    [TargetRpc]
+    private void TargetReturnToMainScene(NetworkConnection target)
+    {
+        SceneManager.LoadScene("MainScene");
     }
 
     #endregion

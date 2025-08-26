@@ -350,6 +350,14 @@ public class MainLobbyUI : MonoBehaviour
             rankedRemainingText.text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
     }
 
+    public void OnRankedAlwaysAvailableNoCountdown()
+    {
+        isRankedTimeAvailable = true;
+
+        missingTime.SetActive(false);
+        timeRemainingForPlay.SetActive(false); // Ocultar panel de tiempo
+    }
+
     #endregion
 
     #region LeaderboardUI
@@ -437,7 +445,7 @@ public class MainLobbyUI : MonoBehaviour
             if (ui != null) ui.SetEntry(i + 1, users[i].name, users[i].points);
         }
 
-        // 5) Fila local (usa "self" por UID; si no viene, fallback por nombre)
+        // 5) Fila local (usa "self" por UID; si no viene, fallback por nombre/jugador local)
         if (localPlayerRankedEntry != null)
         {
             var ui = localPlayerRankedEntry.GetComponent<LeaderboardEntryUI>();
@@ -446,12 +454,21 @@ public class MainLobbyUI : MonoBehaviour
                 if (self != null)
                 {
                     int selfRank = self["rank"]?.AsInt ?? -1;
-                    string selfName = self["name"] ?? "You";
+
+                    // corregido: si no hay "name" en JSON, usar playerName local
+                    string selfName = self["name"];
+                    if (string.IsNullOrEmpty(selfName))
+                    {
+                        selfName = CustomRoomPlayer.LocalInstance != null
+                            ? CustomRoomPlayer.LocalInstance.playerName
+                            : "You";
+                    }
+
                     int selfPoints = self["points"]?.AsInt ?? 0;
 
                     localPlayerRankedEntry.SetActive(true);
                     if (selfRank > 0) ui.SetEntry(selfRank, selfName, selfPoints);
-                    else ui.SetEntry(-1, selfName + " (No Rank)", selfPoints);
+                    else ui.SetEntry(0, selfName + " (No Rank)", selfPoints);
                 }
                 else
                 {
@@ -462,7 +479,16 @@ public class MainLobbyUI : MonoBehaviour
 
                     localPlayerRankedEntry.SetActive(true);
                     if (idx != -1) ui.SetEntry(idx + 1, users[idx].name, users[idx].points);
-                    else ui.SetEntry(-1, string.IsNullOrEmpty(localName) ? "You" : localName + " (No Rank)", 0);
+                    else
+                    {
+                        // fallback: usar playerName local si existe
+                        string fallbackName = !string.IsNullOrEmpty(localName)
+                            ? localName
+                            : (CustomRoomPlayer.LocalInstance != null
+                                ? CustomRoomPlayer.LocalInstance.playerName
+                                : "You");
+                        ui.SetEntry(-1, fallbackName + " (No Rank)", 0);
+                    }
                 }
             }
         }

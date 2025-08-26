@@ -277,7 +277,7 @@ public static class LogWithTime
 {
     public static void Log(string msg)
     {
-        Debug.Log(Format("INFO", msg));
+        Debug.Log(Format("", msg));
     }
 
     public static void LogWarning(string msg)

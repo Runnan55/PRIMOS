@@ -179,7 +179,20 @@ public class GameModifierRoulette : MonoBehaviour
             hasStopped = true;
 
             if (winnerStone != null)
+            {
                 HighlightStone(winnerStone.gameObject);
+                EnableChildParticles(winnerStone.gameObject);
+            }
+        }
+    }
+
+    private void EnableChildParticles(GameObject root)
+    {
+        // generic: find any ParticleSystem in children (even inactive)
+        var ps = root.GetComponentInChildren<ParticleSystem>(true);
+        if (ps != null)
+        {
+            ps.gameObject.SetActive(true);
         }
     }
 

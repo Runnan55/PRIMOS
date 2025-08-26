@@ -177,8 +177,6 @@ public class FirebaseServerClient : MonoBehaviour
         callback(ok);
     }
 
-
-
     public static IEnumerator CheckTicketAvailable(string uid, Action<bool> callback)
     {
         var idToken = Instance.GetIdToken();
@@ -362,8 +360,6 @@ public class FirebaseServerClient : MonoBehaviour
         callback(ok);
     }
 
-
-
     public static IEnumerator UpdateRankedPoints(string uid, int pointsToAdd, Action<bool> callback)
     {
         var getUrl = GetUserUrl(uid);                                             // Obtener datos a lo bestia sin restricciones
@@ -404,6 +400,29 @@ public class FirebaseServerClient : MonoBehaviour
 
         callback(patch.result == UnityWebRequest.Result.Success);
     }
+
+    public static IEnumerator SetHasPlayedRanked(string uid, bool value, Action<bool> callback = null)
+    {
+        var idToken = Instance.GetIdToken();
+        string url = GetUserUrl(uid) + "?updateMask.fieldPaths=hasPlayedRanked";
+
+        // booleanValue must be unquoted true/false
+        string json = "{\"fields\":{\"hasPlayedRanked\":{\"booleanValue\":" + (value ? "true" : "false") + "}}}";
+
+        var req = new UnityWebRequest(url, "PATCH");
+        byte[] body = System.Text.Encoding.UTF8.GetBytes(json);
+        req.uploadHandler = new UploadHandlerRaw(body);
+        req.downloadHandler = new DownloadHandlerBuffer();
+        req.SetRequestHeader("Content-Type", "application/json");
+        req.SetRequestHeader("Authorization", $"Bearer {idToken}");
+
+        yield return req.SendWebRequest();
+
+        bool ok = (req.result == UnityWebRequest.Result.Success);
+        if (!ok) Debug.LogError("[Firebase] SetHasPlayedRanked PATCH error: " + req.downloadHandler.text);
+        callback?.Invoke(ok);
+    }
+
 
     #region LeaderboardRankedPoint
 
@@ -518,6 +537,12 @@ public class FirebaseServerClient : MonoBehaviour
                     int points = 0;
                     var pNode = doc["fields"]?["rankedPoints"]?["integerValue"];
                     if (pNode != null) points = pNode.AsInt;
+
+                    // Filter by hasPlayedRanked == true
+                    var playedNode = doc["fields"]?["hasPlayedRanked"]?["booleanValue"];
+                    bool hasPlayed = false;
+                    if (playedNode != null) hasPlayed = playedNode.AsBool;
+                    if (!hasPlayed) continue;
 
                     all.Add((uid, name, points));
                     fetched++;
