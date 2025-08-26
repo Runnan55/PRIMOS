@@ -41,12 +41,15 @@ public class ClientCountdownTimer : MonoBehaviour
             {
                 timerReachedZero = false;
                 lobbyUI.OnRankedTimeForPlay();
-                lobbyUI.UpdateRankedRemainingTime(remaining); // <<< NUEVO
+
+                // si target es “lejano”, no mostrar countdown
+                if ((eventTime - serverNow).TotalDays < 365)
+                    lobbyUI.UpdateRankedRemainingTime(remaining);
             }
             else
             {
                 timerReachedZero = true;
-                lobbyUI.OnRankedTimerFinished(); // evento terminó
+                lobbyUI.OnRankedTimerFinished();
             }
         }
         else
@@ -55,12 +58,14 @@ public class ClientCountdownTimer : MonoBehaviour
             {
                 timerReachedZero = false;
                 lobbyUI.OnRankedTimerFinished();
-                lobbyUI.UpdateCountdownToEvent(remaining); // <<< NUEVO
+
+                if ((eventTime - serverNow).TotalDays < 365)
+                    lobbyUI.UpdateCountdownToEvent(remaining);
             }
             else
             {
                 timerReachedZero = true;
-                lobbyUI.OnRankedTimeForPlay(); // evento acaba de comenzar
+                lobbyUI.OnRankedTimeForPlay();
             }
         }
     }
@@ -80,12 +85,12 @@ public void RequestTimeFromServer()
     {
         if (NetworkClient.isConnected && NetworkClient.connection != null)
         {
-            Debug.Log("[ClientCountdownTimer] Enviando EmptyTimerMessage al servidor...");
+            LogWithTime.Log("[ClientCountdownTimer] Enviando EmptyTimerMessage al servidor...");
             NetworkClient.connection.Send(new EmptyTimerMessage());
         }
         else
         {
-            Debug.LogWarning("[ClientCountdownTimer] No conectado, no se envio EmptyTimerMessage.");
+            LogWithTime.LogWarning("[ClientCountdownTimer] No conectado, no se envio EmptyTimerMessage.");
         }
     }
 }

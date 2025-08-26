@@ -1859,7 +1859,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: time remaining
+  m_text: further notice
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 4d4666b39ec555740a4cf95b7324a9d5, type: 2}
   m_sharedMaterial: {fileID: 923871403520407743, guid: 4d4666b39ec555740a4cf95b7324a9d5, type: 2}
@@ -2674,7 +2674,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Ending in:'
+  m_text: 'Open until:'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 4d4666b39ec555740a4cf95b7324a9d5, type: 2}
   m_sharedMaterial: {fileID: 923871403520407743, guid: 4d4666b39ec555740a4cf95b7324a9d5, type: 2}
@@ -2927,6 +2927,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
       propertyPath: forceAlwaysActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6607407404676644377, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}
+      propertyPath: forceRankedAlwaysActive
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6933785750339662254, guid: 95822f705262e5847beb2349b6ab61c0, type: 3}

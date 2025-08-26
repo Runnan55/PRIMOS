@@ -62,6 +62,9 @@ public class EventTimeManager : NetworkBehaviour
     [Range(0, 23)] public int domingoEndHour = 23;
     [Range(0, 59)] public int domingoEndMinute = 0;
 
+    [Header("Debug/Override")]
+    [SerializeField] private bool forceRankedAlwaysActive = false;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -74,8 +77,19 @@ public class EventTimeManager : NetworkBehaviour
         DateTime utcNow = DateTime.UtcNow;
         DateTime spainNow = utcNow + GetSpainOffset(utcNow);
 
-        bool isActive = IsWithinActivePeriod(spainNow, out DateTime nextStart, out DateTime todayEnd);
-        DateTime target = isActive ? todayEnd : nextStart;
+        bool isActive;
+        DateTime target;
+
+        if (forceRankedAlwaysActive)
+        {
+            isActive = true;
+            target = spainNow.AddYears(10); // un valor arbitrario lejano
+        }
+        else
+        {
+            isActive = IsWithinActivePeriod(spainNow, out DateTime nextStart, out DateTime todayEnd);
+            target = isActive ? todayEnd : nextStart;
+        }
 
         var player = (conn != null && conn.identity != null)
             ? conn.identity.GetComponent<CustomRoomPlayer>() : null;
