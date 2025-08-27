@@ -519,19 +519,6 @@ public class CustomRoomPlayer : NetworkBehaviour
         isPlayingNow = false;
         currentMatchId = null;
 
-        // (Failsafe visual) apaga cualquier HUD de in-game que hubiese quedado renderizado
-        // Nota: el PlayerController ya fue destruido en server, esto es por si la UI quedó “huérfana” 1 frame.
-        foreach (var c in Resources.FindObjectsOfTypeAll<Canvas>())
-        {
-            // Si usas tags/nombres para HUD in-game, filtra aquí (ej.: c.tag == "InGameUI")
-            if (c != null && c.gameObject != null && c.gameObject.scene.isLoaded)
-            {
-                // Heurística ligera: canvases activos fuera del MainScene con nombre típico de HUD
-                if (c.gameObject.name.Contains("HUD") || c.gameObject.name.Contains("Game"))
-                    c.gameObject.SetActive(false);
-            }
-        }
-
         // Cargar MainScene y mostrar el menú
         SceneManager.sceneLoaded -= OnMainSceneLoaded;
         SceneManager.sceneLoaded += OnMainSceneLoaded;
