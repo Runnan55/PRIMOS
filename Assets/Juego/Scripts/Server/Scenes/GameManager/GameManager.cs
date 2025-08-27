@@ -807,6 +807,15 @@ public class GameManager : NetworkBehaviour
             bool hasAmmo = bot.ammo > 0;
             bool canSuperShoot = bot.ammo >= 3;
 
+            bool coverBlocked = (SelectedModifier == GameModifierType.CaceriaDelLider && bot.isVeryHealthy);
+
+            // Early exit para DoNothing inteligente
+            if (BotShouldDoNothingThisRound(bot) && BotShouldAcceptDoNothing(bot, enemies))
+            {
+                RegisterAction(bot, ActionType.None, null);
+                continue; // salta el resto y no cae en ActionType.None accidental
+            }
+
             // Comportamiento global de SuperShoot si puede matar
             if (canSuperShoot && killableWithSS.Count > 0)
             {
@@ -819,98 +828,115 @@ public class GameManager : NetworkBehaviour
                 switch (bot.botPersonality)
                 {
                     case BotPersonality.Shy:
-                        if (liveAttackers.Count > 0 && ammoEnemies.Count > 0)
                         {
-                            if (bot.consecutiveCovers < 2)
+                            if (liveAttackers.Count > 0 && ammoEnemies.Count > 0)
                             {
-                                chosenAction = ActionType.Cover;
+                                // Antes: chosenAction = ActionType.Cover
+                                chosenAction = (!coverBlocked && bot.consecutiveCovers < 2) ? ActionType.Cover
+                                              : ((bot.ammo > 0) ? ActionType.Shoot : ActionType.Reload);
+
+                                if (chosenAction == ActionType.Shoot && chosenTarget == null)
+                                    chosenTarget = PickAnyVisibleOrAny(visibleEnemies, enemies);
                                 break;
                             }
-                            else if (bot.consecutiveCovers >= 2 || ammoEnemies.Count == 0)
+
+                            var lowHpTarget = enemies.FirstOrDefault(p => p.health == 1);
+                            if (lowHpTarget != null && bot.ammo > 0)
                             {
-                                // Buscar a un enemigo con 1 de vida y atacarlo traicioneramente si se puede
-                                var lowHpTarget = enemies.FirstOrDefault(p => p.health == 1);
-
-                                if (lowHpTarget != null && bot.ammo > 0)
-                                {
-                                    chosenAction = ActionType.Shoot;
-                                    chosenTarget = lowHpTarget;
-                                    break;
-                                }
-
-                                chosenAction = bot.ammo < 3 ? ActionType.Reload : ActionType.Shoot;
+                                chosenAction = ActionType.Shoot;
+                                chosenTarget = lowHpTarget;
                                 break;
                             }
+                            goto case BotPersonality.Vengador; //Si no hay necesidad de defenderse pasa a Vengador
                         }
-                        goto case BotPersonality.Vengador; //Si no hay necesidad de defenderse pasa a Vengador
 
                     case BotPersonality.Vengador:
-                        if (liveAttackers.Count > 0 && hasAmmo)
                         {
-                            chosenTarget = liveAttackers.FirstOrDefault();
-                            chosenAction = canSuperShoot ? ActionType.SuperShoot : ActionType.Shoot;
-                            break;
+                            if (liveAttackers.Count > 0 && hasAmmo)
+                            {
+                                var revenge = liveAttackers.LastOrDefault();
+                                chosenTarget = revenge ?? PickAnyVisibleOrAny(visibleEnemies, enemies);
+                                chosenAction = canSuperShoot ? ActionType.SuperShoot : ActionType.Shoot;
+                                break;
+                            }
+                            goto case BotPersonality.Tactico;
                         }
-                        goto case BotPersonality.Tactico; // Si no hay venganza posible pasa a Tactico
 
                     case BotPersonality.Tactico:
-                        if (liveAttackers.Count > 0 && ammoEnemies.Count > 0) // Si su atacante está vivo y los enemigos tienen balas, actua como Shy
                         {
-                            goto case BotPersonality.Shy;
-                        }
-                        else if (bot.ammo <= 3)
-                        {
-                            chosenAction = ActionType.Reload;
-                        }
-                        else if (bot.ammo >= 5 && enemies.Count >0)
-                        {
-                            // Si está bien armado y no hay amenaza, puede hacer un SuperShoot aleatorio como presión
-                            chosenTarget = enemies[UnityEngine.Random.Range(0, enemies.Count)];
-                            chosenAction = ActionType.SuperShoot;
-                        }
-                        else
-                        {
-                            // Si no se lanza un supershoot, lanza un disparo de prueba a enemigos que no se han cubierto
-                            var possibleTargets = visibleEnemies;
-                            if (possibleTargets.Count > 0)
+                            if (liveAttackers.Count > 0 && ammoEnemies.Count > 0)
                             {
-                                chosenTarget = possibleTargets[UnityEngine.Random.Range(0, possibleTargets.Count)];
-                                chosenAction = ActionType.Shoot;
+                                // Se comporta como Shy en amenaza, pero con veto cover
+                                chosenAction = (!coverBlocked && bot.consecutiveCovers < 2) ? ActionType.Cover
+                                              : ((bot.ammo > 0) ? ActionType.Shoot : ActionType.Reload);
+
+                                if (chosenAction == ActionType.Shoot && chosenTarget == null)
+                                    chosenTarget = PickAnyVisibleOrAny(visibleEnemies, enemies);
+                                break;
+                            }
+                            else if (bot.ammo <= 3)
+                            {
+                                chosenAction = ActionType.Reload;
+                            }
+                            else if (bot.ammo >= 5 && enemies.Count > 0)
+                            {
+                                chosenTarget = enemies[UnityEngine.Random.Range(0, enemies.Count)];
+                                chosenAction = ActionType.SuperShoot;
                             }
                             else
                             {
-                                // Si todos están cubiertos, recarga por si acaso
-                                chosenAction = ActionType.Reload;
+                                PlayerController weakest = null;
+                                int minHealth = int.MaxValue;
+
+                                foreach (var enemy in visibleEnemies)
+                                {
+                                    if (enemy.health < minHealth)
+                                    {
+                                        minHealth = enemy.health;
+                                        weakest = enemy;
+                                    }
+                                }
+
+                                chosenTarget = (weakest != null) ? weakest : PickAnyVisibleOrAny(visibleEnemies, enemies);
+
+                                if (chosenTarget != null)
+                                    chosenAction = ActionType.Shoot;
+                                else
+                                    chosenAction = ActionType.Reload;
                             }
+                            break;
                         }
-                        
-                        break;
 
                     case BotPersonality.Aggro:
                     default:
-                        if (canSuperShoot && visibleEnemies.Count > 0)
                         {
-                            chosenTarget = visibleEnemies.OrderBy(p => UnityEngine.Random.value).First();
-                            chosenAction = ActionType.SuperShoot;
-                        }
-                        else if (hasAmmo && visibleEnemies.Count > 0)
-                        {
-                            chosenTarget = visibleEnemies.OrderBy(p => UnityEngine.Random.value).First();
-                            chosenAction = ActionType.Shoot;
-                        }
-                        else if (bot.ammo < 3)
-                        {
-                            chosenAction = ActionType.Reload;
-                        }
-                        else
-                        {
-                            chosenAction = ActionType.Cover;
-                        }
-                        break;
+                            if (canSuperShoot && (visibleEnemies.Count > 0 || enemies.Count > 0))
+                            {
+                                chosenTarget = PickAnyVisibleOrAny(visibleEnemies, enemies);
+                                chosenAction = ActionType.SuperShoot;
+                            }
+                            else if (hasAmmo && (visibleEnemies.Count > 0 || enemies.Count > 0))
+                            {
+                                chosenTarget = PickAnyVisibleOrAny(visibleEnemies, enemies);
+                                chosenAction = ActionType.Shoot;
+                            }
+                            else if (bot.ammo < 3)
+                            {
+                                chosenAction = ActionType.Reload;
+                            }
+                            else
+                            {
+                                // Antes: Cover; ahora respeta el veto
+                                chosenAction = (!coverBlocked && bot.consecutiveCovers < 2) ? ActionType.Cover
+                                              : ((bot.ammo > 0) ? ActionType.Shoot : ActionType.Reload);
 
+                                if (chosenAction == ActionType.Shoot && chosenTarget == null)
+                                    chosenTarget = PickAnyVisibleOrAny(visibleEnemies, enemies);
+                            }
+                            break;
+                        }
                 }
             }
-
             RegisterAction(bot, chosenAction, chosenTarget);
         }
 
@@ -957,6 +983,45 @@ public class GameManager : NetworkBehaviour
 
         yield return new WaitForSecondsRealtime(0.5f);//Tiempo para que se ejecute la animación
     }
+
+    #region Bot_bot_bot
+
+    PlayerController PickAnyVisibleOrAny(List<PlayerController> vis, List<PlayerController> all)
+    {
+        var pickFrom = (vis.Count > 0) ? vis : all;
+        return (pickFrom.Count > 0) ? pickFrom[UnityEngine.Random.Range(0, pickFrom.Count)] : null;
+    }
+
+    private bool BotShouldDoNothingThisRound(PlayerController bot)
+    {
+        var m = bot.currentQuickMission;
+        if (m == null) return false;
+        if (m.assignedRound != currentRound) return false;
+        return m.type == QuickMissionType.DoNothing;
+    }
+
+    private bool BotShouldAcceptDoNothing(PlayerController bot, List<PlayerController> enemies)
+    {
+        // Heuristica: aceptar si
+        // - tiene >=1 bala (podra pegar "doble dano" la proxima), o
+        // - tiene 2+ de vida y pocos enemigos con ammo (sobrevive el turno)
+        // - NO esta siendo foco de multiples (memoria de atacantes)
+        bool hasAmmoNextRound = (bot.ammo >= 1);
+        int threats = enemies.Count(e => e.ammo > 0);
+        bool likelySurvive = bot.health >= 2 && threats <= 2;
+
+        // Opcional: si hay muchos visibles apuntando/le han atacado, no conviene esperar
+        var mem = recentAttackers.ContainsKey(bot) ? recentAttackers[bot] : new Queue<PlayerController>();
+        int recentAliveAttackers = mem.Count(p => p != null && p.isAlive);
+
+        if (hasAmmoNextRound) return true;
+        if (likelySurvive && recentAliveAttackers == 0) return true;
+
+        return false;
+    }
+
+
+    #endregion
 
     [Server]
     private IEnumerator ExecutionPhase()
@@ -1071,7 +1136,7 @@ public class GameManager : NetworkBehaviour
 
         yield return new WaitForSecondsRealtime(0.7f); //Otra pausa pa' agregar tiempo
 
-        #region 4) Try/Catch aplicar disparos
+        #region 4) Try/Catch aplicar disparos (tiki cascade)
         try
         {
             //Aplicar disparos
@@ -1079,31 +1144,43 @@ public class GameManager : NetworkBehaviour
             {
                 List<PlayerController> shooters = targetToShooters[target];
 
-                // Ejecutar disparos reales de los jugadores que eligieron disparar.
-                // Si hay más de un jugador apuntando al mismo objetivo, solo el más cercano al Tiki ejecuta el disparo.
-                // Este es el punto donde realmente se aplica el daño (y eventualmente la muerte).
-                if (shooters.Count == 1)
-                {
-                    shooters[0].canDealDamageThisRound = true;
-                    shooters[0].ServerAttemptShoot(target);
-                }
-                else
-                {
-                    PlayerController chosenShooter = GetClosestToTalisman(shooters);
+                if (shooters == null || shooters.Count == 0) continue;
 
+                if (AllowAccumulatedDamage())
+                {
                     foreach (var shooter in shooters)
                     {
-                        if (shooter == chosenShooter)
+                        if (!target.isAlive) break; // target may die mid-loop
+                        shooter.canDealDamageThisRound = true;
+                        shooter.ServerAttemptShoot(target);
+                    }
+                    continue;
+                }
+
+                // CASCADE: only one can deal damage; if earlier shooter fails, give a chance to the next
+                var ordered = GetShootersByTikiOrder(shooters);
+
+                bool damageHappened = false;
+
+                foreach (var shooter in ordered)
+                {
+                    if (!damageHappened)
+                    {
+                        // Try to actually deal damage
+                        shooter.canDealDamageThisRound = true;
+                        shooter.ServerAttemptShoot(target);
+
+                        // After attempt, check if damage was registered for the target in this round
+                        if (HasTakenDamage(target))
                         {
-                            shooter.canDealDamageThisRound = true;
-                            shooter.ServerAttemptShoot(target);
+                            damageHappened = true;
                         }
-                        else
-                        {
-                            // Jugadores que disparan, pero no hacen daño
-                            shooter.canDealDamageThisRound = false;
-                            shooter.ServerAttemptShoot(target);
-                        }
+                    }
+                    else
+                    {
+                        // Visual only (no damage). Keeps current feel for non-priority shooters.
+                        shooter.canDealDamageThisRound = false;
+                        shooter.ServerAttemptShoot(target);
                     }
                 }
             }
@@ -1258,7 +1335,6 @@ public class GameManager : NetworkBehaviour
             tikiHistory.RemoveAt(0);
     }
 
-
     private PlayerController GetClosestToTalisman(List<PlayerController> shooters)
     {
         // Evaluar desde el más reciente hacia el más antiguo
@@ -1272,6 +1348,26 @@ public class GameManager : NetworkBehaviour
 
         // Fallback: si nadie está en la lista por alguna razón
         return shooters.FirstOrDefault();
+    }
+
+    private List<PlayerController> GetShootersByTikiOrder(List<PlayerController> shooters)
+    {
+        // Build ordered list according to tikiHistory (newest priority last -> iterate backward)
+        var ordered = new List<PlayerController>();
+
+        for (int i = tikiHistory.Count - 1; i >= 0; i--)
+        {
+            var p = tikiHistory[i];
+            if (p != null && shooters.Contains(p) && !ordered.Contains(p))
+                ordered.Add(p);
+        }
+
+        // Append any remaining shooters not present in tikiHistory (fallback)
+        foreach (var s in shooters)
+            if (!ordered.Contains(s))
+                ordered.Add(s);
+
+        return ordered;
     }
 
     private void CheckGameOver()
