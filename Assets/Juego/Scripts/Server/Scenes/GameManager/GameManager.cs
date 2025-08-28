@@ -937,6 +937,30 @@ public class GameManager : NetworkBehaviour
                         }
                 }
             }
+
+            // Sanity guards for Shoot
+            if ((chosenAction == ActionType.Shoot || chosenAction == ActionType.SuperShoot) && bot.ammo <= 0)
+            {
+                chosenAction = ActionType.Reload;
+                chosenTarget = null;
+            }
+
+            if ((chosenAction == ActionType.Shoot || chosenAction == ActionType.SuperShoot) && chosenTarget == null)
+            {
+                if (hasAmmo && visibleEnemies.Count > 0)
+                {
+                    chosenTarget = visibleEnemies[UnityEngine.Random.Range(0, visibleEnemies.Count)];
+                }
+                else if (!hasAmmo)
+                {
+                    chosenAction = ActionType.Reload;
+                }
+                else
+                {
+                    chosenAction = ActionType.None;
+                }
+            }
+
             RegisterAction(bot, chosenAction, chosenTarget);
         }
 

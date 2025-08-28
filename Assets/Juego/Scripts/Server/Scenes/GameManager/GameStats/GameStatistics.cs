@@ -79,7 +79,7 @@ public class GameStatistic : NetworkBehaviour
     public void Initialize(List<PlayerController> playerList, bool isFinal = false)
     {
         // 0) Prior snapshot (kept disconnected players)
-        var prev = isFinal ? new List<PlayerInfo>() : players.ToList();
+        var prev = players.ToList();
         var prevByName = prev.ToDictionary(p => p.playerName, p => p);
         players.Clear();
 
