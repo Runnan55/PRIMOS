@@ -54,7 +54,7 @@ public class GameManager : NetworkBehaviour
     public string mode;
 
     private bool isDecisionPhase = true;
-    private bool isGameOver = false;
+    public bool isGameOver = false;
     private Coroutine roundCycleCoroutine;
     private Coroutine decisionPhaseCoroutine;
     private Coroutine executionPhaseCoroutine;
@@ -183,9 +183,44 @@ public class GameManager : NetworkBehaviour
     [Server]
     public void OnPlayerSceneReady(CustomRoomPlayer roomPlayer)
     {
-        if (players.Any(p => p.connectionToClient == roomPlayer.connectionToClient))
+        // 1) Buscar el PlayerController por identidad logica, no por conexion
+        var pc = players.FirstOrDefault(p =>
+            p.playerId == roomPlayer.playerId ||
+            (!string.IsNullOrEmpty(roomPlayer.firebaseUID) && p.firebaseUID == roomPlayer.firebaseUID));
+
+        if (pc != null && !pc.isBot)
         {
-            LogWithTime.Log($"[GameManager] El jugador {roomPlayer.playerName} ya tiene un PlayerController instanciado.");
+            // 2) Relink CRP <-> PC
+            pc.ownerRoomPlayer = roomPlayer;
+            roomPlayer.linkedPlayerController = pc;
+
+            // 3) Transferir autoridad si cambio la conexion (muy comun tras resync/reclaim)
+            var ni = pc.netIdentity;
+            var newConn = roomPlayer.connectionToClient;
+            if (ni.connectionToClient != newConn)
+            {
+                if (ni.connectionToClient != null) ni.RemoveClientAuthority();
+                ni.AssignClientAuthority(newConn);
+            }
+
+            // 4) Asegurar que el cliente observe el PC antes del TargetRpc
+            NetworkServer.RebuildObservers(ni, false);
+
+            // 5) Enviar sync de UI y estado local de fase
+            // --- transferir autoridad si cambió la conexión ---
+            if (pc.netIdentity.connectionToClient != roomPlayer.connectionToClient)
+            {
+                if (pc.netIdentity.connectionToClient != null)
+                    pc.netIdentity.RemoveClientAuthority();
+                pc.netIdentity.AssignClientAuthority(roomPlayer.connectionToClient);
+            }
+
+            // *** clave: reconstruir observers y esperar un frame ***
+            NetworkServer.RebuildObservers(pc.netIdentity, false);
+            // --- asegurar observers y luego sincronizar ---
+            StartCoroutine(SendSyncWhenReady(pc, roomPlayer));
+
+            LogWithTime.Log($"[GameManager] Rebind PC for {roomPlayer.playerName} and synced UI.");
             return;
         }
 
@@ -228,6 +263,50 @@ public class GameManager : NetworkBehaviour
         RegisterPlayer(controller);
     }
 
+    IEnumerator SendSyncWhenReady(PlayerController pc, CustomRoomPlayer roomPlayer)
+    {
+        var conn = roomPlayer.connectionToClient;
+        float deadline = Time.time + 3f; // timeout defensivo
+
+        // forzar rebuild y esperar a que el PC sea visible para este conn
+        NetworkServer.RebuildObservers(pc.netIdentity, false);
+        yield return null; // al menos 1 frame
+
+        while (Time.time < deadline)
+        {
+            bool hasConn = conn != null && conn.isReady;
+            bool pcOk = pc != null && pc.netIdentity != null;
+            // despues
+            int cid = conn != null ? conn.connectionId : -1;
+            bool observed = pcOk && pc.netIdentity.observers != null && pc.netIdentity.observers.ContainsKey(cid);
+            bool owned = pcOk && pc.netIdentity.connectionToClient == conn;
+
+            // DEBUG útil para tus logs
+            Debug.Log($"[GameManager] ReadySync -> pcNetId={pc.netId} observedByConn={pc.netIdentity.observers.ContainsKey(cid)} ownedByConn={(pc.netIdentity.connectionToClient == conn)}");
+
+            if (hasConn && observed && owned) break;
+            yield return null;
+        }
+
+        if (pc == null || conn == null) yield break;
+
+        // aquí ya llegan seguro los TargetRpc
+        pc.TargetSyncInGameUI(conn, isDecisionPhase);       // apaga gameModeCanvas y waiting anim
+        pc.TargetPlayButtonAnimation(conn, isDecisionPhase);
+        AnimationModifier(SelectedModifier);
+
+        // ligar explícitamente CRP <-> PC (sección 2)
+        LinkCrpWithPc(roomPlayer, pc);
+    }
+
+    [Server]
+    void LinkCrpWithPc(CustomRoomPlayer roomPlayer, PlayerController pc)
+    {
+        roomPlayer.linkedPlayerController = pc;                                    // tu referencia de servidor
+        roomPlayer.RpcSetLinkedPc(roomPlayer.connectionToClient, pc.netIdentity);  // notifica al cliente local cuál es su PC
+    }
+
+
     [Server]
     public void RegisterPlayer(PlayerController player)
     {
@@ -263,7 +342,7 @@ public class GameManager : NetworkBehaviour
 
         SelectedModifier = (GameModifierType)values.GetValue(UnityEngine.Random.Range(0, values.Length));
     }
-
+    
     private void ApplyGameModifier(GameModifierType modifier)
     {
         switch (modifier)
@@ -272,20 +351,34 @@ public class GameManager : NetworkBehaviour
                 foreach (var player in players) player.RpcPlayAnimation("GM_DobleAgente");
                 break;*/
             case GameModifierType.CaceriaDelLider:
-                foreach (var player in players) player.RpcPlayAnimation("GM_CaceriaDelLider");
-                //Funciona pero en el inspector hay que seleccionar
+                foreach (var player in players)
+                {
+                    var conn = player.ownerRoomPlayer?.connectionToClient;
+                    if (!player.isBot && conn != null)
+                    {
+                        player.RpcPlayAnimation("GM_CaceriaDelLider");
+                    }
+                }
                 break;
             case GameModifierType.GatilloFacil:
                 foreach (var player in players)
                 {
-                    player.RpcPlayAnimation("GM_GatilloFacil");
+                    var conn = player.ownerRoomPlayer?.connectionToClient;
+                    if (!player.isBot && conn != null)
+                    {
+                        player.RpcPlayAnimation("GM_GatilloFacil");
+                    }
                     player.ServerReload(); // Otorgar munición extra
                 }
                 break; 
             case GameModifierType.BalasOxidadas:
                 foreach (var player in players)
                 {
-                    player.RpcPlayAnimation("GM_BalasOxidadas");
+                    var conn = player.ownerRoomPlayer?.connectionToClient;
+                    if (!player.isBot && conn != null)
+                    {
+                        player.RpcPlayAnimation("GM_BalasOxidadas");
+                    }
                     player.rustyBulletsActive = true;
                 }
                  break;
@@ -295,8 +388,55 @@ public class GameManager : NetworkBehaviour
             case GameModifierType.CargaOscura:
                 foreach (var player in players)
                 {
-                    player.RpcPlayAnimation("GM_CargaOscura");
+                    var conn = player.ownerRoomPlayer?.connectionToClient;
+                    if (!player.isBot && conn != null)
+                    {
+                        player.RpcPlayAnimation("GM_CargaOscura");
+                    }
                     player.isDarkReloadEnabled = true;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void AnimationModifier(GameModifierType modifier)
+    {
+        switch (modifier)
+        {
+            /*case GameModifierType.DobleAgente:
+                foreach (var player in players) player.RpcPlayAnimation("GM_DobleAgente");
+                break;*/
+            case GameModifierType.CaceriaDelLider:
+                foreach (var player in players)
+                {
+                    var conn = player.ownerRoomPlayer?.connectionToClient;
+                    if (!player.isBot && conn != null) player.RpcPlayAnimation("GM_CaceriaDelLider");
+                }
+                break;
+            case GameModifierType.GatilloFacil:
+                foreach (var player in players)
+                {
+                    var conn = player.ownerRoomPlayer?.connectionToClient;
+                    if (!player.isBot && conn != null) player.RpcPlayAnimation("GM_GatilloFacil");
+                }
+                break;
+            case GameModifierType.BalasOxidadas:
+                foreach (var player in players)
+                {
+                    var conn = player.ownerRoomPlayer?.connectionToClient;
+                    if (!player.isBot && conn != null) player.RpcPlayAnimation("GM_BalasOxidadas");
+                }
+                break;
+            /*case GameModifierType.BendicionDelArsenal:
+                foreach (var player in players) player.RpcPlayAnimation("GM_BendicionDelArsenal");
+                break;*/
+            case GameModifierType.CargaOscura:
+                foreach (var player in players)
+                {
+                    var conn = player.ownerRoomPlayer?.connectionToClient;
+                    if (!player.isBot && conn != null) player.RpcPlayAnimation("GM_CargaOscura");
                 }
                 break;
             default:
@@ -528,9 +668,11 @@ public class GameManager : NetworkBehaviour
             foreach (var p in players)
             {
                 p.isRouletteOpen = false;
-                if (!p.isBot && p.connectionToClient != null)
+
+                var conn = p.ownerRoomPlayer?.connectionToClient;
+                if (!p.isBot && conn != null)
                 {
-                    p.TargetHideRouletteCanvas(p.connectionToClient);
+                    p.TargetHideRouletteCanvas(conn);
                 }
             }
         }
@@ -603,8 +745,9 @@ public class GameManager : NetworkBehaviour
         {
             p.clientDecisionPhase = false;
 
-            if (!p.isBot && p.connectionToClient != null)
-                p.TargetPlayButtonAnimation(p.connectionToClient, false);
+            var conn = p.ownerRoomPlayer != null ? p.ownerRoomPlayer.connectionToClient : null;
+            if (!p.isBot && conn != null)
+                p.TargetPlayButtonAnimation(conn, false);
 
             p.RpcCancelAiming();
 
@@ -653,10 +796,11 @@ public class GameManager : NetworkBehaviour
         QuickMissionType type = (QuickMissionType) UnityEngine.Random.Range(0,Enum.GetValues(typeof(QuickMissionType)).Length);
         player.currentQuickMission = new QuickMission(type, currentRound);
 
-        if (!player.isBot && player.connectionToClient != null)
+        var conn = player.ownerRoomPlayer?.connectionToClient;
+        if (!player.isBot && conn != null)
         {
             string animName = "QM_Start_" + player.currentQuickMission.type.ToString(); // El nombre exacto de la misión como string
-            player.TargetPlayAnimation(animName);
+            player.TargetPlayAnimation(conn, animName);
         }
     }
 
@@ -782,7 +926,8 @@ public class GameManager : NetworkBehaviour
 
         foreach (var player in players)
         {
-            if (!player.isBot && player.connectionToClient != null) player.TargetPlayButtonAnimation(player.connectionToClient, true);
+            var conn = player.ownerRoomPlayer ?.connectionToClient;
+            if (!player.isBot && conn != null) player.TargetPlayButtonAnimation(conn, true);
             player.PlayDirectionalAnimation("Idle");
         }
 
@@ -989,14 +1134,16 @@ public class GameManager : NetworkBehaviour
         {
             if (!player.isBot)
             {
-                player.TargetPlayButtonAnimation(player.connectionToClient, false);
+                var conn = player.ownerRoomPlayer?.connectionToClient;
+                player.TargetPlayButtonAnimation(conn, false);
             }
 
             player.RpcCancelAiming();
 
             if (player.currentQuickMission == null && !player.isBot)
             {
-                player.TargetPlayAnimation("QM_Default_State");
+                var conn = player.ownerRoomPlayer?.connectionToClient;
+                player.TargetPlayAnimation(conn, "QM_Default_State");
             }
 
             if (!actionsQueue.ContainsKey(player)) // Si no se eligió acción alguna se llama a None
@@ -1224,7 +1371,9 @@ public class GameManager : NetworkBehaviour
                 if (player.hasQMRewardThisRound && !player.isBot)
                 {
                     player.hasQMRewardThisRound = false;
-                    player.TargetPlayAnimation("QM_Reward_Exit");
+
+                    var conn = player.ownerRoomPlayer?.connectionToClient;
+                    player.TargetPlayAnimation(conn, "QM_Reward_Exit");
                 }
 
                 if (mission != null && mission.assignedRound == currentRound)
@@ -1245,7 +1394,8 @@ public class GameManager : NetworkBehaviour
 
                     if (!player.isBot)
                     {
-                        player.TargetPlayAnimation(animName);
+                        var conn = player.ownerRoomPlayer?.connectionToClient;
+                        player.TargetPlayAnimation(conn, animName);
                     }
                 }
             }
@@ -1474,7 +1624,7 @@ public class GameManager : NetworkBehaviour
                 {
                     // mark disconnected humans as dead for ordering
                     foreach (var h in players.Where(p => !p.isBot && p.isAlive).ToList())
-                        MarkDisconnected(h);
+                        ExpulsionOrQuit(h);
 
                     // kill bots leaving one alive
                     var botsAlive = players.Where(p => p.isBot && p.isAlive).ToList();
@@ -1798,7 +1948,9 @@ public class GameManager : NetworkBehaviour
             if (p.hasQMRewardThisRound)
             {
                 p.hasQMRewardThisRound = false;
-                p.TargetPlayAnimation("QM_Reward_Exit"); // cierra el reward suavemente
+
+                var conn = p.ownerRoomPlayer?.connectionToClient;
+                p.TargetPlayAnimation(conn,"QM_Reward_Exit"); // cierra el reward suavemente
             }
 
             // 2) Si la QM de este round estaba activa, disparar su Exit y limpiar
@@ -1807,7 +1959,9 @@ public class GameManager : NetworkBehaviour
             {
                 string animName = $"QM_Exit_{mission.type}";
                 p.currentQuickMission = null; // no evaluamos ni damos recompensa al morir
-                p.TargetPlayAnimation(animName);
+
+                var conn = p.ownerRoomPlayer?.connectionToClient;
+                p.TargetPlayAnimation(conn, animName);
             }
         }
         catch (System.Exception e)
@@ -1836,6 +1990,7 @@ public class GameManager : NetworkBehaviour
     public void RegisterAction(PlayerController player, ActionType actionType, PlayerController target = null)//Registra decisiones de jugadores durante DecisionPhase()
     {
         if (!isDecisionPhase || !player.isAlive) return; //Solo se pueden elegir acciones en la fase de decisión no si estás muerto
+        if (player.isAfk) player.selectedAction = ActionType.None; // Si está Afk elegirá nada 
 
         actionsQueue[player] = new PlayerAction(actionType, target);
         player.selectedAction = actionType; //Con esto los bots y los players siempre marcarán su selectedAction igual al actionType
@@ -1854,8 +2009,10 @@ public class GameManager : NetworkBehaviour
         foreach (var player in players)
         {
             player.isRouletteOpen = true;
-            if (!player.isBot && player.connectionToClient != null)
-                player.TargetStartRouletteWithWinner(player.connectionToClient, rouletteDuration, winnerIndex);
+
+            var conn = player.ownerRoomPlayer?.connectionToClient;
+            if (!player.isBot && conn != null)
+                player.TargetStartRouletteWithWinner(conn, rouletteDuration, winnerIndex);
         }
 
         yield return new WaitForSecondsRealtime(rouletteDuration);
@@ -1863,9 +2020,11 @@ public class GameManager : NetworkBehaviour
         foreach (var player in players)
         {
             player.isRouletteOpen = false;
-            if (!player.isBot && player.connectionToClient != null)
+
+            var conn = player.ownerRoomPlayer?.connectionToClient;
+            if (!player.isBot && conn != null)
             {
-                player.TargetHideRouletteCanvas(player.connectionToClient);
+                player.TargetHideRouletteCanvas(conn);
             }
         }
     }
@@ -1874,7 +2033,8 @@ public class GameManager : NetworkBehaviour
 
     #region OnPlayerDisconnect
 
-    public void PlayerDisconnected(PlayerController player)
+    
+    public void ExpulsionOrQuit(PlayerController player)
     {
         actionsQueue.Remove(player);
         recentAttackers.Remove(player);
@@ -1899,11 +2059,12 @@ public class GameManager : NetworkBehaviour
         CheckGameOver();
     }
 
+    
     [Server]
-    public void MarkDisconnected(PlayerController p)
+    public void PlayerWentAfk(PlayerController p)
     {
         if (p == null) return;
-
+        /*
         // Marcar como “muerto/desconectado” para el orden del leaderboard
         p.isAlive = false;
         if (!deadPlayers.Contains(p))
@@ -1911,11 +2072,58 @@ public class GameManager : NetworkBehaviour
             // FIX: usar pre-incremento e idempotente
             if (p.deathOrder == 0) p.deathOrder = ++deathCounter;
             deadPlayers.Add(p);
-        }
+        }*/
+        
+        p.isAfk = true;
 
         // Actualiza snapshot de stats y etiqueta “(Offline)” en UI
         if (gameStatistic != null)
             gameStatistic.UpdatePlayerStats(p, disconnected: true);
+
+        MaybeAllPlayerWentAfk();
+    }
+
+    [Server]
+    private void MaybeAllPlayerWentAfk()
+    {
+        if (isGameOver) return;
+
+        // Vivos humanos (players == vivos por diseno)
+        var aliveHumans = players.Where(p => !p.isBot).ToList();
+        if (aliveHumans.Count == 0) return;
+
+        // Espectadores humanos CONECTADOS (muertos que siguen con CRP/conn activa)
+        bool hasConnectedSpectator = deadPlayers.Any(p =>
+            p != null &&
+            !p.isBot &&
+            p.ownerRoomPlayer != null &&
+            p.ownerRoomPlayer.connectionToClient != null &&
+            p.ownerRoomPlayer.connectionToClient.isReady
+            );
+
+        // Si hay espectadores conectados, NO cerrar por AFK
+        if (hasConnectedSpectator)
+        {
+            LogWithTime.Log("[AFK] Hold: connected human spectator present.");
+            return;
+        }
+
+        // Si todos los vivos estan AFK y no hay espectadores conectados -> fin por AFK
+        if (aliveHumans.All(h => h.isAfk))
+        {
+            // Asegura orden en leaderboard (si alguno vivo no tenía deathOrder)
+            foreach (var h in aliveHumans)
+            {
+                if (h.deathOrder == 0) h.deathOrder = ++deathCounter;
+                if (!deadPlayers.Contains(h)) deadPlayers.Add(h);
+                gameStatistic?.UpdatePlayerStats(h, true);
+            }
+
+            // Si quieres terminar ya (todos AFK), dispara tu final estándar:
+            isGameOver = true;
+            StopAllCoroutines(); // o tu StopGamePhases()
+            StartCoroutine(StartGameStatistics()); // tu final habitual
+        }
     }
 
     private bool _closingScene = false;

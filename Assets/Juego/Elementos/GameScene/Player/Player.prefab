@@ -6764,10 +6764,9 @@ MonoBehaviour:
   isRouletteOpen: 0
   isBot: 0
   botPersonality: 0
+  hideNameInRanked: 0
+  isAfk: 0
   firebaseUID: 
-  leaderboardCanvas: {fileID: 5425550610921173356}
-  leaderboardContent: {fileID: 1628792646861002936}
-  leaderboardEntryPrefab: {fileID: 5744724382073687794, guid: 878564ea453a9d744b63881246b30b18, type: 3}
   gameManagerNetId: 0
   gameStatisticNetId: 0
   playerId: 
@@ -7894,7 +7893,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &3450758332802465915
 RectTransform:
   m_ObjectHideFlags: 0

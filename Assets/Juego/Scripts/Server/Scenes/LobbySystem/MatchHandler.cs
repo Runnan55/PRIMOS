@@ -530,6 +530,7 @@ public class MatchHandler : NetworkBehaviour
         {
             // ENVÍA EL NOMBRE REAL DE LA ESCENA
             player.TargetStartGame(player.connectionToClient, match.sceneName);
+            LogWithTime.Log($"[TRACE] TargetStartGame(initial) -> {player.playerName} match={matchId} scene={match.sceneName}");
         }
     }
 
@@ -650,6 +651,84 @@ public class MatchHandler : NetworkBehaviour
     }
 
     #endregion
+
+    #endregion
+
+    #region Resincronización
+
+    [Server]
+    public bool TryRejoinActiveMatchByUid(CustomRoomPlayer crp, string uid)
+    {
+        if (string.IsNullOrEmpty(uid) || crp == null) return false;
+
+        // Busca una GameScene activa con un PlayerController humano con ese UID
+        foreach (var kv in matches)
+        {
+            var match = kv.Value;
+            if (match == null || string.IsNullOrEmpty(match.sceneName)) continue;
+
+            var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(match.sceneName);
+            if (!scene.IsValid()) continue;
+
+            GameManager gm = null;
+            foreach (var go in scene.GetRootGameObjects())
+            {
+                gm = go.GetComponent<GameManager>();
+                if (gm != null) break;
+            }
+            if (gm == null || gm.isGameOver) continue; // no rejoin si acabo
+
+            // Encuentra el PlayerController con ese UID
+            var pcs = scene.GetRootGameObjects()
+                           .SelectMany(g => g.GetComponentsInChildren<PlayerController>(true))
+                           .ToList();
+            var pc = pcs.FirstOrDefault(p => !p.isBot && (p.firebaseUID == uid ||
+                              (p.ownerRoomPlayer != null && p.ownerRoomPlayer.firebaseUID == uid)));
+            if (pc == null) continue;
+
+            // Reenlazar al CRP
+            crp.currentMatchId = match.matchId;
+            crp.isPlayingNow = true;
+            crp.linkedPlayerController = pc;
+            pc.ownerRoomPlayer = crp;            // reasigna referencia de owner
+            pc.ServerSetAfk(false);              // sale de AFK
+
+            // Autoridad para el cliente
+            var ni = pc.GetComponent<NetworkIdentity>();
+            if (ni != null && crp.connectionToClient != null)
+            {
+                // Si otro cliente tenia autoridad, quitarsela primero (solo en server)
+                if (ni.connectionToClient != null && ni.connectionToClient != crp.connectionToClient)
+                    ni.RemoveClientAuthority();
+
+                // Asignar autoridad al nuevo CRP
+                ni.AssignClientAuthority(crp.connectionToClient);
+            }
+
+            // Mueve CRP a la escena real y reconstruye observers (como haces en FocusResync)
+            var im = CustomSceneInterestManager.Instance;
+            if (im != null)
+            {
+                im.RegisterPlayer(crp.connectionToClient, match.sceneName);
+                if (!crp.connectionToClient.isReady) NetworkServer.SetClientReady(crp.connectionToClient);
+                var realScene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(match.sceneName);
+                if (realScene.IsValid() && crp.gameObject.scene != realScene)
+                    UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(crp.gameObject, realScene);
+
+                foreach (var ni2 in NetworkServer.spawned.Values.ToArray())
+                    if (ni2 != null && ni2.gameObject.scene == realScene)
+                        NetworkServer.RebuildObservers(ni2, initialize: false);
+            }
+
+            // Dispara carga de plantilla cliente si está en otra escena (reusa tu TargetStartGame)
+            LogWithTime.Log($"[TRACE] TargetStartGame(recover) -> {crp.playerName} scene={match.sceneName}");
+            crp.TargetStartGame((NetworkConnectionToClient)crp.connectionToClient, match.sceneName);
+
+            return true;
+        }
+        return false;
+    }
+
 
     #endregion
 

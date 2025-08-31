@@ -45,6 +45,9 @@ public class CustomRoomPlayer : NetworkBehaviour
     [Header("LeaderboardUI")]
     public Button exitGameButton;
 
+    [Header("Resync")]
+    [SyncVar] public string currentSceneName;
+
     #region ConectWithClient
 
     public PlayerController linkedPlayerController;
@@ -102,13 +105,17 @@ public class CustomRoomPlayer : NetworkBehaviour
                         var pc = linkedPlayerController;
                         if (pc == null)
                         {
-                            var pcs = scene.GetRootGameObjects()
-                                           .SelectMany(g => g.GetComponentsInChildren<PlayerController>(true));
+                            var pcs = scene.GetRootGameObjects().SelectMany(g => g.GetComponentsInChildren<PlayerController>(true));
                             pc = pcs.FirstOrDefault(p => p.playerId == playerId);
                         }
 
                         if (pc != null)
-                            gm.MarkDisconnected(pc);   // clave
+                        {
+                            var ni = pc.GetComponent<NetworkIdentity>();
+                            if (ni && ni.connectionToClient != null) ni.RemoveClientAuthority();
+
+                            gm.PlayerWentAfk(pc);   // clave
+                        }
                     }
                 }
             }
@@ -116,8 +123,8 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         // 2) Tu limpieza actual
         base.OnStopServer();
-        MatchHandler.Instance.LeaveMatch(this);
-        MatchHandler.Instance.RemoveFromMatchmakingQueue(this);
+        /*MatchHandler.Instance.LeaveMatch(this);
+        MatchHandler.Instance.RemoveFromMatchmakingQueue(this);*/
 
         Debug.Log($"[SERVER] CustomRoomPlayer desconectado: {playerName}");
     }
@@ -369,8 +376,7 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         if (isLocalPlayer)
         {
-            //CustomSceneInterestManager.Instance.RegisterPlayer(NetworkClient.connection, currentMatchId); // Asignar escena real
-            CmdRegisterSceneInterest(currentMatchId);
+            CmdRegisterSceneInterest(currentSceneName);
         }
 
         CmdNotifySceneReady();
@@ -483,7 +489,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         {
             // NUEVO: notificar al GameManager antes de destruir
             var gm = linkedPlayerController.GManager;
-            if (gm != null) gm.MarkDisconnected(linkedPlayerController);
+            if (gm != null) gm.ExpulsionOrQuit(linkedPlayerController);
 
             if (linkedPlayerController.gameObject != null)
                 NetworkServer.Destroy(linkedPlayerController.gameObject);
@@ -935,7 +941,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         leaderboardCanvas.SetActive(false);
     }
 
-private IEnumerator DestroyMe()
+    private IEnumerator DestroyMe()
     {
         yield return new WaitForSecondsRealtime(1f);
         NetworkServer.Destroy(gameObject);
@@ -945,6 +951,18 @@ private IEnumerator DestroyMe()
     private void TargetReturnToMainScene(NetworkConnection target)
     {
         SceneManager.LoadScene("MainScene");
+    }
+
+    #endregion
+
+    #region Resync
+
+    [TargetRpc]
+    public void RpcSetLinkedPc(NetworkConnection target, NetworkIdentity pcIdentity)
+    {
+        var pc = pcIdentity != null ? pcIdentity.GetComponent<PlayerController>() : null;
+        linkedPlayerController = pc;
+        Debug.Log($"[CRP] Linked local PC => {(pc != null ? pc.netId.ToString() : "null")}");
     }
 
     #endregion

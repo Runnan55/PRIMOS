@@ -174,6 +174,20 @@ public class CustomNetworkManager : NetworkManager
 
     public override void OnServerDisconnect(NetworkConnectionToClient conn)
     {
+        // 1) Quitar autoridad del PlayerController ANTES del base
+        if (conn != null && conn.identity != null)
+        {
+            var crp = conn.identity.GetComponent<CustomRoomPlayer>();
+            if (crp != null && crp.linkedPlayerController != null)
+            {
+                var pcNI = crp.linkedPlayerController.GetComponent<NetworkIdentity>();
+                if (pcNI != null && pcNI.connectionToClient != null)
+                    pcNI.RemoveClientAuthority();     // evita que Mirror destruya el PC
+
+                crp.linkedPlayerController.GManager?.PlayerWentAfk(crp.linkedPlayerController);
+            }
+        }
+
         // limpia tus indices primero (no toca el diccionario de Mirror)
         AccountManager.Instance.RemoveConnection(conn);
 
@@ -248,18 +262,30 @@ public class CustomNetworkManager : NetworkManager
             return;
         }
 
+
         // OK: registramos credenciales y mandamos ACK de éxito
         AccountManager.Instance.RegisterFirebaseCredentials(conn, msg.uid);
         conn.Send(new LoginResultMessage { ok = true, reason = "ok" });
 
         // Instanciamos jugador
         var playerObj = Instantiate(roomPlayerPrefab);
+        NetworkServer.AddPlayerForConnection(conn, playerObj);
+
         var crp = playerObj.GetComponent<CustomRoomPlayer>();
 
         crp.firebaseUID = msg.uid;
         crp.playerName = "Desconocido";
 
-        NetworkServer.AddPlayerForConnection(conn, playerObj);
+        bool rejoined = MatchHandler.Instance.TryRejoinActiveMatchByUid(crp, msg.uid);
+
+        if (rejoined)
+        {
+            var match = MatchHandler.Instance.GetMatch(crp.currentMatchId);
+            if (match != null)
+            {
+                crp.TargetStartGame(conn, match.sceneName); // misma RPC que usa NotifyPlayersToLoadGameScene
+            }
+        }
     }
 
     private System.Collections.IEnumerator DisconnectNextFrame(NetworkConnectionToClient c)

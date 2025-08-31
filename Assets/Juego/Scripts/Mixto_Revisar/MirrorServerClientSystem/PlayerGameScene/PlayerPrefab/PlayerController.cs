@@ -157,6 +157,9 @@ public class PlayerController : NetworkBehaviour
     [Header("HideNameInranked")]
     [SyncVar(hook = nameof(OnHideNameChanged))] public bool hideNameInRanked;
 
+    [Header("AFK")]
+    [SyncVar] public bool isAfk;
+
     //Información relevante para Firebase
     [SyncVar] public string firebaseUID;
 
@@ -202,6 +205,7 @@ public class PlayerController : NetworkBehaviour
     {
         animator = GetComponent<Animator>();
     }
+
     public void OnExitLeaderboardPressed()
     {
         if (isOwned && CustomRoomPlayer.LocalInstance)
@@ -603,9 +607,10 @@ public class PlayerController : NetworkBehaviour
 
     private void OnHealthChanged(int oldHealth, int newHealth)
     {
+        int h = Mathf.Max(0, newHealth); // Clamp
         if (healthText)
-            healthText.text = new string('-', newHealth);
-        UpdateLifeUI(newHealth);
+            healthText.text = h > 0 ? new string('-', h) : "0";
+        UpdateLifeUI(h);
     }
 
     private void OnAmmoChanged(int oldAmmo, int newAmmo)
@@ -663,6 +668,15 @@ public class PlayerController : NetworkBehaviour
     {
         if (!isAlive || !gameObject.activeInHierarchy) return;// Evita ejecutar si el jugador está muerto o desactivado
 
+        if (!isOwned)
+        {
+            shootButton.interactable = false;
+            superShootButton.interactable = false;
+            reloadButton.interactable = false;
+            coverButton.interactable = false;
+            return;
+        }
+
         // Solo habilitar los botones si enableButtons es true y cumplen con sus respectivas condiciones
         shootButton.interactable = enableButtons && ammo >= minBulletS;
         superShootButton.interactable = enableButtons && ammo >= minBulletSS;
@@ -674,7 +688,7 @@ public class PlayerController : NetworkBehaviour
     [ClientRpc] //Se ejecuta en todos los clientes siempre
     public void RpcPlayAnimation(string animation)
     {
-        if (!isAlive) return;
+        if (!isAlive && animation != "Death") return;
 
         GetComponent<NetworkAnimator>().animator.Play(animation);//Esto sirve por ejemplo para que el player llame animación en otro player, tambien se puede llamar desde el Server
     }
@@ -692,7 +706,7 @@ public class PlayerController : NetworkBehaviour
     }
 
     [TargetRpc] //Se ejecuta en solo un cliente especifico
-    public void TargetPlayAnimation(string animation)
+    public void TargetPlayAnimation(NetworkConnection target, string animation)
     {
         GetComponent<Animator>().Play(animation); // SOLO ese jugador lo ve
     }
@@ -1446,7 +1460,7 @@ public class PlayerController : NetworkBehaviour
     }
 
     #endregion
-
+    
     #region OnStopClient
 
     public override void OnStopServer()
@@ -1455,13 +1469,13 @@ public class PlayerController : NetworkBehaviour
 
         if (GManager != null)
         {
-           GManager.PlayerDisconnected(this);
+           GManager.PlayerWentAfk(this);
         }
-
+        /*
         if (GStatistic != null && isServer)
         {
             GStatistic.UpdatePlayerStats(this, true);
-        }
+        }*/
     }
 
     #endregion
@@ -1502,6 +1516,35 @@ public class PlayerController : NetworkBehaviour
         if (!isLocalPlayer && !isOwned) return;
 
         if (gameModeCanvas != null) gameModeCanvas.SetActive(newV);
+    }
+
+    #endregion
+
+    #region AFK/Resync
+
+    [Server]
+    public void ServerSetAfk(bool value)
+    {
+        isAfk = value;
+
+        // Futuras modificaciones 
+        RpcSetAfkVisual(value);
+    }
+
+    [ClientRpc]
+    void RpcSetAfkVisual(bool value)
+    {
+        // Futuro mostrar icono AFK o atenuar nombre
+    }
+
+
+    [TargetRpc]
+    public void TargetSyncInGameUI(NetworkConnection target, bool decisionPhase)
+    {
+        if (waitingPlayers_Anim != null) waitingPlayers_Anim.SetActive(false);
+        if (gameModeCanvas != null) gameModeCanvas.SetActive(false);
+
+        clientDecisionPhase = decisionPhase; // refuerza coherencia local
     }
 
     #endregion
