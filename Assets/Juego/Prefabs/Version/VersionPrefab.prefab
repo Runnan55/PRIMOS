@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 6312024658079058419}
   - component: {fileID: 7929837872344189346}
   m_Layer: 5
-  m_Name: Text (TMP) (1)
+  m_Name: .
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -148,7 +148,7 @@ GameObject:
   - component: {fileID: 3349090647713706447}
   - component: {fileID: 8608131427666828387}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: I
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -398,7 +398,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 2, y: -265}
-  m_SizeDelta: {x: 200, y: 50}
+  m_SizeDelta: {x: 230, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3511133986393518221
 CanvasRenderer:
@@ -428,7 +428,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: v 0.0.3
+  m_text: v 0.0.4
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1abba25f1948a094f88ffd10a04d3916, type: 2}
   m_sharedMaterial: {fileID: 9134812014732050744, guid: 1abba25f1948a094f88ffd10a04d3916, type: 2}
@@ -462,7 +462,7 @@ MonoBehaviour:
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
-  m_HorizontalAlignment: 1
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -531,8 +531,8 @@ RectTransform:
   m_LocalScale: {x: 0.6641, y: 0.6641, z: 0.6641}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3728315807048102475}
   - {fileID: 1239403670281924435}
+  - {fileID: 3728315807048102475}
   m_Father: {fileID: 8644827951175919199}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -889,7 +889,7 @@ GameObject:
   - component: {fileID: 7780127319593840579}
   - component: {fileID: 8331254606521933013}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: Relleno
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -942,7 +942,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Now ranked are every day :D
+  m_text: Enjoy the new InputKey System :D
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 1abba25f1948a094f88ffd10a04d3916, type: 2}
   m_sharedMaterial: {fileID: 9134812014732050744, guid: 1abba25f1948a094f88ffd10a04d3916, type: 2}

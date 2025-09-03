@@ -331,7 +331,6 @@ public class MatchHandler : NetworkBehaviour
         matches.Add(matchId, match);
         partidasActivas++;
 
-        NotifyPlayersToLoadGameScene(matchId);
         StartCoroutine(CreateRuntimeGameScene(match));
     }
 

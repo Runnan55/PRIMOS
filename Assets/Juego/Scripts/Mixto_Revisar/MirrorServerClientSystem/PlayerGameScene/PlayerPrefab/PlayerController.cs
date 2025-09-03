@@ -141,9 +141,6 @@ public class PlayerController : NetworkBehaviour
     [Header("TikiVisualIndicator")]
     public GameObject tikiSprite;
 
-    [Header("Shadow Offset")]
-    public GameObject shadowObject;
-
     [Header("Game Roulette Modifier")]
     public GameModifierRoulette roulette;
     public GameObject gameModeCanvas;
@@ -159,6 +156,13 @@ public class PlayerController : NetworkBehaviour
 
     [Header("AFK")]
     [SyncVar] public bool isAfk;
+
+    [Header("Keyboard Shortcuts")]
+    [SerializeField] private bool kbShortcutsEnabled = true;
+    [SerializeField] private KeyCode keySuperShoot = KeyCode.Q;
+    [SerializeField] private KeyCode keyShoot = KeyCode.W;
+    [SerializeField] private KeyCode keyCover = KeyCode.E;
+    [SerializeField] private KeyCode keyReload = KeyCode.R;
 
     //Información relevante para Firebase
     [SyncVar] public string firebaseUID;
@@ -408,11 +412,6 @@ public class PlayerController : NetworkBehaviour
         lastPressedButton = ActionType.None;
         isAiming = false;
 
-        /*if (crosshairInstance)
-        {
-            Destroy(crosshairInstance);
-            crosshairInstance = null;
-        }*/
         CursorSetup.I?.UsePinkCursor();
 
         CmdRegisterAction(ActionType.None, null); //Registramos NONE
@@ -458,7 +457,6 @@ public class PlayerController : NetworkBehaviour
         base.OnStartClient();
         OnHealthChanged(health, health);
         OnAmmoChanged(ammo, ammo);
-        ApplyShadowOffsetForFacing();   // <= asegura posicion inicial de la sombra
         PlayDirectionalAnimation("Idle");
         OnHideNameChanged(false, hideNameInRanked);
     }
@@ -481,16 +479,42 @@ public class PlayerController : NetworkBehaviour
 
         if (!clientDecisionPhase)
         {
-            if (isAiming /*&& crosshairInstance*/)
+            if (isAiming)
             {
-                /*Destroy(crosshairInstance);
-                crosshairInstance = null;*/
                 CursorSetup.I?.UsePinkCursor();
             }
 
             isAiming = false;
             selectedAction = ActionType.None;
             return;
+        }
+
+        // ----- Keyboard shortcuts mimic UI clicks -----
+        if (kbShortcutsEnabled)
+        {
+            bool typingOnUI = false;
+            // Evita capturar si estas escribiendo en un input UI
+            if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null)
+            {
+                var go = EventSystem.current.currentSelectedGameObject;
+                typingOnUI = go.GetComponent<TMPro.TMP_InputField>() != null || go.GetComponent<UnityEngine.UI.InputField>() != null;
+            }
+
+            if (!typingOnUI)
+            {
+                if (Input.GetKeyDown(keySuperShoot))
+                    HighlightButton(superShootButton, ActionType.SuperShoot);
+
+                if (Input.GetKeyDown(keyShoot))
+                    HighlightButton(shootButton, ActionType.Shoot);
+
+                if (Input.GetKeyDown(keyCover))
+                    HighlightButton(coverButton, ActionType.Cover);
+
+                if (Input.GetKeyDown(keyReload))
+                    HighlightButton(reloadButton, ActionType.Reload);
+
+            }
         }
 
         //Detectar clics para seleccionar enemigos o cancelar apuntado
@@ -537,6 +561,17 @@ public class PlayerController : NetworkBehaviour
             }
         }
     }
+
+    private void HighlightButton(Button button, ActionType action)
+    {
+        if (button == null || !button.interactable) return;
+
+        // Simula el mismo flujo que un PointerDown real
+        EventSystem.current.SetSelectedGameObject(button.gameObject);
+        OnActionPressed(action);
+    }
+
+
     #region Tiki
 
     [ClientRpc]
@@ -869,7 +904,6 @@ public class PlayerController : NetworkBehaviour
             playerPosition = 6;
 
         UpdateFacingDirectionFromPosition();
-        ApplyShadowOffsetForFacing();
         ApplyVisualFlipFromDirection();
     }
 
@@ -895,8 +929,6 @@ public class PlayerController : NetworkBehaviour
 
     void OnDirectionChanged(FacingDirection oldDir, FacingDirection newDir)
     {
-        ApplyShadowOffsetForFacing();   // <= mover shadow segun direccion
-
         PlayDirectionalAnimation("Idle");
     }
 
@@ -914,27 +946,6 @@ public class PlayerController : NetworkBehaviour
             6 => FacingDirection.UpLeft,
             _ => FacingDirection.UpRight //Fallback
         };
-    }
-
-    public void ApplyShadowOffsetForFacing()
-    {
-        if (shadowObject == null) return;
-
-        Vector2 off;
-        switch (currentFacingDirection)
-        {
-            case FacingDirection.UpRight: off = new Vector2(-0.25f, -1.45f); break;
-            case FacingDirection.Right: off = new Vector2(-0.25f, -1.65f); break;
-            case FacingDirection.DownRight: off = new Vector2(-0.25f, -1.85f); break;
-            case FacingDirection.DownLeft: off = new Vector2(0.25f, -1.85f); break;
-            case FacingDirection.Left: off = new Vector2(0.25f, -1.65f); break;
-            case FacingDirection.UpLeft: off = new Vector2(0.25f, -1.45f); break;
-            default: off = new Vector2(0.22f, 0.02f); break;
-        }
-
-        // Sombra como hijo del player -> localPosition
-        var t = shadowObject.transform;
-        t.localPosition = new Vector3(off.x, off.y, t.localPosition.z);
     }
 
     public void PlayDirectionalAnimation(string baseAnim)
@@ -1471,11 +1482,6 @@ public class PlayerController : NetworkBehaviour
         {
            GManager.PlayerWentAfk(this);
         }
-        /*
-        if (GStatistic != null && isServer)
-        {
-            GStatistic.UpdatePlayerStats(this, true);
-        }*/
     }
 
     #endregion
@@ -1510,13 +1516,22 @@ public class PlayerController : NetworkBehaviour
         AudioManager.Instance.PlayMusic("CasualGameSceneTheme");
     }
 
-    private void OnRouletteOpenChanged(bool oldV, bool newV)
+    // PlayerController.cs
+    void OnRouletteOpenChanged(bool oldV, bool newV)
     {
-        // Solo tocar la UI del jugador local
+        // Only touch local/owned UI
         if (!isLocalPlayer && !isOwned) return;
+
+        // Dead players (or spectators if usas flag) must not see gameModeCanvas
+        if (!isAlive)
+        {
+            if (gameModeCanvas != null) gameModeCanvas.SetActive(false);
+            return;
+        }
 
         if (gameModeCanvas != null) gameModeCanvas.SetActive(newV);
     }
+
 
     #endregion
 
@@ -1545,6 +1560,35 @@ public class PlayerController : NetworkBehaviour
         if (gameModeCanvas != null) gameModeCanvas.SetActive(false);
 
         clientDecisionPhase = decisionPhase; // refuerza coherencia local
+    }
+
+    [TargetRpc]
+    public void TargetApplyDeathUI(NetworkConnection target)
+    {
+        // lo esencial de RpcOnDeath:
+        if (isLocalPlayer || isOwned) deathCanvas?.SetActive(true);
+
+        tikiSprite?.SetActive(false);
+        PlayDirectionalAnimation("Death");
+
+        coverProbabilityText?.gameObject.SetActive(false);
+        healthText?.gameObject.SetActive(false);
+        ammoText?.gameObject.SetActive(false);
+
+        // oculta TODOS los indicadores
+        vidaAzul_3?.SetActive(false); vidaAzul_2?.SetActive(false); vidaAzul_1?.SetActive(false);
+        vidaRoja_3?.SetActive(false); vidaRoja_2?.SetActive(false); vidaRoja_1?.SetActive(false);
+        vidaAzulBarra?.SetActive(false); vidaRojaBarra?.SetActive(false);
+        corazonAzul?.SetActive(false); corazonRojo?.SetActive(false);
+        parcaAzul?.SetActive(false); parcaRojo?.SetActive(false);
+        bulletSprite?.SetActive(false);
+        targetIndicator?.SetActive(false);
+
+        // y por si acaso:
+        gameModeCanvas?.SetActive(false);
+        waitingPlayers_Anim?.SetActive(false);
+
+        deathCanvas.SetActive(true);
     }
 
     #endregion

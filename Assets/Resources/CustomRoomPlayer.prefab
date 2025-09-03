@@ -854,6 +854,7 @@ MonoBehaviour:
   syncedTickets: 0
   syncedKeys: 0
   exitGameButton: {fileID: 486637255705493159}
+  currentSceneName: 
   linkedPlayerController: {fileID: 0}
   leaderboardCanvas: {fileID: 7133897231841100974}
   leaderboardContent: {fileID: 7410845767431201408}

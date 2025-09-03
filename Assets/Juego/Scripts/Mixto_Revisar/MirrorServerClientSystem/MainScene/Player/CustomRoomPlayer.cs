@@ -374,12 +374,19 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         Debug.Log("[CLIENT] GameScene cargada -> Registrando en CustomSceneInterestManager");
 
-        if (isLocalPlayer)
-        {
-            CmdRegisterSceneInterest(currentSceneName);
-        }
+        // 2) Registrar interés y, tras 1 frame, avisar ready
+        StartCoroutine(ReadyAfterOverlay());
+    }
 
-        CmdNotifySceneReady();
+    private IEnumerator ReadyAfterOverlay()
+    {
+        // aseguras 1 frame con el overlay activo antes de que el server reconstruya observers y no se vean fantasmas
+        yield return null;
+
+        if (isLocalPlayer)
+            CmdRegisterSceneInterest(currentSceneName);
+
+        CmdNotifySceneReady();  // el server spawnea recién ahora
     }
 
     [Command]

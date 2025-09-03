@@ -183,18 +183,33 @@ public class GameManager : NetworkBehaviour
     [Server]
     public void OnPlayerSceneReady(CustomRoomPlayer roomPlayer)
     {
-        // 1) Buscar el PlayerController por identidad logica, no por conexion
-        var pc = players.FirstOrDefault(p =>
-            p.playerId == roomPlayer.playerId ||
-            (!string.IsNullOrEmpty(roomPlayer.firebaseUID) && p.firebaseUID == roomPlayer.firebaseUID));
+        // 0) Preferir el link que dejó TryRejoinActiveMatchByUid
+        PlayerController pc = roomPlayer.linkedPlayerController;
 
-        if (pc != null && !pc.isBot)
+        // 1) Si no hay link, buscar por identidad lógica (playerId/UID) entre vivos…
+        if (pc == null)
         {
-            // 2) Relink CRP <-> PC
+            pc = players.FirstOrDefault(p =>
+                p.playerId == roomPlayer.playerId ||
+                (!string.IsNullOrEmpty(roomPlayer.firebaseUID) && p.firebaseUID == roomPlayer.firebaseUID));
+        }
+
+        // 2) …y si aún no, buscar también entre muertos (espectador)
+        if (pc == null)
+        {
+            pc = deadPlayers.FirstOrDefault(p =>
+                p.playerId == roomPlayer.playerId ||
+                (!string.IsNullOrEmpty(roomPlayer.firebaseUID) && p.firebaseUID == roomPlayer.firebaseUID));
+        }
+
+        // 3) Si existe PC (vivo o muerto) -> rebind/authority y sync SOLO al reconectado
+        if (pc != null)
+        {
+            // CRP <-> PC
             pc.ownerRoomPlayer = roomPlayer;
             roomPlayer.linkedPlayerController = pc;
 
-            // 3) Transferir autoridad si cambio la conexion (muy comun tras resync/reclaim)
+            // Transferencia de autoridad si cambió la conexión
             var ni = pc.netIdentity;
             var newConn = roomPlayer.connectionToClient;
             if (ni.connectionToClient != newConn)
@@ -203,56 +218,48 @@ public class GameManager : NetworkBehaviour
                 ni.AssignClientAuthority(newConn);
             }
 
-            // 4) Asegurar que el cliente observe el PC antes del TargetRpc
+            // Asegurar que este cliente observe su PC antes de los TargetRpc
             NetworkServer.RebuildObservers(ni, false);
 
-            // 5) Enviar sync de UI y estado local de fase
-            // --- transferir autoridad si cambió la conexión ---
-            if (pc.netIdentity.connectionToClient != roomPlayer.connectionToClient)
-            {
-                if (pc.netIdentity.connectionToClient != null)
-                    pc.netIdentity.RemoveClientAuthority();
-                pc.netIdentity.AssignClientAuthority(roomPlayer.connectionToClient);
-            }
-
-            // *** clave: reconstruir observers y esperar un frame ***
-            NetworkServer.RebuildObservers(pc.netIdentity, false);
-            // --- asegurar observers y luego sincronizar ---
+            // Sync dirigido (apaga Waiting/GameModeCanvas solo para el que vuelve)
             StartCoroutine(SendSyncWhenReady(pc, roomPlayer));
 
-            LogWithTime.Log($"[GameManager] Rebind PC for {roomPlayer.playerName} and synced UI.");
+            LogWithTime.Log($"[GameManager] Rebind PC for {roomPlayer.playerName} (alive={pc.isAlive}) and synced UI.");
             return;
         }
 
-        // Obtener spawn positions disponibles
+        // 4) Fallback: NO hay PC existente.
+        //    Solo permitir spawn si la partida NO ha empezado (evita “fantasma” en rejoin avanzado).
+        if (isGameStarted)
+        {
+            LogWithTime.LogWarning("[GameManager] OnPlayerSceneReady: no PC found for CRP but game already started; skip spawn.");
+            return;
+        }
+
+        // ---------- SPAWN INICIAL (igual que lo tenías) ----------
+        // Obtener posiciones de spawn disponibles en esta escena
         List<Vector3> spawnPositions = gameObject.scene.GetRootGameObjects()
             .SelectMany(go => go.GetComponentsInChildren<NetworkStartPosition>())
             .Select(pos => pos.transform.position)
             .ToList();
 
-        // Obtener ya los PlayerControllers vivos
-        List<PlayerController> existingPlayers = players.Where(p => p.isAlive).ToList();
-
-        // Eliminar posiciones ya ocupadas
-        foreach (var player in existingPlayers)
+        // Quitar posiciones ya ocupadas por jugadores vivos
+        foreach (var pAlive in players.Where(p => p.isAlive))
         {
-            Vector3 playerPos = player.transform.position;
-
-            // Elimina posiciones que ya están ocupadas (muy cerca)
-            spawnPositions.RemoveAll(pos => Vector3.Distance(pos, playerPos) < 0.5f);
+            Vector3 pos = pAlive.transform.position;
+            spawnPositions.RemoveAll(s => Vector3.Distance(s, pos) < 0.5f);
         }
 
-        // Elegir una aleatoria de las que quedaron
         Vector3 spawnPos = spawnPositions.Count > 0
             ? spawnPositions[UnityEngine.Random.Range(0, spawnPositions.Count)]
             : Vector3.zero;
 
         GameObject playerInstance = Instantiate(playerControllerPrefab, spawnPos, Quaternion.identity);
         NetworkServer.Spawn(playerInstance, roomPlayer.connectionToClient);
-        SceneManager.MoveGameObjectToScene(playerInstance, gameObject.scene);
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(playerInstance, gameObject.scene);
 
         PlayerController controller = playerInstance.GetComponent<PlayerController>();
-        controller.gameManagerNetId = netId; // <- Vincula de inmediato al playerPrefab con el GameManager, por alguna razón sin esto revienta y el cliente no detecta GManager del server
+        controller.gameManagerNetId = netId; // vincula con este GM
         controller.playerName = roomPlayer.playerName;
         controller.playerId = roomPlayer.playerId;
         controller.ownerRoomPlayer = roomPlayer;
@@ -261,6 +268,7 @@ public class GameManager : NetworkBehaviour
         roomPlayer.linkedPlayerController = controller;
 
         RegisterPlayer(controller);
+        // ---------- /SPAWN INICIAL ----------
     }
 
     IEnumerator SendSyncWhenReady(PlayerController pc, CustomRoomPlayer roomPlayer)
@@ -293,7 +301,10 @@ public class GameManager : NetworkBehaviour
         // aquí ya llegan seguro los TargetRpc
         pc.TargetSyncInGameUI(conn, isDecisionPhase);       // apaga gameModeCanvas y waiting anim
         pc.TargetPlayButtonAnimation(conn, isDecisionPhase);
-        AnimationModifier(SelectedModifier);
+        TargetAnimationModifierFor(conn, SelectedModifier);
+
+        // Si vuelve muerto, fuerza su UI de muerte (no se re-reproduce RpcOnDeath)
+        if (!pc.isAlive) pc.TargetApplyDeathUI(conn);
 
         // ligar explícitamente CRP <-> PC (sección 2)
         LinkCrpWithPc(roomPlayer, pc);
@@ -401,46 +412,20 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    private void AnimationModifier(GameModifierType modifier)
+    // GameManager
+    [Server]
+    private void TargetAnimationModifierFor(NetworkConnectionToClient target, GameModifierType modifier)
     {
-        switch (modifier)
+        foreach (var p in players)
         {
-            /*case GameModifierType.DobleAgente:
-                foreach (var player in players) player.RpcPlayAnimation("GM_DobleAgente");
-                break;*/
-            case GameModifierType.CaceriaDelLider:
-                foreach (var player in players)
-                {
-                    var conn = player.ownerRoomPlayer?.connectionToClient;
-                    if (!player.isBot && conn != null) player.RpcPlayAnimation("GM_CaceriaDelLider");
-                }
-                break;
-            case GameModifierType.GatilloFacil:
-                foreach (var player in players)
-                {
-                    var conn = player.ownerRoomPlayer?.connectionToClient;
-                    if (!player.isBot && conn != null) player.RpcPlayAnimation("GM_GatilloFacil");
-                }
-                break;
-            case GameModifierType.BalasOxidadas:
-                foreach (var player in players)
-                {
-                    var conn = player.ownerRoomPlayer?.connectionToClient;
-                    if (!player.isBot && conn != null) player.RpcPlayAnimation("GM_BalasOxidadas");
-                }
-                break;
-            /*case GameModifierType.BendicionDelArsenal:
-                foreach (var player in players) player.RpcPlayAnimation("GM_BendicionDelArsenal");
-                break;*/
-            case GameModifierType.CargaOscura:
-                foreach (var player in players)
-                {
-                    var conn = player.ownerRoomPlayer?.connectionToClient;
-                    if (!player.isBot && conn != null) player.RpcPlayAnimation("GM_CargaOscura");
-                }
-                break;
-            default:
-                break;
+            if (p.isBot) continue;
+            switch (modifier)
+            {
+                case GameModifierType.CaceriaDelLider: p.TargetPlayAnimation(target, "GM_CaceriaDelLider"); break;
+                case GameModifierType.GatilloFacil: p.TargetPlayAnimation(target, "GM_GatilloFacil"); break;
+                case GameModifierType.BalasOxidadas: p.TargetPlayAnimation(target, "GM_BalasOxidadas"); break;
+                case GameModifierType.CargaOscura: p.TargetPlayAnimation(target, "GM_CargaOscura"); break;
+            }
         }
     }
 
@@ -1106,6 +1091,17 @@ public class GameManager : NetworkBehaviour
                 }
             }
 
+            // ----- Dumbness nerf: 70% chance to switch target to another valid one -----
+            if (botsEnableRandomSwitch && (chosenAction == ActionType.Shoot || chosenAction == ActionType.SuperShoot))
+            {
+                if (chosenTarget != null && UnityEngine.Random.value < botRandomSwitchChance)
+                {
+                    // visibleEnemies y enemies ya existen en este scope
+                    var alt = PickAlternativeTarget(chosenTarget, visibleEnemies, enemies);
+                    chosenTarget = alt; // may remain if no alternative
+                }
+            }
+
             RegisterAction(bot, chosenAction, chosenTarget);
         }
 
@@ -1191,6 +1187,25 @@ public class GameManager : NetworkBehaviour
         return false;
     }
 
+    // ----- Bot nerf -----
+    [Header("Bot Nerf")]
+    [SerializeField] private bool botsEnableRandomSwitch = true;
+    [Range(0f, 1f)][SerializeField] private float botRandomSwitchChance = 0.7f;
+
+
+    // Returns an alternative target different from current if possible.
+    private PlayerController PickAlternativeTarget(PlayerController current, List<PlayerController> visible, List<PlayerController> all)
+    {
+        // Prefer visible pool if available
+        var pool = (visible != null && visible.Count > 0) ? visible : all;
+        if (pool == null || pool.Count == 0) return current;
+
+        // Build candidates excluding current
+        var candidates = pool.Where(p => p != null && p.isAlive && p != current).ToList();
+        if (candidates.Count == 0) return current;
+
+        return candidates[UnityEngine.Random.Range(0, candidates.Count)];
+    }
 
     #endregion
 
@@ -2064,16 +2079,7 @@ public class GameManager : NetworkBehaviour
     public void PlayerWentAfk(PlayerController p)
     {
         if (p == null) return;
-        /*
-        // Marcar como “muerto/desconectado” para el orden del leaderboard
-        p.isAlive = false;
-        if (!deadPlayers.Contains(p))
-        {
-            // FIX: usar pre-incremento e idempotente
-            if (p.deathOrder == 0) p.deathOrder = ++deathCounter;
-            deadPlayers.Add(p);
-        }*/
-        
+       
         p.isAfk = true;
 
         // Actualiza snapshot de stats y etiqueta “(Offline)” en UI

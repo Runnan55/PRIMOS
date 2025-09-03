@@ -276,16 +276,7 @@ public class CustomNetworkManager : NetworkManager
         crp.firebaseUID = msg.uid;
         crp.playerName = "Desconocido";
 
-        bool rejoined = MatchHandler.Instance.TryRejoinActiveMatchByUid(crp, msg.uid);
-
-        if (rejoined)
-        {
-            var match = MatchHandler.Instance.GetMatch(crp.currentMatchId);
-            if (match != null)
-            {
-                crp.TargetStartGame(conn, match.sceneName); // misma RPC que usa NotifyPlayersToLoadGameScene
-            }
-        }
+        MatchHandler.Instance.TryRejoinActiveMatchByUid(crp, msg.uid);
     }
 
     private System.Collections.IEnumerator DisconnectNextFrame(NetworkConnectionToClient c)
