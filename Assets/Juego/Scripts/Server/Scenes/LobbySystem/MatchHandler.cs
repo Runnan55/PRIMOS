@@ -658,6 +658,8 @@ public class MatchHandler : NetworkBehaviour
     [Server]
     public bool TryRejoinActiveMatchByUid(CustomRoomPlayer crp, string uid)
     {
+        LogWithTime.Log($"[REJOINDBG][MH.TryRejoin] uid={uid} crpScene={crp.gameObject.scene.name} t={Time.time:F3}");
+
         if (string.IsNullOrEmpty(uid) || crp == null) return false;
 
         // Busca una GameScene activa con un PlayerController humano con ese UID
@@ -702,21 +704,6 @@ public class MatchHandler : NetworkBehaviour
 
                 // Asignar autoridad al nuevo CRP
                 ni.AssignClientAuthority(crp.connectionToClient);
-            }
-
-            // Mueve CRP a la escena real y reconstruye observers (como haces en FocusResync)
-            var im = CustomSceneInterestManager.Instance;
-            if (im != null)
-            {
-                im.RegisterPlayer(crp.connectionToClient, match.sceneName);
-                if (!crp.connectionToClient.isReady) NetworkServer.SetClientReady(crp.connectionToClient);
-                var realScene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(match.sceneName);
-                if (realScene.IsValid() && crp.gameObject.scene != realScene)
-                    UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(crp.gameObject, realScene);
-
-                foreach (var ni2 in NetworkServer.spawned.Values.ToArray())
-                    if (ni2 != null && ni2.gameObject.scene == realScene)
-                        NetworkServer.RebuildObservers(ni2, initialize: false);
             }
 
             // Dispara carga de plantilla cliente si está en otra escena (reusa tu TargetStartGame)

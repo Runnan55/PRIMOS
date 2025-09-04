@@ -61,7 +61,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         base.OnStartLocalPlayer();
         LocalInstance = this;
         DontDestroyOnLoad(gameObject);
-        Debug.Log($"[CustomRoomPlayer] Soy el LocalPlayer en lobby. Mi ID es {playerId}");
+        LogWithTime.Log($"[CustomRoomPlayer] Soy el LocalPlayer en lobby. Mi ID es {playerId}");
 
         leaderboardCanvas.SetActive(false);
         if (exitGameButton) exitGameButton.onClick.AddListener(() => OnExitLeaderboardPressed());
@@ -74,7 +74,7 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         if (isLocalPlayer)
         {
-            Debug.Log("[CustomRoomPlayer] Cliente detenido, destruyendo instancia local.");
+            LogWithTime.Log("[CustomRoomPlayer] Cliente detenido, destruyendo instancia local.");
             LocalInstance = null;
             Destroy(gameObject);
         }
@@ -123,10 +123,8 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         // 2) Tu limpieza actual
         base.OnStopServer();
-        /*MatchHandler.Instance.LeaveMatch(this);
-        MatchHandler.Instance.RemoveFromMatchmakingQueue(this);*/
 
-        Debug.Log($"[SERVER] CustomRoomPlayer desconectado: {playerName}");
+        LogWithTime.Log($"[SERVER] CustomRoomPlayer desconectado: {playerName}");
     }
 
 
@@ -209,7 +207,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     public void CmdSetReady()
     {
         isReady = !isReady;
-        Debug.Log($"[SERVER] {playerName} está {(isReady ? "LISTO" : "NO LISTO")}");
+        LogWithTime.Log($"[SERVER] {playerName} está {(isReady ? "LISTO" : "NO LISTO")}");
 
         RpcRefreshLobbyForAll();
     }
@@ -221,7 +219,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         {
             if (syncedTickets <= 0)
             {
-                Debug.LogWarning("[CustomRoomPlayer] Sin tickets locales. Rechazando entrada.");
+                LogWithTime.LogWarning("[CustomRoomPlayer] Sin tickets locales. Rechazando entrada.");
                 TargetReturnToMainMenu(connectionToClient);
                 return;
             }
@@ -238,12 +236,10 @@ public class CustomRoomPlayer : NetworkBehaviour
                 {
                     if (!hasTicket)
                     {
-                        Debug.LogWarning("[CustomRoomPlayer] Ticket desincronizado. Expulsando.");
+                        LogWithTime.LogWarning("[CustomRoomPlayer] Ticket desincronizado. Expulsando.");
                         TargetReturnToMainMenu(connectionToClient);
                     }
                 }));
-
-                //StartCoroutine(DelayedTicketValidation(uid, connectionToClient));
             }
         }
         // Si es modo casual pasa directo
@@ -258,7 +254,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     {
         syncedTickets = tickets;
         syncedKeys = keys;
-        Debug.Log($"[CustomRoomPlayer] Wallet sync recibida: tickets={tickets}, keys={keys}");
+        LogWithTime.Log($"[CustomRoomPlayer] Wallet sync recibida: tickets={tickets}, keys={keys}");
     }
 
     private void MoveToLobbyScene(string mode)
@@ -269,7 +265,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         if (targetScene.IsValid())
         {
             SceneManager.MoveGameObjectToScene(gameObject, targetScene);
-            Debug.Log($"[SERVER] Jugador movido a escena: {sceneName}");
+            LogWithTime.Log($"[SERVER] Jugador movido a escena: {sceneName}");
         }
 
         currentMode = mode;
@@ -312,7 +308,6 @@ public class CustomRoomPlayer : NetworkBehaviour
     public void CmdToggleReady()
     {
         isReady = !isReady;
-        //MatchHandler.Instance.CheckStartGame(currentMatchId);
         MatchInfo match = MatchHandler.Instance.GetMatch(currentMatchId);
         if (match != null)
         {
@@ -335,12 +330,14 @@ public class CustomRoomPlayer : NetworkBehaviour
             ui.UpdatePlayerListFromData(new List<PlayerDataForLobby>(), ""); // Vaciar lista visual, con esto tmb eliminamos toda configuración previa como ADMIN
         }
 
-        Debug.Log("Te expulsaron CheBoludo, andás queriendo hacerte el graciocete eh pelotudo?");
+        LogWithTime.Log("Te expulsaron CheBoludo, andás queriendo hacerte el graciocete eh pelotudo?");
     }
 
     [TargetRpc]
     public void TargetStartGame(NetworkConnectionToClient conn, string sceneName)
     {
+        LogWithTime.Log($"[REJOINDBG][CRP.TargetStartGame] uid={firebaseUID} sceneName={sceneName} t={Time.time:F3}");
+
         if (loadingCanvas != null)
         {
             StartCoroutine(StartLoadingCanvasForAWhile());
@@ -351,8 +348,8 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         if (SceneManager.GetActiveScene().name != clientSceneName)
         {
-            Debug.Log($"[CLIENT] Cargando escena (plantilla): {clientSceneName}");
-            currentMatchId = sceneName; // GUARDAMOS la partida real (ejemplo "GameScene_7cddf7")
+            LogWithTime.Log($"[CLIENT] Cargando escena (plantilla): {clientSceneName}");
+            currentSceneName = sceneName; // guarda el nombre REAL de escena (GameScene_xxxx) para el Cmd
 
             SceneManager.sceneLoaded += OnGameSceneLoaded;
             SceneLoaderManager.Instance.LoadScene(clientSceneName);
@@ -370,28 +367,25 @@ public class CustomRoomPlayer : NetworkBehaviour
 
     private void OnGameSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        LogWithTime.Log($"[REJOINDBG][CRP.OnGameSceneLoaded] scene={scene.name} t={Time.time:F3}");
+
         SceneManager.sceneLoaded -= OnGameSceneLoaded;
 
-        Debug.Log("[CLIENT] GameScene cargada -> Registrando en CustomSceneInterestManager");
+        LogWithTime.Log("[CLIENT] GameScene cargada -> Registrando en CustomSceneInterestManager");
 
-        // 2) Registrar interés y, tras 1 frame, avisar ready
-        StartCoroutine(ReadyAfterOverlay());
-    }
-
-    private IEnumerator ReadyAfterOverlay()
-    {
-        // aseguras 1 frame con el overlay activo antes de que el server reconstruya observers y no se vean fantasmas
-        yield return null;
-
+        LogWithTime.Log($"[REJOINDBG][CRP.ReadyAfterOverlay] before CmdRegisterInterest t={Time.time:F3}");
         if (isLocalPlayer)
             CmdRegisterSceneInterest(currentSceneName);
 
+        LogWithTime.Log($"[REJOINDBG][CRP.ReadyAfterOverlay] before CmdNotifySceneReady t={Time.time:F3}");
         CmdNotifySceneReady();  // el server spawnea recién ahora
     }
 
     [Command]
     private void CmdNotifySceneReady()
     {
+        LogWithTime.Log($"[REJOINDBG][CRP.CmdNotifySceneReady] connId={connectionToClient?.connectionId} t={Time.time:F3}");
+
         isPlayingNow = true;
 
         var identity = GetComponent<NetworkIdentity>();
@@ -402,7 +396,7 @@ public class CustomRoomPlayer : NetworkBehaviour
             NetworkServer.RebuildObservers(identity, true);
         }
 
-        Debug.Log($"[SERVER] Cliente {playerName} avisó que cargó GameScene");
+        LogWithTime.Log($"[SERVER] Cliente {playerName} avisó que cargó GameScene");
 
         // Buscar el GameManager de la partida
         MatchInfo match = MatchHandler.Instance.GetMatch(currentMatchId);
@@ -423,13 +417,33 @@ public class CustomRoomPlayer : NetworkBehaviour
                     }
                 }
 
-                // Reconstruir observers de toda la escena para este cliente
+                /*// Reconstruir observers de toda la escena para este cliente
                 foreach (var go in gameScene.GetRootGameObjects())
                 {
                     foreach (var netId in go.GetComponentsInChildren<NetworkIdentity>(true))
                     {
                         NetworkServer.RebuildObservers(netId, true);
                     }
+                }*/
+
+                var im = CustomSceneInterestManager.Instance;
+                if (im != null) im.RegisterPlayer(connectionToClient, match.sceneName);
+
+                if (!connectionToClient.isReady)
+                    NetworkServer.SetClientReady(connectionToClient);
+
+                // 2) mover el CRP a la escena real (ayuda a OnCheckObserver)
+                if (gameObject.scene != gameScene)
+                    UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(gameObject, gameScene);
+
+                // 3) solo para este conn: rebuild de todos los NI de la escena con initialize:false
+                foreach (var ni in Mirror.NetworkServer.spawned.Values)
+                {
+                    if (ni == null) continue;
+                    if (ni.gameObject.scene != gameScene) continue;
+
+                    // con OnCheckObserver devolviendo true para este conn, esto lo agrega sin tocar a otros
+                    Mirror.NetworkServer.RebuildObservers(ni, initialize: false);
                 }
             }
         }
@@ -567,7 +581,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     {
         if (string.IsNullOrEmpty(currentMode))
         {
-            Debug.LogWarning($"[SERVER] {playerName} pidió lista sin haber elegido modo.");
+            LogWithTime.LogWarning($"[SERVER] {playerName} pidió lista sin haber elegido modo.");
             TargetReceiveMatchList(connectionToClient, new List<MatchInfo>());
             return;
         }
@@ -592,7 +606,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     [TargetRpc]
     public void TargetReturnToLobbyScene(NetworkConnection target, string mode)
     {
-        Debug.LogWarning("[CLIENT] No se pudo entrar: sala llena. Volviendo al lobby...");
+        LogWithTime.LogWarning("[CLIENT] No se pudo entrar: sala llena. Volviendo al lobby...");
         CmdRequestJoinLobbyScene(mode);
     }
 
@@ -626,11 +640,11 @@ public class CustomRoomPlayer : NetworkBehaviour
     {
         if (string.IsNullOrEmpty(currentMode))
         {
-            Debug.LogWarning("No se puede buscar partida sin haber elegido modo.");
+            LogWithTime.LogWarning("No se puede buscar partida sin haber elegido modo.");
             return;
         }
 
-        Debug.Log($"[SERVER] Jugador {playerName} busca partida...");
+        LogWithTime.Log($"[SERVER] Jugador {playerName} busca partida...");
 
         MatchHandler.Instance.EnqueueForMatchmaking(this);
     }
@@ -638,7 +652,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     [Command]
     public void CmdCancelSearch()
     {
-        Debug.Log($"[SERVER] Jugador {playerName} cancela búsqueda.");
+        LogWithTime.Log($"[SERVER] Jugador {playerName} cancela búsqueda.");
 
         MatchHandler.Instance.RemoveFromMatchmakingQueue(this);
     }
@@ -689,7 +703,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     {
         if (!AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
         {
-            Debug.LogWarning("[CustomRoomPlayer] No UID.");
+            LogWithTime.LogWarning("[CustomRoomPlayer] No UID.");
             return;
         }
 
@@ -752,7 +766,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         }
         else
         {
-            Debug.LogWarning("[CustomRoomPlayer] No se encontró UID para conexión. Asignando un nickname temporal para no quedar vacío");
+            LogWithTime.LogWarning("[CustomRoomPlayer] No se encontró UID para conexión. Asignando un nickname temporal para no quedar vacío");
             string finalName = GenerateDefaultNickname();
             playerName = finalName;
             TargetReceiveNickname(connectionToClient, finalName);
@@ -819,11 +833,19 @@ public class CustomRoomPlayer : NetworkBehaviour
         if (scene.IsValid() && gameObject.scene != scene)
             SceneManager.MoveGameObjectToScene(gameObject, scene);
 
-        // 4) Rebuild observers de todos los NetworkIdentity de esa escena
-        foreach (var ni in NetworkServer.spawned.Values.ToArray())
+        /*// 4) Rebuild observers de todos los NetworkIdentity de esa escena
+         foreach (var ni in NetworkServer.spawned.Values.ToArray())
+         {
+             if (ni != null && ni.gameObject.scene == scene)
+                 NetworkServer.RebuildObservers(ni, initialize: false);
+         }*/
+
+        // Rebuild solo en NIs de la escena real, initialize:false
+        foreach (var ni in Mirror.NetworkServer.spawned.Values)
         {
-            if (ni != null && ni.gameObject.scene == scene)
-                NetworkServer.RebuildObservers(ni, initialize: false);
+            if (ni == null) continue;
+            if (ni.gameObject.scene != scene) continue;
+            Mirror.NetworkServer.RebuildObservers(ni, initialize: false);
         }
     }
 
@@ -836,7 +858,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     {
         if (!AccountManager.Instance.TryGetFirebaseCredentials(connectionToClient, out var creds))
         {
-            Debug.LogWarning("[SERVER] No UID para leaderboard.");
+            LogWithTime.LogWarning("[SERVER] No UID para leaderboard.");
             return;
         }
 
@@ -856,6 +878,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     [Command]
     public void CmdRegisterSceneInterest(string realSceneName)
     {
+        LogWithTime.Log($"[REJOINDBG][CRP.CmdRegisterSceneInterest] connId={connectionToClient?.connectionId} scene={realSceneName} t={Time.time:F3}");
         var im = CustomSceneInterestManager.Instance;
         if (im == null) return;
 
@@ -969,7 +992,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     {
         var pc = pcIdentity != null ? pcIdentity.GetComponent<PlayerController>() : null;
         linkedPlayerController = pc;
-        Debug.Log($"[CRP] Linked local PC => {(pc != null ? pc.netId.ToString() : "null")}");
+        LogWithTime.Log($"[CRP] Linked local PC => {(pc != null ? pc.netId.ToString() : "null")}");
     }
 
     #endregion

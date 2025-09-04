@@ -28,7 +28,7 @@ public class CustomSceneInterestManager : SceneInterestManagement
     public void Unregister(NetworkConnection conn)
     {
         if (clientMatchScene.Remove(conn))
-            Debug.Log($"[Interest] Unregistered {conn}.");
+            LogWithTime.Log($"[Interest] Unregistered {conn}.");
     }
 
     public void RebuildSceneObservers(string sceneName, bool initialize = false)

@@ -185,6 +185,8 @@ public class GameManager : NetworkBehaviour
     {
         // 0) Preferir el link que dejó TryRejoinActiveMatchByUid
         PlayerController pc = roomPlayer.linkedPlayerController;
+        Debug.Log($"[REJOINDBG][GM.OnPlayerSceneReady] connId={roomPlayer.connectionToClient?.connectionId} link={(pc ? pc.netId : 0)} t={Time.time:F3}");
+
 
         // 1) Si no hay link, buscar por identidad lógica (playerId/UID) entre vivos…
         if (pc == null)
