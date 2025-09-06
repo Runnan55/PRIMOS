@@ -34,8 +34,8 @@ public enum BotPersonality {  Shy, Vengador, Aggro, Tactico }
 
 public class PlayerController : NetworkBehaviour
 {
-    public bool isAlive = true;
     [SyncVar] public PlayerController lastShotTarget = null;
+    [SyncVar(hook = nameof(OnAliveChanged))] public bool isAlive = true;
     [SyncVar(hook = nameof(OnAmmoChanged))] public int ammo;
     [SyncVar(hook = nameof(OnHealthChanged))] public int health; private int fullHealth; //Esta vida no es variable es para saber cual es la vida máxima
     [SyncVar(hook = nameof(OnNameConfirmedChanged))] public bool hasConfirmedName = false; //Decir al server que el jugador eligió nombre
@@ -299,8 +299,6 @@ public class PlayerController : NetworkBehaviour
 
             targetIndicator.SetActive(false);
 
-            gameModeCanvas.SetActive(true);
-
             botonesYTimerCanvas.SetActive(true);
             missions_Reward_GlobalMode.SetActive(true);
 
@@ -336,6 +334,11 @@ public class PlayerController : NetworkBehaviour
             botonesYTimerCanvas.SetActive(false);
             localPlayerIndicator.SetActive(false);
             gameModeCanvas.SetActive(false);
+
+            if (!isAlive)
+            {
+                ApplyDeathUI_Local(); // mismo set de apagados que el TargetRpc, pero local
+            }
         }
 
         fullHealth = health; //guardamos el valor inicial de health
@@ -455,9 +458,20 @@ public class PlayerController : NetworkBehaviour
     public override void OnStartClient()
     {
         base.OnStartClient();
+
         OnHealthChanged(health, health);
         OnAmmoChanged(ammo, ammo);
-        PlayDirectionalAnimation("Idle");
+
+        if (isAlive)
+        {
+            PlayDirectionalAnimation("Idle");
+
+        }
+        else
+        {
+            PlayDirectionalAnimation("Death");
+        }
+
         OnHideNameChanged(false, hideNameInRanked);
     }
 
@@ -655,6 +669,26 @@ public class PlayerController : NetworkBehaviour
             ammoText.text = $"{newAmmo}";
 
         SuperShootButtonAnimation(newAmmo);
+    }
+
+    private void OnAliveChanged(bool oldV, bool newV)
+    {
+        if (!newV) ApplyDeathUI_Local();   // sin RPC, solo local
+    }
+
+    // factoriza lo que ya haces en RpcOnDeath/TargetApplyDeathUI
+    private void ApplyDeathUI_Local()
+    {
+        PlayDirectionalAnimation("Death");
+        coverProbabilityText?.gameObject.SetActive(false);
+        healthText?.gameObject.SetActive(false);
+        ammoText?.gameObject.SetActive(false);
+        vidaAzulBarra?.SetActive(false); vidaRojaBarra?.SetActive(false);
+        corazonAzul?.SetActive(false);   corazonRojo?.SetActive(false);
+        parcaAzul?.SetActive(false);     parcaRojo?.SetActive(false);
+        bulletSprite?.SetActive(false);  targetIndicator?.SetActive(false);
+        gameModeCanvas?.SetActive(false);
+        if (isOwned) deathCanvas?.SetActive(true);
     }
 
     #endregion
@@ -863,7 +897,27 @@ public class PlayerController : NetworkBehaviour
     public GameObject parcaAzul;  // Parca para jugador local
     public GameObject parcaRojo;  // Parca para jugadores no locales
 
-    [ClientRpc]
+    [SyncVar(hook = nameof(OnParcaChanged))]
+    public bool isParca = false;
+
+    private void OnParcaChanged(bool oldValue, bool newValue)
+    {
+        // Update ONLY local visuals here (no RPC).
+        if (isOwned)
+        {
+            if (parcaAzul) parcaAzul.SetActive(newValue);
+            if (parcaRojo) parcaRojo.SetActive(false);
+            if (corazonAzul && newValue) corazonAzul.SetActive(false);
+        }
+        else
+        {
+            if (parcaRojo) parcaRojo.SetActive(newValue);
+            if (parcaAzul) parcaAzul.SetActive(false);
+            if (corazonRojo && newValue) corazonRojo.SetActive(false);
+        }
+    }
+
+    /*[ClientRpc]
     public void RpcSetParcaSprite(bool isActive)
     {
         if (isOwned)
@@ -878,7 +932,7 @@ public class PlayerController : NetworkBehaviour
             parcaAzul.SetActive(false);
             corazonRojo.SetActive(false);
         }
-    }
+    }*/
 
     #endregion
 
@@ -1163,6 +1217,7 @@ public class PlayerController : NetworkBehaviour
         if (isLocalPlayer || isOwned)
         {
             deathCanvas.SetActive(true);
+            isParca = false;
         }
 
         tikiSprite.SetActive(false); // Apagamos Tiki
@@ -1197,6 +1252,7 @@ public class PlayerController : NetworkBehaviour
         if (isLocalPlayer || isOwned)
         {
             drawCanvas.SetActive(true);
+            isParca = false;
         }
 
         PlayDirectionalAnimation("Death"); //Animacion de muerte 
@@ -1408,12 +1464,15 @@ public class PlayerController : NetworkBehaviour
             if (killer != null && killer != this)
             {
                 killer.kills++;
+
                 RolesManager rolesManager = FindRolesManagerInScene();
 
                 if (rolesManager != null)
                 {
                     rolesManager.RegisterKill(killer, this); // Aquí se asigna la muerte en el rolManager para el tema de Parca
                 }
+
+                RpcAnnounceKill(killer.playerName, this.playerName);
 
                 LogWithTime.Log($"[Kills] {killer.playerName} mató a {playerName} en la escena {gameObject.scene.name}, es un HOMICIDA, un SIKOPATA, un ASESINO, llamen a la POLIZIA por el AMOR DE DIOS.");
 
@@ -1552,16 +1611,6 @@ public class PlayerController : NetworkBehaviour
         // Futuro mostrar icono AFK o atenuar nombre
     }
 
-
-    [TargetRpc]
-    public void TargetSyncInGameUI(NetworkConnection target, bool decisionPhase)
-    {
-        if (waitingPlayers_Anim != null) waitingPlayers_Anim.SetActive(false);
-        if (gameModeCanvas != null) gameModeCanvas.SetActive(false);
-
-        clientDecisionPhase = decisionPhase; // refuerza coherencia local
-    }
-
     [TargetRpc]
     public void TargetApplyDeathUI(NetworkConnection target)
     {
@@ -1586,9 +1635,45 @@ public class PlayerController : NetworkBehaviour
 
         // y por si acaso:
         gameModeCanvas?.SetActive(false);
-        waitingPlayers_Anim?.SetActive(false);
 
         deathCanvas.SetActive(true);
+    }
+
+    [TargetRpc]
+    public void TargetRefreshLocalUI(NetworkConnection target)
+    {
+        lastCoverLevel = -1;
+        lastSuperShootLevel = -1;
+
+        // Forzar textos y sprites a su estado actual
+        OnHealthChanged(health, health);
+        OnAmmoChanged(ammo, ammo);
+        CoverButtonAnimation(consecutiveCovers);
+        
+        // ----- CANVAS -----
+        if (gameModeCanvas != null) gameModeCanvas.SetActive(false);
+    }
+
+    [TargetRpc]
+    public void TargetResyncParcaVisual(NetworkConnection target)
+    {
+        // Reaplica el estado actual sin depender de que el hook se dispare
+        OnParcaChanged(isParca, isParca);
+    }
+
+    #endregion
+
+    #region KillFeed
+
+    [Header("KillFeedUI")]
+    [SerializeField] private KillFeedUI killUI;
+
+    [ClientRpc]
+    public void RpcAnnounceKill(string killerName, string victimName)
+    {
+        // Busca el HUD local y agrega la entrada
+        var feed = FindFirstObjectByType<KillFeedUI>();
+        if (feed != null) feed.AddKillNames(killerName, victimName);
     }
 
     #endregion

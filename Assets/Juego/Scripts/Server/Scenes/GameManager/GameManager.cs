@@ -270,7 +270,6 @@ public class GameManager : NetworkBehaviour
         roomPlayer.linkedPlayerController = controller;
 
         RegisterPlayer(controller);
-        // ---------- /SPAWN INICIAL ----------
     }
 
     IEnumerator SendSyncWhenReady(PlayerController pc, CustomRoomPlayer roomPlayer)
@@ -300,10 +299,18 @@ public class GameManager : NetworkBehaviour
 
         if (pc == null || conn == null) yield break;
 
-        // aquí ya llegan seguro los TargetRpc
-        pc.TargetSyncInGameUI(conn, isDecisionPhase);       // apaga gameModeCanvas y waiting anim
-        pc.TargetPlayButtonAnimation(conn, isDecisionPhase);
+        // 0) Refrescar UI de botones y estados visuales (ammo/shield) del que reingresa
         TargetAnimationModifierFor(conn, SelectedModifier);
+        // 1) Boton/anim de fase (TargetRpc desde el server)
+        pc.TargetPlayButtonAnimation(conn, isDecisionPhase);
+        pc.TargetRefreshLocalUI(conn);
+        pc.TargetResyncParcaVisual(conn);
+        // 2) Si este frame estaba cubriendose, mantenerlo (ClientRpc desde el server)
+        if (pc.isCovering)            // ajusta el nombre si tu flag es distinto
+            pc.RpcUpdateCover(true);
+        // 3) Feedback corto "CoverBroken" si hubo bloqueo previo y YA no esta cubriendose
+        if (pc.wasShotBlockedThisRound && !pc.isCovering)  // ajusta nombres si difieren
+            pc.RpcForcePlayAnimation("CoverBroken");
 
         // Si vuelve muerto, fuerza su UI de muerte (no se re-reproduce RpcOnDeath)
         if (!pc.isAlive) pc.TargetApplyDeathUI(conn);

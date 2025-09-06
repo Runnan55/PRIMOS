@@ -1,12 +1,9 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
-using UnityEngine.InputSystem.XR.Haptics;
 
 public class RolesManager : NetworkBehaviour
 {
-    /*public static RolesManager Instance {  get; private set; }*/
-
     [SerializeField] private int ParcaKillRequirement;
     [SerializeField] private float ParcaRewardProbability;
 
@@ -82,7 +79,8 @@ public class RolesManager : NetworkBehaviour
     private void AssignParcaRole(PlayerController newParca, bool firstParca = true)
     {
         currentParca = newParca;
-        newParca.RpcSetParcaSprite(true);
+        newParca.isParca = true;
+        //newParca.RpcSetParcaSprite(true);
         newParca.ammo += 2;
 
         if (firstParca)
@@ -102,7 +100,8 @@ public class RolesManager : NetworkBehaviour
         if (currentParca != oldParca) return;// Asegurar que la Parca actual es la que muere
 
         // Quitar el rol de la Parca anterior
-        oldParca.RpcSetParcaSprite(false);
+        //oldParca.RpcSetParcaSprite(false);
+        oldParca.isParca = false;
         currentParca = null;
 
         AssignParcaRole(newParca, false);
