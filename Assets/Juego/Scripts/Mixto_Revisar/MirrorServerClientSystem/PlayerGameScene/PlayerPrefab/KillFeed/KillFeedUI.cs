@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,7 +9,6 @@ public class KillFeedUI : MonoBehaviour
 
     [Header("Behavior")]
     [SerializeField] private int maxEntries = 6;
-    [SerializeField] private float keepSeconds = 8f;
 
     private readonly List<KillFeedEntry> entries = new List<KillFeedEntry>();
 
@@ -19,7 +17,6 @@ public class KillFeedUI : MonoBehaviour
         if (container == null) container = (RectTransform)transform;
     }
 
-    // API simple: nombres solamente
     public void AddKillNames(string killerName, string victimName)
     {
         if (entryPrefab == null || container == null) return;
@@ -37,19 +34,14 @@ public class KillFeedUI : MonoBehaviour
             entries.RemoveAt(entries.Count - 1);
             if (last) Destroy(last.gameObject);
         }
-
-        // vida util
-        if (keepSeconds > 0f) StartCoroutine(AutoExpire(e, keepSeconds));
     }
 
-    private IEnumerator AutoExpire(KillFeedEntry e, float seconds)
+    public void ClearAll()
     {
-        yield return new WaitForSecondsRealtime(seconds);
-        if (e == null) yield break;
-
-        // quitar de la lista y destruir
-        int idx = entries.IndexOf(e);
-        if (idx >= 0) entries.RemoveAt(idx);
-        if (e != null) Destroy(e.gameObject);
+        for (int i = 0; i < entries.Count; i++)
+        {
+            if (entries[i]) Destroy(entries[i].gameObject);
+        }
+        entries.Clear();
     }
 }

@@ -296,6 +296,7 @@ public class PlayerController : NetworkBehaviour
             deathCanvas.SetActive(false);
             victoryCanvas.SetActive(false);
             drawCanvas.SetActive(false);
+            gameModeCanvas?.SetActive(true);
 
             targetIndicator.SetActive(false);
 
@@ -319,8 +320,6 @@ public class PlayerController : NetworkBehaviour
             corazonAzul.SetActive(true);
             vidaRojaBarra.SetActive(false);
             corazonRojo.SetActive(false);
-            parcaAzul.SetActive(false);
-            parcaRojo.SetActive(false);
         }
         else
         {
@@ -328,8 +327,6 @@ public class PlayerController : NetworkBehaviour
             corazonRojo.SetActive(true);
             vidaAzulBarra.SetActive(false);
             corazonAzul.SetActive(false);
-            parcaAzul.SetActive(false);
-            parcaRojo.SetActive(false);
 
             botonesYTimerCanvas.SetActive(false);
             localPlayerIndicator.SetActive(false);
@@ -341,6 +338,7 @@ public class PlayerController : NetworkBehaviour
             }
         }
 
+        OnParcaChanged(isParca, isParca);
         fullHealth = health; //guardamos el valor inicial de health
 
         if (targetIndicator != null)
@@ -917,23 +915,6 @@ public class PlayerController : NetworkBehaviour
         }
     }
 
-    /*[ClientRpc]
-    public void RpcSetParcaSprite(bool isActive)
-    {
-        if (isOwned)
-        {
-            parcaAzul.SetActive(isActive);
-            parcaRojo.SetActive(false);
-            corazonAzul.SetActive(false);
-        }
-        else
-        {
-            parcaRojo.SetActive(isActive);
-            parcaAzul.SetActive(false);
-            corazonRojo.SetActive(false);
-        }
-    }*/
-
     #endregion
 
     //Forzar sincronización inicial, sino no se verán los datos de los otros jugadores al inicio
@@ -1472,7 +1453,9 @@ public class PlayerController : NetworkBehaviour
                     rolesManager.RegisterKill(killer, this); // Aquí se asigna la muerte en el rolManager para el tema de Parca
                 }
 
-                RpcAnnounceKill(killer.playerName, this.playerName);
+                // if killer.hideNameInRanked is true, show (MrNobody)
+                string killerDisplay = (killer != null && killer.hideNameInRanked) ? "MrNobody" : killer.playerName;
+                GManager.ServerRelayKill(killerDisplay, this.playerName);
 
                 LogWithTime.Log($"[Kills] {killer.playerName} mató a {playerName} en la escena {gameObject.scene.name}, es un HOMICIDA, un SIKOPATA, un ASESINO, llamen a la POLIZIA por el AMOR DE DIOS.");
 
@@ -1650,8 +1633,7 @@ public class PlayerController : NetworkBehaviour
         OnAmmoChanged(ammo, ammo);
         CoverButtonAnimation(consecutiveCovers);
         
-        // ----- CANVAS -----
-        if (gameModeCanvas != null) gameModeCanvas.SetActive(false);
+        gameModeCanvas.SetActive(false);
     }
 
     [TargetRpc]
@@ -1672,8 +1654,13 @@ public class PlayerController : NetworkBehaviour
     public void RpcAnnounceKill(string killerName, string victimName)
     {
         // Busca el HUD local y agrega la entrada
-        var feed = FindFirstObjectByType<KillFeedUI>();
-        if (feed != null) feed.AddKillNames(killerName, victimName);
+        if (killUI != null) killUI.AddKillNames(killerName, victimName);
+    }
+
+    [ClientRpc]
+    public void RpcClearKillFeed()
+    {
+        if (killUI != null) killUI.ClearAll();
     }
 
     #endregion

@@ -65,6 +65,8 @@ public class GameManager : NetworkBehaviour
     private HashSet<string> startingHumans = new HashSet<string>(); // SnapShot de humanos que inician el juego
     private HashSet<uint> startingNetIds = new HashSet<uint>(); // Snapshot de TODOS los que inician (humanos y bots)
 
+    public IReadOnlyCollection<string> GetStartingHumans() => startingHumans;
+    public IReadOnlyCollection<uint> GetStartingNetIds() => startingNetIds;
 
     private Dictionary<PlayerController, PlayerAction> actionsQueue = new Dictionary<PlayerController, PlayerAction>();
     private Dictionary<string, string> playerIdToUid = new Dictionary<string, string>();
@@ -671,6 +673,7 @@ public class GameManager : NetworkBehaviour
             }
         }
 
+
         ApplyGameModifier(SelectedModifier);
 
         roundCycleCoroutine = StartCoroutine(RoundCycle());
@@ -860,7 +863,14 @@ public class GameManager : NetworkBehaviour
         try
         {
             foreach (var p in players)
+            {
                 p.clientDecisionPhase = true;
+                p.RpcClearKillFeed();
+            }
+            foreach (var d in deadPlayers)
+            {
+                d.RpcClearKillFeed();
+            }
         }
         catch (Exception e) { LogWithTime.LogWarning($"[GM] Decision.2(SetClientFlag): {e}"); }
 
@@ -2175,6 +2185,20 @@ public class GameManager : NetworkBehaviour
         }
 
         // Si hay humanos, nunca cierres aqui.
+    }
+
+    #endregion
+
+
+    #region KillFeed
+
+    [Server]
+    public void ServerRelayKill(string killerName, string victimName)
+    {
+        foreach (var player in players)
+        {
+            player.RpcAnnounceKill(killerName, victimName);
+        }
     }
 
     #endregion

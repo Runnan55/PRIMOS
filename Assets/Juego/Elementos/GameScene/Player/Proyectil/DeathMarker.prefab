@@ -35,7 +35,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 137, y: 0}
-  m_SizeDelta: {x: 175, y: 50}
+  m_SizeDelta: {x: 175, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4912592373458351932
 CanvasRenderer:
@@ -92,8 +92,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
-  m_fontSizeBase: 36
+  m_fontSize: 28
+  m_fontSizeBase: 28
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -187,11 +187,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a3f9bea8760b2754491e0608ae328506, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerAImage: {fileID: 0}
-  playerBImage: {fileID: 0}
-  playerAText: {fileID: 4709521539494569812}
-  playerBText: {fileID: 6797816079842091095}
-  cg: {fileID: 0}
+  killerText: {fileID: 4709521539494569812}
+  victimText: {fileID: 6797816079842091095}
 --- !u!1 &5068262857986345819
 GameObject:
   m_ObjectHideFlags: 0
@@ -227,7 +224,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -137, y: 0}
-  m_SizeDelta: {x: 175, y: 50}
+  m_SizeDelta: {x: 175, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8170326392391001143
 CanvasRenderer:
@@ -284,8 +281,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
-  m_fontSizeBase: 36
+  m_fontSize: 28
+  m_fontSizeBase: 28
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18

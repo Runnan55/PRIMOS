@@ -417,15 +417,6 @@ public class CustomRoomPlayer : NetworkBehaviour
                     }
                 }
 
-                /*// Reconstruir observers de toda la escena para este cliente
-                foreach (var go in gameScene.GetRootGameObjects())
-                {
-                    foreach (var netId in go.GetComponentsInChildren<NetworkIdentity>(true))
-                    {
-                        NetworkServer.RebuildObservers(netId, true);
-                    }
-                }*/
-
                 var im = CustomSceneInterestManager.Instance;
                 if (im != null) im.RegisterPlayer(connectionToClient, match.sceneName);
 
@@ -437,14 +428,8 @@ public class CustomRoomPlayer : NetworkBehaviour
                     UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(gameObject, gameScene);
 
                 // 3) solo para este conn: rebuild de todos los NI de la escena con initialize:false
-                foreach (var ni in Mirror.NetworkServer.spawned.Values)
-                {
-                    if (ni == null) continue;
-                    if (ni.gameObject.scene != gameScene) continue;
-
-                    // con OnCheckObserver devolviendo true para este conn, esto lo agrega sin tocar a otros
-                    Mirror.NetworkServer.RebuildObservers(ni, initialize: false);
-                }
+                if (linkedPlayerController != null)
+                    NetworkServer.RebuildObservers(linkedPlayerController.netIdentity, true);
             }
         }
     }
@@ -833,20 +818,8 @@ public class CustomRoomPlayer : NetworkBehaviour
         if (scene.IsValid() && gameObject.scene != scene)
             SceneManager.MoveGameObjectToScene(gameObject, scene);
 
-        /*// 4) Rebuild observers de todos los NetworkIdentity de esa escena
-         foreach (var ni in NetworkServer.spawned.Values.ToArray())
-         {
-             if (ni != null && ni.gameObject.scene == scene)
-                 NetworkServer.RebuildObservers(ni, initialize: false);
-         }*/
-
-        // Rebuild solo en NIs de la escena real, initialize:false
-        foreach (var ni in Mirror.NetworkServer.spawned.Values)
-        {
-            if (ni == null) continue;
-            if (ni.gameObject.scene != scene) continue;
-            Mirror.NetworkServer.RebuildObservers(ni, initialize: false);
-        }
+        if (linkedPlayerController != null)
+            NetworkServer.RebuildObservers(linkedPlayerController.netIdentity, false);
     }
 
     #endregion
@@ -897,11 +870,8 @@ public class CustomRoomPlayer : NetworkBehaviour
         // 4) Rebuild solo de los objetos de esa escena
         if (scene.IsValid())
         {
-            foreach (var ni in Mirror.NetworkServer.spawned.Values)
-            {
-                if (ni != null && ni.gameObject.scene == scene)
-                    Mirror.NetworkServer.RebuildObservers(ni, false);
-            }
+            if (linkedPlayerController != null)
+                NetworkServer.RebuildObservers(linkedPlayerController.netIdentity, false);
         }
     }
 

@@ -44,6 +44,10 @@ public class CustomSceneInterestManager : SceneInterestManagement
 
     public override bool OnCheckObserver(NetworkIdentity identity, NetworkConnectionToClient newObserver)
     {
+        // Blindaje: durante focus/resume la identity del observer puede ser null
+        if (identity == null || newObserver == null || newObserver.identity == null || newObserver.identity.gameObject == null)
+            return false;
+
         Scene objectScene = identity.gameObject.scene;
         Scene observerScene = newObserver.identity.gameObject.scene;
 

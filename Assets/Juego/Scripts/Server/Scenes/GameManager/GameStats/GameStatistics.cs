@@ -98,6 +98,16 @@ public class GameStatistic : NetworkBehaviour
         }
 
         // 2) Union: incoming controllers + previous disconnected rows
+        var allowedUids = new HashSet<string>();
+        var allowedNetIds = new HashSet<uint>();
+        if (gm != null)
+        {
+            // read-only getters you expusiste
+            foreach (var u in gm.GetStartingHumans()) allowedUids.Add(u);
+            foreach (var n in gm.GetStartingNetIds()) allowedNetIds.Add(n);
+        }
+
+
         var rows = new List<PlayerInfo>();
         var seen = new HashSet<string>();
 
@@ -109,6 +119,11 @@ public class GameStatistic : NetworkBehaviour
             string uid = !string.IsNullOrEmpty(pc.firebaseUID)
                 ? pc.firebaseUID
                 : (pc.ownerRoomPlayer != null ? pc.ownerRoomPlayer.firebaseUID : null);
+
+            bool allowByNet = allowedNetIds.Count == 0 || allowedNetIds.Contains(pc.netId);
+            bool allowByUid = !string.IsNullOrEmpty(uid) && allowedUids.Contains(uid);
+
+            if (!allowByNet && !allowByUid) continue;
 
             rows.Add(new PlayerInfo(
                 uid,
@@ -133,6 +148,9 @@ public class GameStatistic : NetworkBehaviour
         {
             var key = string.IsNullOrEmpty(pi.uid) ? pi.playerName : pi.uid;
             if (seen.Contains(key)) continue;
+
+            // IMPORTANT: only humans that were in the starting snapshot
+            if (string.IsNullOrEmpty(pi.uid) || !allowedUids.Contains(pi.uid)) continue;
 
             rows.Add(new PlayerInfo(
                 pi.uid,
