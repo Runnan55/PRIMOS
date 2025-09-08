@@ -67,6 +67,11 @@ public class MainLobbyUI : MonoBehaviour
     [Header("LoadingScreen")]
     [SerializeField] private GameObject loadingScreen;
 
+    [Header("Tutorial")]
+    public GameObject tutorialPanel;
+    public Button backFromTutorialButton;
+    public Button tutorialButton;
+
     private Dictionary<string, string> modeToScene = new Dictionary<string, string>()
     {
         { "Casual", "LobbySceneCasual" },
@@ -92,6 +97,9 @@ public class MainLobbyUI : MonoBehaviour
         audioButton.onClick.AddListener(OpenAudioPanel);
         backFromSettingsButton.onClick.AddListener(CloseSettingsPanel);
         backFromAudioButton.onClick.AddListener(CloseAudioPanel);
+
+        backFromTutorialButton.onClick.AddListener(CloseTutorialPanel);
+        tutorialButton.onClick.AddListener(OpenTutorialPanel);
 
         CursorSetup.I?.UsePinkCursor();
 
@@ -232,6 +240,16 @@ public class MainLobbyUI : MonoBehaviour
     private void CloseAudioPanel()
     {
         audioPanel.SetActive(false);
+    }
+
+    private void OpenTutorialPanel()
+    {
+        tutorialPanel.SetActive(true);
+    }
+
+    private void CloseTutorialPanel()
+    {
+        tutorialPanel.SetActive(false);
     }
 
     #endregion

@@ -114,7 +114,9 @@ public class PlayerController : NetworkBehaviour
     [Header("MisionesRápidas")]
     public QuickMission currentQuickMission = null;
     [SyncVar] public bool wasShotBlockedThisRound = false;
-    [SyncVar] public bool hasDoubleDamage = false;
+    [SyncVar(hook = nameof(OnDoubleDamageChanged))] public bool hasDoubleDamage = false;
+    [SerializeField] private GameObject doubleDamageIndicator;
+
     [SyncVar] public bool shieldBoostActivate = false;
     [SyncVar] public bool hasDamagedAnotherPlayerThisRound = false;
     [SyncVar] public bool hasQMRewardThisRound = false;
@@ -459,6 +461,7 @@ public class PlayerController : NetworkBehaviour
 
         OnHealthChanged(health, health);
         OnAmmoChanged(ammo, ammo);
+        OnDoubleDamageChanged(hasDoubleDamage, hasDoubleDamage);
 
         if (isAlive)
         {
@@ -472,6 +475,13 @@ public class PlayerController : NetworkBehaviour
 
         OnHideNameChanged(false, hideNameInRanked);
     }
+
+    void OnDoubleDamageChanged(bool oldValue, bool newValue)
+    {
+        if (doubleDamageIndicator != null)
+            doubleDamageIndicator.SetActive(newValue);
+    }
+
 
     public override void OnStartServer()
     {
@@ -686,6 +696,7 @@ public class PlayerController : NetworkBehaviour
         parcaAzul?.SetActive(false);     parcaRojo?.SetActive(false);
         bulletSprite?.SetActive(false);  targetIndicator?.SetActive(false);
         gameModeCanvas?.SetActive(false);
+        hasDoubleDamage = false;
         if (isOwned) deathCanvas?.SetActive(true);
     }
 
@@ -1225,6 +1236,7 @@ public class PlayerController : NetworkBehaviour
 
         bulletSprite?.SetActive(false);
         targetIndicator?.SetActive(false);
+        hasDoubleDamage = false;
     }
 
     [ClientRpc]
@@ -1259,6 +1271,7 @@ public class PlayerController : NetworkBehaviour
 
         bulletSprite?.SetActive(false);
         targetIndicator?.SetActive(false);
+        hasDoubleDamage = false;
     }
 
     [ClientRpc]
