@@ -21,11 +21,10 @@ public class FocusResync : NetworkBehaviour
         enabled = true;
     }
 
-    // Cuando vuelve el foco a la pestaña
     [ClientCallback]
     void OnApplicationFocus(bool hasFocus)
     {
-        if (hasFocus) TryResync();
+        if (!hasFocus) TryResync();
     }
 
     // Cuando “despausa” (WebGL vuelve a foreground)
@@ -51,10 +50,15 @@ public class FocusResync : NetworkBehaviour
         yield return null;
         yield return new WaitForSeconds(0.1f);   // aire al volver del background
 
+        
         if (!Mirror.NetworkClient.ready)
             Mirror.NetworkClient.Ready();        // cliente en Ready
 
-        room.CmdRegisterSceneInterest(room.currentMatchId); // <-- NUEVO: asegura mapeo server-side
+        // solo enviar el nombre real si ya lo conocemos
+        if (!string.IsNullOrEmpty(room.currentSceneName))
+            room.CmdRegisterSceneInterest(room.currentSceneName);
+
+        //room.CmdRegisterSceneInterest(room.currentSceneName); // <-- NUEVO: asegura mapeo server-side
         room.CmdRequestResyncObservers();                   // rebuild observers de tu partida
     }
 }

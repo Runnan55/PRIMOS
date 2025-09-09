@@ -244,11 +244,13 @@ public class MainLobbyUI : MonoBehaviour
 
     private void OpenTutorialPanel()
     {
+        AudioManager.Instance.PlaySFX("Clic");
         tutorialPanel.SetActive(true);
     }
 
     private void CloseTutorialPanel()
     {
+        AudioManager.Instance.PlaySFX("Clic");
         tutorialPanel.SetActive(false);
     }
 

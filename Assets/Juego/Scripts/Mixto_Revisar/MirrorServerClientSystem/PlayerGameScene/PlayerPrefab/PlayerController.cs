@@ -696,7 +696,6 @@ public class PlayerController : NetworkBehaviour
         parcaAzul?.SetActive(false);     parcaRojo?.SetActive(false);
         bulletSprite?.SetActive(false);  targetIndicator?.SetActive(false);
         gameModeCanvas?.SetActive(false);
-        hasDoubleDamage = false;
         if (isOwned) deathCanvas?.SetActive(true);
     }
 
@@ -1189,7 +1188,7 @@ public class PlayerController : NetworkBehaviour
     {
         isCovering = coverState;
     }
-
+    
     #region UI Handling
 
     [ClientRpc]
@@ -1236,7 +1235,6 @@ public class PlayerController : NetworkBehaviour
 
         bulletSprite?.SetActive(false);
         targetIndicator?.SetActive(false);
-        hasDoubleDamage = false;
     }
 
     [ClientRpc]
@@ -1271,7 +1269,6 @@ public class PlayerController : NetworkBehaviour
 
         bulletSprite?.SetActive(false);
         targetIndicator?.SetActive(false);
-        hasDoubleDamage = false;
     }
 
     [ClientRpc]
@@ -1479,6 +1476,7 @@ public class PlayerController : NetworkBehaviour
             }
 
             GManager.PlayerDied(this); // Aquí se vuelve a asignar la muerte en el Gamemanager pa otras cosas, no está bien optimizado, deberían ir juntos
+            OnDoubleDamageChanged(hasDoubleDamage, false);
         }
 
         StartCoroutine(DelayedPlayStunnedAnimation()); // Vamos a actualizar el estado de vida y esperar un segundo para mandar la animación de recibir daño, damos tiempo a que se ejecuten otras animaciones
@@ -1633,6 +1631,20 @@ public class PlayerController : NetworkBehaviour
         gameModeCanvas?.SetActive(false);
 
         deathCanvas.SetActive(true);
+    }
+
+    [TargetRpc]
+    public void TargetUpdateCover(NetworkConnection target, bool on)
+    {
+        // mismo cuerpo que RpcUpdateCover, pero sin broadcast
+        isCovering = on;
+        // aqui lo que haces de anim/estado de cover
+    }
+
+    [TargetRpc]
+    public void TargetForcePlayAnimation(NetworkConnection target, string anim)
+    {
+        PlayDirectionalAnimation(anim);
     }
 
     [TargetRpc]

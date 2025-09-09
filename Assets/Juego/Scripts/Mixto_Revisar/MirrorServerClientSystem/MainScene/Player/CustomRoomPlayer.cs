@@ -797,7 +797,7 @@ public class CustomRoomPlayer : NetworkBehaviour
 
     #region FocusResync resincronizar al Alt + Tab
 
-    [Command]
+    /*[Command]
     public void CmdRequestResyncObservers()
     {
         var conn = connectionToClient;
@@ -820,6 +820,52 @@ public class CustomRoomPlayer : NetworkBehaviour
 
         if (linkedPlayerController != null)
             NetworkServer.RebuildObservers(linkedPlayerController.netIdentity, false);
+    }*/
+
+    [Command]
+    public void CmdRequestResyncObservers()
+    {
+        var conn = connectionToClient;
+        if (conn == null || !isPlayingNow || string.IsNullOrEmpty(currentMatchId)) return;
+
+        var im = CustomSceneInterestManager.Instance;
+        var match = MatchHandler.Instance.GetMatch(currentMatchId);
+        if (im == null || match == null) return;
+
+        // 1) afirmar interes para ESTE conn (OnCheckObserver devolvera true en su GameScene)
+        im.RegisterPlayer(conn, match.sceneName);
+
+        // 2) Ready si faltaba
+        if (!conn.isReady) NetworkServer.SetClientReady(conn);
+
+        // 3) mover el CRP a la escena real (coincidir criterio de interes)
+        var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(match.sceneName);
+        if (scene.IsValid() && gameObject.scene != scene)
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(gameObject, scene);
+
+        // 4) Rebuild por-identidad (API publica). Esto NO envia animaciones;
+        // solo envia Spawn a quien no lo tenia. Para conexiones que ya observan, no hace nada.
+        // Si prefieres, puedes iterar solo los NIs relevantes (PCs + GM),
+        // pero aqui iterar todos es seguro: no resetea a otros mientras no uses ClientRpc.
+        foreach (var root in scene.GetRootGameObjects())
+        {
+            var nis = root.GetComponentsInChildren<NetworkIdentity>(true);
+            for (int i = 0; i < nis.Length; i++)
+            {
+                var ni = nis[i];
+                if (ni == null) continue;
+                NetworkServer.RebuildObservers(ni, initialize: true);
+            }
+        }
+
+        // 5) Refuerzo puntual de tu PC (por si aparecio despues)
+        if (linkedPlayerController != null && linkedPlayerController.netIdentity != null)
+            NetworkServer.RebuildObservers(linkedPlayerController.netIdentity, initialize: true);
+
+        // Nota MUY importante:
+        // A partir de aqui, en el lado de GameManager usa SOLO TargetRpc
+        // (TargetPlayButtonAnimation, TargetRefreshLocalUI, TargetForcePlayAnimation, etc.).
+        // Si queda un Rpc... en SendSyncWhenReady o helpers, ese es el que pisa animaciones ajenas.
     }
 
     #endregion

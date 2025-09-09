@@ -280,7 +280,8 @@ public class GameManager : NetworkBehaviour
         float deadline = Time.time + 3f; // timeout defensivo
 
         // forzar rebuild y esperar a que el PC sea visible para este conn
-        NetworkServer.RebuildObservers(pc.netIdentity, false);
+        //NetworkServer.RebuildObservers(pc.netIdentity, false);
+        //NetworkServer.RebuildObservers(pc.netIdentity, true);
         yield return null; // al menos 1 frame
 
         while (Time.time < deadline)
@@ -293,7 +294,7 @@ public class GameManager : NetworkBehaviour
             bool owned = pcOk && pc.netIdentity.connectionToClient == conn;
 
             // DEBUG útil para tus logs
-            Debug.Log($"[GameManager] ReadySync -> pcNetId={pc.netId} observedByConn={pc.netIdentity.observers.ContainsKey(cid)} ownedByConn={(pc.netIdentity.connectionToClient == conn)}");
+            Debug.Log($"[GameManager] ReadySync -> pcNetId={pc.netId} observedByConn={observed} ownedByConn={owned}");
 
             if (hasConn && observed && owned) break;
             yield return null;
@@ -309,10 +310,10 @@ public class GameManager : NetworkBehaviour
         pc.TargetResyncParcaVisual(conn);
         // 2) Si este frame estaba cubriendose, mantenerlo (ClientRpc desde el server)
         if (pc.isCovering)            // ajusta el nombre si tu flag es distinto
-            pc.RpcUpdateCover(true);
+            pc.TargetUpdateCover(conn, true);
         // 3) Feedback corto "CoverBroken" si hubo bloqueo previo y YA no esta cubriendose
         if (pc.wasShotBlockedThisRound && !pc.isCovering)  // ajusta nombres si difieren
-            pc.RpcForcePlayAnimation("CoverBroken");
+            pc.TargetForcePlayAnimation(conn, "CoverBroken");
 
         // Si vuelve muerto, fuerza su UI de muerte (no se re-reproduce RpcOnDeath)
         if (!pc.isAlive) pc.TargetApplyDeathUI(conn);
@@ -1096,17 +1097,24 @@ public class GameManager : NetworkBehaviour
 
             if ((chosenAction == ActionType.Shoot || chosenAction == ActionType.SuperShoot) && chosenTarget == null)
             {
-                if (hasAmmo && visibleEnemies.Count > 0)
+                if (hasAmmo)
                 {
-                    chosenTarget = visibleEnemies[UnityEngine.Random.Range(0, visibleEnemies.Count)];
-                }
-                else if (!hasAmmo)
-                {
-                    chosenAction = ActionType.Reload;
+                    if (visibleEnemies.Count > 0)
+                    {
+                        chosenTarget = visibleEnemies[UnityEngine.Random.Range(0, visibleEnemies.Count)];
+                    }
+                    else if (enemies.Count > 0)
+                    {
+                        chosenTarget = enemies[UnityEngine.Random.Range(0, enemies.Count)];
+                    }
+                    else
+                    {
+                        chosenAction = ActionType.Reload; // no hay nadie a quien disparar
+                    }
                 }
                 else
                 {
-                    chosenAction = ActionType.None;
+                    chosenAction = ActionType.Reload; // no tiene balas
                 }
             }
 
