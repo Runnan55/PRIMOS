@@ -1476,7 +1476,7 @@ public class PlayerController : NetworkBehaviour
             }
 
             GManager.PlayerDied(this); // Aquí se vuelve a asignar la muerte en el Gamemanager pa otras cosas, no está bien optimizado, deberían ir juntos
-            OnDoubleDamageChanged(hasDoubleDamage, false);
+            hasDoubleDamage = false;
         }
 
         StartCoroutine(DelayedPlayStunnedAnimation()); // Vamos a actualizar el estado de vida y esperar un segundo para mandar la animación de recibir daño, damos tiempo a que se ejecuten otras animaciones

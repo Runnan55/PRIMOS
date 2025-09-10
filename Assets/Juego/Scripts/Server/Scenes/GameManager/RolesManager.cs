@@ -36,7 +36,7 @@ public class RolesManager : NetworkBehaviour
             killer.ServerHeal(1);
         }
 
-        TryAssignParcaRole();
+        TryAssignParcaRole(killer);
 
         //Actualizar stats después de matar
         GameStatistic stats = GameObject.FindFirstObjectByType<GameStatistic>();
@@ -47,31 +47,20 @@ public class RolesManager : NetworkBehaviour
     }
 
     [Server]
-    private void TryAssignParcaRole()
+    private void TryAssignParcaRole(PlayerController killer)
     {
         if (currentParca != null) return; //Si hay Parca, no se asignan más
+        if (killer == null) return;
 
-        List<PlayerController> potentialParcas = new List<PlayerController>();
+        // Requisito: 2+ kills
+        if (!playerKills.TryGetValue(killer, out int k) || k < ParcaKillRequirement)
+            return;
 
-        foreach (var entry in playerKills) //Buscar jugadores con 2 kills o más
-        {
-            if (entry.Value >= ParcaKillRequirement)
-            {
-                potentialParcas.Add(entry.Key);
-            }
-        }
-
-        if (potentialParcas.Count == 0) return; //Nadie cumple los requisitos
-
-        //Si hay más de un candidato, elegir al azar
-        PlayerController selectedParca = potentialParcas.Count == 1
-            ? potentialParcas[0]
-            : potentialParcas[Random.Range(0, potentialParcas.Count)];
-
+        // Probabilidad: 70% por kill a partir de la segunda
         // Verificar probabilidad antes de asignar el rol
         if (Random.value <= ParcaRewardProbability)
         {
-            AssignParcaRole(selectedParca, true);
+            AssignParcaRole(killer, true);
         }
     }
 
@@ -105,11 +94,5 @@ public class RolesManager : NetworkBehaviour
         currentParca = null;
 
         AssignParcaRole(newParca, false);
-
-        // Si el asesino califica, hereda el rol
-        if (playerKills.ContainsKey(newParca) && playerKills[newParca] >= ParcaKillRequirement)
-        {
-            AssignParcaRole(newParca, false);
-        }
     }
 }
