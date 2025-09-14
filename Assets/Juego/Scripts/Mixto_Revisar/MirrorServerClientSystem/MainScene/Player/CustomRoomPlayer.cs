@@ -393,7 +393,7 @@ public class CustomRoomPlayer : NetworkBehaviour
         {
             identity.sceneId = 0;
 
-            NetworkServer.RebuildObservers(identity, true);
+            NetworkServer.RebuildObservers(identity, false);
         }
 
         LogWithTime.Log($"[SERVER] Cliente {playerName} avisó que cargó GameScene");
@@ -429,7 +429,7 @@ public class CustomRoomPlayer : NetworkBehaviour
 
                 // 3) solo para este conn: rebuild de todos los NI de la escena con initialize:false
                 if (linkedPlayerController != null)
-                    NetworkServer.RebuildObservers(linkedPlayerController.netIdentity, true);
+                    NetworkServer.RebuildObservers(linkedPlayerController.netIdentity, initialize: false);
             }
         }
     }
@@ -823,7 +823,7 @@ public class CustomRoomPlayer : NetworkBehaviour
     }*/
 
     [Command]
-    public void CmdRequestResyncObservers()
+    public void CmdRequestResyncObservers(uint[] missingIds, bool forceSceneSweep)
     {
         var conn = connectionToClient;
         if (conn == null || !isPlayingNow || string.IsNullOrEmpty(currentMatchId)) return;
@@ -832,40 +832,149 @@ public class CustomRoomPlayer : NetworkBehaviour
         var match = MatchHandler.Instance.GetMatch(currentMatchId);
         if (im == null || match == null) return;
 
-        // 1) afirmar interes para ESTE conn (OnCheckObserver devolvera true en su GameScene)
+        // 1) ensure interest mapping and ready
         im.RegisterPlayer(conn, match.sceneName);
-
-        // 2) Ready si faltaba
         if (!conn.isReady) NetworkServer.SetClientReady(conn);
 
-        // 3) mover el CRP a la escena real (coincidir criterio de interes)
+        // 2) move CRP to the real match scene (consistent interest)
         var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(match.sceneName);
-        if (scene.IsValid() && gameObject.scene != scene)
+        if (!scene.IsValid()) return;
+        if (gameObject.scene != scene)
             UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(gameObject, scene);
 
-        // 4) Rebuild por-identidad (API publica). Esto NO envia animaciones;
-        // solo envia Spawn a quien no lo tenia. Para conexiones que ya observan, no hace nada.
-        // Si prefieres, puedes iterar solo los NIs relevantes (PCs + GM),
-        // pero aqui iterar todos es seguro: no resetea a otros mientras no uses ClientRpc.
-        foreach (var root in scene.GetRootGameObjects())
+        int connId = conn.connectionId;
+        int rebuilt = 0;
+
+        // A) targeted: only the netIds reported as missing
+        if (missingIds != null && missingIds.Length > 0)
         {
-            var nis = root.GetComponentsInChildren<NetworkIdentity>(true);
-            for (int i = 0; i < nis.Length; i++)
+            foreach (var id in missingIds)
             {
-                var ni = nis[i];
-                if (ni == null) continue;
-                NetworkServer.RebuildObservers(ni, initialize: true);
+                if (!NetworkServer.spawned.TryGetValue(id, out var ni)) continue;
+                if (ni == null || ni.gameObject.scene != scene) continue;
+
+                // Force a fresh AddObserver ONLY for this connection by removing the link for this conn
+                if (ni.observers != null && ni.observers.ContainsKey(connId))
+                {
+                    ni.observers.Remove(connId);
+                    if (conn.observing != null) conn.observing.Remove(ni);
+                }
+
+                // This will send SPAWN only to this conn (diff-based, no resets to others)
+                NetworkServer.RebuildObservers(ni, initialize: false);
+                rebuilt++;
             }
+
+            // optional: second pass next frame to avoid race with incoming Syncs
+            StartCoroutine(TargetedResyncPass2(missingIds));
+
+            LogWithTime.Log($"[REJOINDBG][CRP.Resync] targeted forConn={connId} rebuilt={rebuilt} missing={missingIds.Length}");
+            return;
         }
 
-        // 5) Refuerzo puntual de tu PC (por si aparecio despues)
-        if (linkedPlayerController != null && linkedPlayerController.netIdentity != null)
-            NetworkServer.RebuildObservers(linkedPlayerController.netIdentity, initialize: true);
+        // B) fallback: sweep only what this conn is not seeing (or full sweep if forced)
+        foreach (var kv in NetworkServer.spawned)
+        {
+            var ni = kv.Value;
+            if (ni == null) continue;
+            if (ni.gameObject.scene != scene) continue;
 
-        // Nota MUY importante:
-        // A partir de aqui, en el lado de GameManager usa SOLO TargetRpc
-        // (TargetPlayButtonAnimation, TargetRefreshLocalUI, TargetForcePlayAnimation, etc.).
-        // Si queda un Rpc... en SendSyncWhenReady o helpers, ese es el que pisa animaciones ajenas.
+            if (!forceSceneSweep && ni.GetComponent<PlayerController>() == null) continue;
+            if (ni.observers != null && ni.observers.ContainsKey(connId)) continue;
+
+            NetworkServer.RebuildObservers(ni, initialize: false);
+            rebuilt++;
+        }
+
+        LogWithTime.Log($"[REJOINDBG][CRP.Resync] fallback forConn={connId} rebuilt={rebuilt} sweep={forceSceneSweep}");
+    }
+
+    [Server]
+    private IEnumerator TargetedResyncPass2(uint[] ids)
+    {
+        // one frame later to ensure SPAWN hits the client before more Syncs
+        yield return null;
+
+        var conn = connectionToClient;
+        if (conn == null) yield break;
+
+        var match = MatchHandler.Instance.GetMatch(currentMatchId);
+        if (match == null) yield break;
+
+        var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(match.sceneName);
+        if (!scene.IsValid()) yield break;
+
+        foreach (var id in ids)
+        {
+            if (!NetworkServer.spawned.TryGetValue(id, out var ni)) continue;
+            if (ni == null || ni.gameObject.scene != scene) continue;
+            NetworkServer.RebuildObservers(ni, initialize: false);
+        }
+    }
+
+    [Server]
+    private IEnumerator TargetedResyncCoroutine(NetworkConnectionToClient toClient, string sceneName, uint[] missingIds)
+    {
+        var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(sceneName);
+        int rebuilt = 0;
+
+        // pass 1: immediately after RegisterPlayer/SetClientReady
+        for (int i = 0; i < missingIds.Length; i++)
+        {
+            if (!NetworkServer.spawned.TryGetValue(missingIds[i], out var ni)) continue;
+            if (ni == null || ni.gameObject.scene != scene) continue;
+            NetworkServer.RebuildObservers(ni, initialize: false);
+            rebuilt++;
+        }
+
+        // wait one frame to let interest changes settle and SPAWN be delivered
+        yield return null;
+
+        // pass 2: ensure the SPAWN got sent before further updates
+        for (int i = 0; i < missingIds.Length; i++)
+        {
+            if (!NetworkServer.spawned.TryGetValue(missingIds[i], out var ni)) continue;
+            if (ni == null || ni.gameObject.scene != scene) continue;
+            NetworkServer.RebuildObservers(ni, initialize: false);
+        }
+
+        LogWithTime.Log($"[REJOINDBG][CRP.Resync] targeted 2-pass rebuilt={rebuilt} missing={missingIds.Length}");
+    }
+
+    static bool IsKeyObjectForSnapshot(NetworkIdentity ni)
+    {
+        return ni != null && ni.GetComponent<PlayerController>() != null;
+    }
+
+    [Command]
+    public void CmdRequestExpectedSnapshot()
+    {
+        var match = MatchHandler.Instance.GetMatch(currentMatchId);
+        if (match == null) return;
+
+        var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByName(match.sceneName);
+        if (!scene.IsValid()) return;
+
+        var ids = new List<uint>();
+
+        foreach (var kv in NetworkServer.spawned)
+        {
+            var ni = kv.Value;
+            if (ni == null) continue;
+            if (ni.gameObject.scene != scene) continue;
+
+            if (IsKeyObjectForSnapshot(ni))
+                ids.Add(ni.netId);
+        }
+
+        int expectedAlivePlayers = ids.Count; // players-only
+        TargetReceiveExpectedSnapshot(connectionToClient, ids.ToArray(), expectedAlivePlayers);
+    }
+
+    [TargetRpc]
+    void TargetReceiveExpectedSnapshot(NetworkConnection target, uint[] ids, int expectedPlayers)
+    {
+        FocusResync.SetExpectedSnapshot(ids, expectedPlayers);
     }
 
     #endregion
