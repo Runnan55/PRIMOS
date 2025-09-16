@@ -61,7 +61,6 @@ public class PlayerController : NetworkBehaviour
     public GameObject missions_Reward_GlobalMode;
     public GameObject deathCanvas;
     public GameObject victoryCanvas;
-    public GameObject drawCanvas;
     public GameObject targetIndicator; //Indicador visual de objetivo elegido
     public GameObject localPlayerIndicator; //Indicador visual de tu jugador
 
@@ -297,7 +296,6 @@ public class PlayerController : NetworkBehaviour
 
             deathCanvas.SetActive(false);
             victoryCanvas.SetActive(false);
-            drawCanvas.SetActive(false);
             gameModeCanvas?.SetActive(true);
 
             targetIndicator.SetActive(false);
@@ -1212,40 +1210,6 @@ public class PlayerController : NetworkBehaviour
         }
 
         tikiSprite.SetActive(false); // Apagamos Tiki
-        PlayDirectionalAnimation("Death"); //Animacion de muerte 
-        coverProbabilityText.gameObject.SetActive(false);
-        healthText.gameObject.SetActive(false);
-        ammoText.gameObject.SetActive(false);
-
-        // ocultar TODOS los indicadores de vida/balas para todos
-        vidaAzul_3?.SetActive(false);
-        vidaAzul_2?.SetActive(false);
-        vidaAzul_1?.SetActive(false);
-        vidaRoja_3?.SetActive(false);
-        vidaRoja_2?.SetActive(false);
-        vidaRoja_1?.SetActive(false);
-
-        vidaAzulBarra?.SetActive(false);
-        vidaRojaBarra?.SetActive(false);
-        corazonAzul?.SetActive(false);
-        corazonRojo?.SetActive(false);
-
-        parcaAzul?.SetActive(false);
-        parcaRojo?.SetActive(false);
-
-        bulletSprite?.SetActive(false);
-        targetIndicator?.SetActive(false);
-    }
-
-    [ClientRpc]
-    public void RpcOnDeathOrDraw()
-    {
-        if (isLocalPlayer || isOwned)
-        {
-            drawCanvas.SetActive(true);
-            isParca = false;
-        }
-
         PlayDirectionalAnimation("Death"); //Animacion de muerte 
         coverProbabilityText.gameObject.SetActive(false);
         healthText.gameObject.SetActive(false);

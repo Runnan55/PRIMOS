@@ -74,8 +74,7 @@ public class GameManager : NetworkBehaviour
     private int currentRound = 0; // Contador de rondas
                                   //[SerializeField] private TMP_Text roundText; // Texto en UI para mostrar la ronda
 
-    [Header("StartEndDraw")]
-    private bool isDraw = false;
+    [Header("StartEnd")]
     private bool isGameStarted = false;
 
     [Header("MisionesDeInicio")]
@@ -1241,6 +1240,15 @@ public class GameManager : NetworkBehaviour
     {
         currentDecisionTime = 0;
 
+        if (talismanHolder != null)
+        {
+            LogWithTime.Log($"[TIKI] Round {currentRound}: {talismanHolder.playerName} tiene el tiki (health={talismanHolder.health}, alive={talismanHolder.isAlive})");
+        }
+        else
+        {
+            LogWithTime.Log($"[TIKI] Round {currentRound}: nadie tiene el tiki asignado");
+        }
+
         #region 0) Antes de todo en ExecutionPhase, reseteo de UI
         try
         {
@@ -1592,23 +1600,6 @@ public class GameManager : NetworkBehaviour
         //Contar número de jugadores vivos
         int alivePlayers = players.Count(player => player.isAlive);
 
-        //Si no queda nadie vivo, la partida se detiene
-        if (alivePlayers == 0)
-        {
-            isDraw = true;
-            isGameOver = true;
-
-            foreach (var player in players)
-            {
-                CerrarAnimacionesMision(player);
-                player.RpcOnDeathOrDraw();
-            }
-
-            StartCoroutine(StartGameStatistics());
-            StopGamePhases(); // Detiene las rondas de juego
-            return;
-        }
-
         //Si solo queda un jugador vivo, lo declaramos ganador
         if (alivePlayers == 1)
         {
@@ -1955,7 +1946,6 @@ public class GameManager : NetworkBehaviour
 
         foreach (var deadPlayer in sortedDeaths)
         {
-            // HandleBufferedDeaths()
             if (deadPlayer.deathOrder == 0)
                 deadPlayer.deathOrder = ++deathCounter;
 
@@ -1967,11 +1957,8 @@ public class GameManager : NetworkBehaviour
             CheckGameOver();
             yield return new WaitForSecondsRealtime(0.1f);
 
-            if (!isDraw)
-            {
-                CerrarAnimacionesMision(deadPlayer);
-                deadPlayer.RpcOnDeath();
-            }
+            CerrarAnimacionesMision(deadPlayer);
+            deadPlayer.RpcOnDeath();
         }
 
         deathBuffer.Clear();
