@@ -70,6 +70,12 @@ public class AuthManager : MonoBehaviour
 
     private void Start()
     {
+        TryAutoLoginOnce();
+    }
+
+    public void TryAutoLoginOnce()
+    {
+
 #if UNITY_WEBGL && !UNITY_EDITOR
     string savedToken   = WebGLStorage.LoadString("jwt_token");
     string savedRefresh = WebGLStorage.LoadString("refresh_token");

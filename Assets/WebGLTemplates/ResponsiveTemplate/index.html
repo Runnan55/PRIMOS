@@ -78,7 +78,6 @@
 
     <!-- Firebase Config desde account.primos.games -->
     <!-- <script src="https://account.primos.games/api/config/firebase"></script> -->
-
     <!-- Firebase Config embebido -->
     <script>
         window.FIREBASE_CONFIG = {
@@ -94,6 +93,25 @@
 
     <!-- Firebase Auth Bridge personalizado -->
     <script src="firebase-auth-bridge.js"></script>
+
+    <script>
+        (function () {
+            var KEY = "PRIMOS_REQUEST_RELOAD";
+            function tick() {
+                try {
+                    if (localStorage.getItem(KEY) === "1") {
+                        localStorage.removeItem(KEY);
+                        // Hard reload same tab (sin nueva pestaña) y evitando cache
+                        var url = location.href.split('#')[0].split('?')[0] + '?r=' + Date.now();
+                        location.replace(url);
+                        return;
+                    }
+                } catch (e) { /* ignore */ }
+                setTimeout(tick, 1000);
+            }
+            tick();
+        })();
+    </script>
 
     <!-- Unity loader -->
     <script src="Build/PrimosWebGL.loader.js"></script>
