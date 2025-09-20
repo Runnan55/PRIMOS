@@ -195,8 +195,9 @@ public class CustomRoomPlayer : NetworkBehaviour
     {
         base.OnStartServer();
         playerId = System.Guid.NewGuid().ToString(); // Genera un ID único
+        StartCoroutine(SendWelcomeNotificationAfterDelay());
     }
-
+    
     [Command]
     public void CmdSetPlayerName(string name)
     {
@@ -1118,6 +1119,57 @@ public class CustomRoomPlayer : NetworkBehaviour
         var pc = pcIdentity != null ? pcIdentity.GetComponent<PlayerController>() : null;
         linkedPlayerController = pc;
         LogWithTime.Log($"[CRP] Linked local PC => {(pc != null ? pc.netId.ToString() : "null")}");
+    }
+
+    #endregion
+
+    #region Notificaciones CRP Cliente
+
+    // === Notifications (Client UI) ===
+    [SerializeField] private ClientNotificationUI notificationUI;
+
+    // 1) Firma SIN parametros opcionales
+    [TargetRpc]
+    private void TargetReceiveNotification(NetworkConnectionToClient target, string spriteKey, string message, float duration)
+    {
+        if (notificationUI == null)
+            notificationUI = FindFirstObjectByType<ClientNotificationUI>();
+        if (notificationUI == null) return;
+
+        notificationUI.ShowByKey(spriteKey, message, duration);
+    }
+
+    // === Notifications (Server helpers) ===
+    [Server]
+    public void ServerNotifyThisClient(string spriteKey, string message, float duration = 5f)
+    {
+        if (connectionToClient == null) return;
+        TargetReceiveNotification(connectionToClient, spriteKey, message, duration); // <-- se pasa explicitamente
+    }
+
+    [Server]
+    public static bool TryNotifyByPlayerId(string targetPlayerId, string spriteKey, string message, float duration = 2f)
+    {
+        foreach (var kv in NetworkServer.connections)
+        {
+            var conn = kv.Value;
+            if (conn == null || conn.identity == null) continue;
+
+            var crp = conn.identity.GetComponent<CustomRoomPlayer>();
+            if (crp != null && crp.playerId == targetPlayerId)
+            {
+                crp.ServerNotifyThisClient(spriteKey, message, duration);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private IEnumerator SendWelcomeNotificationAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(1f);
+        TargetReceiveNotification(connectionToClient, "Default", "Welcome to Primos", 3f);
+        // "Default" debe existir en el spriteTable del ClientNotificationUI, o usa la clave que tengas ("welcome", etc.)
     }
 
     #endregion
