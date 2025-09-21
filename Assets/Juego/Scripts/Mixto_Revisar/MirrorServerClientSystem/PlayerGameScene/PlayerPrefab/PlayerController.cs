@@ -41,6 +41,13 @@ public class PlayerController : NetworkBehaviour
     [SyncVar(hook = nameof(OnNameConfirmedChanged))] public bool hasConfirmedName = false; //Decir al server que el jugador eligió nombre
     [SyncVar(hook = nameof(OnNameChanged))] public string playerName;
     [SyncVar(hook = nameof(OnKillsChanged))] public int kills = 0;
+    [SyncVar(hook = nameof(OnKillTextChanged))] public string killsText = "0"; // sync text for everyone
+
+    // --- Kills UI ---
+    [Header("Kills UI")]
+    [SerializeField] private GameObject killsMarker; // parent/holder of the kill label (assign in inspector)
+    [SerializeField] private TMP_Text killsTextUI;   // TMP label to show killsText (assign in inspector)
+
 
     [SyncVar] public bool clientDecisionPhase;
     [SyncVar] public bool isCovering = false;
@@ -337,6 +344,12 @@ public class PlayerController : NetworkBehaviour
                 ApplyDeathUI_Local(); // mismo set de apagados que el TargetRpc, pero local
             }
         }
+
+        if (killsTextUI != null)
+            killsTextUI.text = string.IsNullOrEmpty(killsText) ? "0" : killsText;
+
+        if (killsMarker != null)
+            killsMarker.SetActive(isAlive);
 
         OnParcaChanged(isParca, isParca);
         fullHealth = health; //guardamos el valor inicial de health
@@ -695,7 +708,19 @@ public class PlayerController : NetworkBehaviour
         bulletSprite?.SetActive(false);  targetIndicator?.SetActive(false);
         gameModeCanvas?.SetActive(false);
         if (isOwned) deathCanvas?.SetActive(true);
+        if (killsMarker != null) killsMarker.SetActive(false);
     }
+
+    private void OnKillTextChanged(string oldValue, string newValue)
+    {
+        if (killsTextUI != null)
+            killsTextUI.text = newValue ?? "0";
+
+        // Mantenerlo visible solo si esta vivo
+        if (killsMarker != null)
+            killsMarker.SetActive(isAlive);
+    }
+
 
     #endregion
 
@@ -1405,6 +1430,7 @@ public class PlayerController : NetworkBehaviour
         }
 
         health -= damageAmount;
+        attacker.RpcPlayAnimation("ShootMarker_2");
         RpcPlaySFX("Hit");
 
         if (health <= 0)

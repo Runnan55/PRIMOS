@@ -1623,65 +1623,69 @@ public class GameManager : NetworkBehaviour
 
     #region Cerrar partida si no hay humanos
 
-    private float humanAbortCheckInterval = 3f;
+    [SerializeField] private float humanCheckInterval = 3f; // seconds between checks
+    [SerializeField] private int humanCheckGrace = 3;       // consecutive checks required
+    private int noHumansStreak = 0;
     private bool humanAbortWatcherStarted = false;
+    private Coroutine humanAbortWatcher;
 
     [Server]
     public void EnsureStartCheckForHumanOrAbort()
     {
-        if (humanAbortWatcherStarted) return;     // <- idempotente
+        if (humanAbortWatcherStarted) return; // idempotent
         humanAbortWatcherStarted = true;
-        StartCoroutine(StartCheckForHumanOrAbort());
+        humanAbortWatcher = StartCoroutine(StartCheckForHumanOrAbort());
     }
 
-    [Server]
+    // server
     private IEnumerator StartCheckForHumanOrAbort()
     {
-        var scene = gameObject.scene;
-        var wait = new WaitForSecondsRealtime(humanAbortCheckInterval);
+        var wait = new WaitForSecondsRealtime(humanCheckInterval);
 
         while (true)
         {
             yield return wait;
 
-            bool hasRoomPlayersInMyScene = NetworkServer.connections.Values.Any(conn =>
-                conn?.identity != null &&
-                conn.identity.gameObject.scene == scene &&
-                conn.identity.GetComponent<CustomRoomPlayer>() != null
-            );
+            // no cuentes "0 humanos" antes de iniciar de verdad
+            if (!isGameStarted) { noHumansStreak = 0; continue; }
 
-            if (!hasRoomPlayersInMyScene)
+            // cuenta humanos activos via players (no bots) y conn ready
+            int humans = 0;
+            foreach (var p in players)
             {
-                // No humans (no CRP) -> force a clean end instead of destroying now
-                if (!isGameOver)
-                {
-                    // mark disconnected humans as dead for ordering
-                    foreach (var h in players.Where(p => !p.isBot && p.isAlive).ToList())
-                        ExpulsionOrQuit(h);
+                if (p == null || p.isBot || !p.isAlive) continue;
+                var crp = p.ownerRoomPlayer;
+                var conn = crp != null ? crp.connectionToClient : null;
+                if (conn != null && conn.isReady) humans++;
+            }
 
-                    // kill bots leaving one alive
-                    var botsAlive = players.Where(p => p.isBot && p.isAlive).ToList();
-                    if (botsAlive.Count > 1)
-                    {
-                        for (int i = 0; i < botsAlive.Count - 1; i++)
-                            PlayerDied(botsAlive[i]);
-                    }
+            // excepcion: espectador humano conectado (muerto con conn ready)
+            bool hasConnectedSpectator = false;
+            foreach (var d in deadPlayers)
+            {
+                if (d == null || d.isBot) continue;
+                var crp = d.ownerRoomPlayer;
+                var conn = crp != null ? crp.connectionToClient : null;
+                if (conn != null && conn.isReady) { hasConnectedSpectator = true; break; }
+            }
 
-                    // if still more than 1 alive for some reason, fallback to draw
-                    int alive = players.Count(p => p.isAlive);
-                    if (alive > 1)
-                    {
-                        // declare draw
-                        foreach (var p in players) p.isAlive = false;
-                    }
+            if (humans > 0 || hasConnectedSpectator)
+            {
+                if (noHumansStreak > 0) LogWithTime.Log("[GM][Grace] humans/spectator back. reset.");
+                noHumansStreak = 0;
+                continue;
+            }
 
-                    isGameOver = true;
-                    StopGamePhases();
+            // aqui: 0 humanos visibles y sin espectador -> solo contamos gracia
+            noHumansStreak++;
+            LogWithTime.Log($"[GM][Grace] zero humans visible. streak={noHumansStreak}/{humanCheckGrace}");
 
-                    yield return StartCoroutine(StartGameStatistics());
-                }
-
-                yield break;
+            if (noHumansStreak >= humanCheckGrace)
+            {
+                // en vez de cerrar, delega en tu logica AFK (que si quiere puede cerrar)
+                LogWithTime.Log("[GM][Grace] calling MaybeALLPlayerWentAFK() after grace.");
+                noHumansStreak = 0;                 // evita spam
+                MaybeAllPlayerWentAfk();            // decide cerrar o no
             }
         }
     }
@@ -1824,6 +1828,16 @@ public class GameManager : NetworkBehaviour
                             LogWithTime.Log(ok
                                 ? $"[Key] OK -> {winnerForKey.playerName} ({wuid})"
                                 : $"[Key] FAIL -> {winnerForKey.playerName} ({wuid})");
+
+                            if (ok && winnerForKey.ownerRoomPlayer != null)
+                            {
+                                // spriteKey: "key" (configurable en ClientNotificationUI)
+                                winnerForKey.ownerRoomPlayer.ServerNotifyThisClient(
+                                    "Key",
+                                    "Congratulation, you had win a Key",
+                                    3f
+                                );
+                            }
                         }));
                     }
                     else
@@ -2100,7 +2114,8 @@ public class GameManager : NetworkBehaviour
         if (gameStatistic != null)
             gameStatistic.UpdatePlayerStats(p, disconnected: true);
 
-        MaybeAllPlayerWentAfk();
+        //MaybeAllPlayerWentAfk();
+        EnsureStartCheckForHumanOrAbort();
     }
 
     [Server]
