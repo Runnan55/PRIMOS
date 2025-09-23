@@ -186,6 +186,7 @@ public class GameManager : NetworkBehaviour
     {
         // 0) Preferir el link que dejó TryRejoinActiveMatchByUid
         PlayerController pc = roomPlayer.linkedPlayerController;
+        
         Debug.Log($"[REJOINDBG][GM.OnPlayerSceneReady] connId={roomPlayer.connectionToClient?.connectionId} link={(pc ? pc.netId : 0)} t={Time.time:F3}");
 
 
@@ -227,17 +228,22 @@ public class GameManager : NetworkBehaviour
             // Sync dirigido (apaga Waiting/GameModeCanvas solo para el que vuelve)
             StartCoroutine(SendSyncWhenReady(pc, roomPlayer));
 
+            if (roomPlayer.connectionToClient != null)
+            {
+                pc.TargetHideRouletteCanvas(roomPlayer.connectionToClient);
+            }
+
             LogWithTime.Log($"[GameManager] Rebind PC for {roomPlayer.playerName} (alive={pc.isAlive}) and synced UI.");
             return;
         }
 
-        // 4) Fallback: NO hay PC existente.
+        /*// 4) Fallback: NO hay PC existente.
         //    Solo permitir spawn si la partida NO ha empezado (evita “fantasma” en rejoin avanzado).
         if (isGameStarted)
         {
             LogWithTime.LogWarning("[GameManager] OnPlayerSceneReady: no PC found for CRP but game already started; skip spawn.");
             return;
-        }
+        }*/
 
         // ---------- SPAWN INICIAL (igual que lo tenías) ----------
         // Obtener posiciones de spawn disponibles en esta escena
@@ -1623,7 +1629,7 @@ public class GameManager : NetworkBehaviour
 
     #region Cerrar partida si no hay humanos
 
-    [SerializeField] private float humanCheckInterval = 3f; // seconds between checks
+    [SerializeField] private float humanCheckInterval = 10f; // seconds between checks
     [SerializeField] private int humanCheckGrace = 3;       // consecutive checks required
     private int noHumansStreak = 0;
     private bool humanAbortWatcherStarted = false;
@@ -2118,7 +2124,7 @@ public class GameManager : NetworkBehaviour
         EnsureStartCheckForHumanOrAbort();
     }
 
-    [Server]
+    /*[Server]
     private void MaybeAllPlayerWentAfk()
     {
         if (isGameOver) return;
@@ -2158,6 +2164,63 @@ public class GameManager : NetworkBehaviour
             isGameOver = true;
             StopAllCoroutines(); // o tu StopGamePhases()
             StartCoroutine(StartGameStatistics()); // tu final habitual
+        }
+    }*/
+
+    [Server]
+    private void MaybeAllPlayerWentAfk()
+    {
+        if (isGameOver) return;
+
+        var aliveHumans = players.Where(p => !p.isBot && p.isAlive).ToList();
+
+        // ¿Hay espectador humano conectado?
+        bool hasConnectedSpectator = deadPlayers.Any(p =>
+            p != null && !p.isBot &&
+            p.ownerRoomPlayer != null &&
+            p.ownerRoomPlayer.connectionToClient != null &&
+            p.ownerRoomPlayer.connectionToClient.isReady);
+
+        // --- NUEVO: cero humanos vivos y sin espectador conectado -> cerrar ---
+        if (aliveHumans.Count == 0 && !hasConnectedSpectator)
+        {
+            if (!isGameStarted)
+            {
+                LogWithTime.Log("[AFK] 0 humans before start -> aborting setup.");
+                // Cierra la escena pre-start (misma vía que CheckIfSceneShouldClose)
+                var scene = gameObject.scene;
+                _closingScene = true;
+                MatchHandler.Instance?.DestroyGameScene(scene.name, "no_humans_prestart");
+                return;
+            }
+
+            // Post-start: termina por AFK total
+            LogWithTime.Log("[AFK] 0 humans after start -> finishing match.");
+            isGameOver = true;
+            StopAllCoroutines();
+            StartCoroutine(StartGameStatistics());
+            return;
+        }
+
+        // Si hay espectador humano, mantener (como ya hacías)
+        if (hasConnectedSpectator)
+        {
+            LogWithTime.Log("[AFK] Hold: connected human spectator present.");
+            return;
+        }
+
+        // Caso original: todos los vivos marcados AFK
+        if (aliveHumans.All(h => h.isAfk))
+        {
+            foreach (var h in aliveHumans)
+            {
+                if (h.deathOrder == 0) h.deathOrder = ++deathCounter;
+                if (!deadPlayers.Contains(h)) deadPlayers.Add(h);
+                gameStatistic?.UpdatePlayerStats(h, true);
+            }
+            isGameOver = true;
+            StopAllCoroutines();
+            StartCoroutine(StartGameStatistics());
         }
     }
 

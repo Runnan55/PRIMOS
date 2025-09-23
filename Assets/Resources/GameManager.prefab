@@ -71,6 +71,7 @@ MonoBehaviour:
   decisionTime: 10
   executionTime: 5
   mode: 
+  isGameOver: 0
   players: []
   deadPlayers: []
   SelectedModifier: 2
@@ -82,9 +83,12 @@ MonoBehaviour:
   talismanIconPrefab: {fileID: 8773022760893761464, guid: 8975341e867cb0b47a721bb2bd2ccc5f, type: 3}
   matchId: 
   playerControllerPrefab: {fileID: 6611139386470013384, guid: 0ff601bcb83d8344685798401727d690, type: 3}
+  leaderboardDelaySeconds: 2
   readyTimeoutSeconds: 15
-  mostrarDebugDeMuertesEnInspector: 1
-  ordenDeMuertesInspector: []
+  botsEnableRandomSwitch: 1
+  botRandomSwitchChance: 0.7
+  humanCheckInterval: 10
+  humanCheckGrace: 3
 --- !u!114 &530012246276789366
 MonoBehaviour:
   m_ObjectHideFlags: 0

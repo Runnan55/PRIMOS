@@ -41,7 +41,6 @@ public class PlayerController : NetworkBehaviour
     [SyncVar(hook = nameof(OnNameConfirmedChanged))] public bool hasConfirmedName = false; //Decir al server que el jugador eligió nombre
     [SyncVar(hook = nameof(OnNameChanged))] public string playerName;
     [SyncVar(hook = nameof(OnKillsChanged))] public int kills = 0;
-    [SyncVar(hook = nameof(OnKillTextChanged))] public string killsText = "0"; // sync text for everyone
 
     // --- Kills UI ---
     [Header("Kills UI")]
@@ -346,7 +345,7 @@ public class PlayerController : NetworkBehaviour
         }
 
         if (killsTextUI != null)
-            killsTextUI.text = string.IsNullOrEmpty(killsText) ? "0" : killsText;
+            killsTextUI.text = "0";
 
         if (killsMarker != null)
             killsMarker.SetActive(isAlive);
@@ -645,7 +644,11 @@ public class PlayerController : NetworkBehaviour
 
     void OnKillsChanged(int oldValue, int newValue)
     {
-        //LogWithTime.Log($"{playerName} ahora tiene {newValue} kills.");
+        killsTextUI.text = $"{newValue}";
+
+        // Mantenerlo visible solo si esta vivo
+        if (killsMarker != null)
+            killsMarker.SetActive(isAlive);
     }
 
     void OnNameConfirmedChanged(bool oldValue, bool newValue) 
@@ -710,17 +713,6 @@ public class PlayerController : NetworkBehaviour
         if (isOwned) deathCanvas?.SetActive(true);
         if (killsMarker != null) killsMarker.SetActive(false);
     }
-
-    private void OnKillTextChanged(string oldValue, string newValue)
-    {
-        if (killsTextUI != null)
-            killsTextUI.text = newValue ?? "0";
-
-        // Mantenerlo visible solo si esta vivo
-        if (killsMarker != null)
-            killsMarker.SetActive(isAlive);
-    }
-
 
     #endregion
 

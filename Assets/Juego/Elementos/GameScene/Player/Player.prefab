@@ -1896,7 +1896,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 255
+    rgba: 4261413119
   m_fontColor: {r: 1, g: 0, b: 0, a: 0}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -8133,7 +8133,6 @@ MonoBehaviour:
   hasConfirmedName: 0
   playerName: 
   kills: 0
-  killsText: 0
   killsMarker: {fileID: 9016525474121166817}
   killsTextUI: {fileID: 6360966546322265794}
   clientDecisionPhase: 0
