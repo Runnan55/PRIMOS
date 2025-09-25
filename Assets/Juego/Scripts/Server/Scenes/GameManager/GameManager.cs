@@ -1509,6 +1509,7 @@ public class GameManager : NetworkBehaviour
 
         yield return new WaitForSecondsRealtime(executionTime);
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
+        CheckGameOver();
     }
 
     public bool IsDecisionPhase() => isDecisionPhase;//para saber cuando es Fase de decision y meter variables por ejemplo en el UpdateUI();

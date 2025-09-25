@@ -658,7 +658,7 @@ public class MatchHandler : NetworkBehaviour
     [Server]
     public bool TryRejoinActiveMatchByUid(CustomRoomPlayer crp, string uid)
     {
-        LogWithTime.Log($"[REJOINDBG][MH.TryRejoin] uid={uid} crpScene={crp.gameObject.scene.name} t={Time.time:F3}");
+        LogWithTime.Log($"[REJOINDBG][MH.TryRejoin] uid= {uid} crpScene={crp.gameObject.scene.name} t={Time.time:F3}");
 
         if (string.IsNullOrEmpty(uid) || crp == null) return false;
 

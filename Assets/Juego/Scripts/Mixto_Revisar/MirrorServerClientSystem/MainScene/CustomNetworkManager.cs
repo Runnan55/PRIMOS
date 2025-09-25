@@ -276,7 +276,22 @@ public class CustomNetworkManager : NetworkManager
         crp.firebaseUID = msg.uid;
         crp.playerName = "Desconocido";
 
-        MatchHandler.Instance.TryRejoinActiveMatchByUid(crp, msg.uid);
+        crp.StartCoroutine(DelayedTryRejoin(crp, msg.uid));
+    }
+
+    private IEnumerator DelayedTryRejoin(CustomRoomPlayer crp, string uid)
+    {
+        yield return null; // esperar un frame
+        if (!string.IsNullOrEmpty(uid))
+        {
+            bool ok = MatchHandler.Instance.TryRejoinActiveMatchByUid(crp, uid);
+            if (!ok)
+                LogWithTime.Log("[REJOINDBG] No se encontró partida activa para uid=" + uid);
+        }
+        else
+        {
+            LogWithTime.LogWarning("[REJOINDBG] UID vacío al intentar rejoin.");
+        }
     }
 
     private System.Collections.IEnumerator DisconnectNextFrame(NetworkConnectionToClient c)

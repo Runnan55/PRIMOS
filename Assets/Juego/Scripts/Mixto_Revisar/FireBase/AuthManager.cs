@@ -582,6 +582,14 @@ public class AuthManager : MonoBehaviour
         string uid = userId;
         if (string.IsNullOrEmpty(uid)) uid = WebGLStorage.LoadString("local_id");
 
+        // Esperar un poco a que se recupere de WebGLStorage
+        float waitStart = Time.unscaledTime;
+        while (string.IsNullOrEmpty(uid) && Time.unscaledTime - waitStart < 5f)
+        {
+            uid = WebGLStorage.LoadString("local_id");
+            yield return null;
+        }
+
         if (string.IsNullOrEmpty(uid))
         {
             LogWithTime.LogError("[AuthManager] UID vacío; abortando envío de credenciales.");
