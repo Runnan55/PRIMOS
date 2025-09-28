@@ -6,11 +6,20 @@
     let unityCheckInterval = null;
 
     // Detectar contexto de ejecución
+    function guessOpenerOrigin() {
+        try {
+            const ref = document.referrer || "";
+            return ref ? new URL(ref).origin : null;
+        } catch { return null; }
+    }
+
     function getContext() {
         if (window.opener && window.opener !== window) {
-            return { type: 'popup', target: window.opener, origin: 'https://account.primos.games' };
+            const dyn = guessOpenerOrigin();
+            return { type: 'popup', target: window.opener, origin: dyn || "https://mini.primos.games" };
         } else if (window.parent && window.parent !== window) {
-            return { type: 'iframe', target: window.parent, origin: 'https://account.primos.games' };
+            const dyn = guessOpenerOrigin();
+            return { type: 'iframe', target: window.parent, origin: dyn || "https://mini.primos.games" };
         }
         return { type: 'standalone', target: null, origin: null };
     }
@@ -50,10 +59,16 @@
     // 3) Recibir respuesta con token y login Firebase
     async function handleAuthResponse(event) {
         // Seguridad: solo aceptar desde account.primos.games
-        if (event.origin !== "https://account.primos.games") {
+        const allowed = new Set([
+            guessOpenerOrigin(),
+            "https://mini.primos.games",
+            "https://account.primos.games"
+        ]);
+        if (!allowed.has(event.origin)) {
             console.warn("[PostMessage] Ignored message from:", event.origin);
             return;
         }
+
         if (event.data?.type !== "AUTH_TOKEN_RESPONSE") return;
 
         console.log("[PostMessage] Received auth response");

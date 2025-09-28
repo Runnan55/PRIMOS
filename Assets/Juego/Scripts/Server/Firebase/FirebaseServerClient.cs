@@ -653,4 +653,86 @@ public class FirebaseServerClient : MonoBehaviour
     }
 
     #endregion
+
+    #region --- Winrate (incremento con updateMask sobre subcampos concretos) ---
+
+    public static IEnumerator IncrementWinrateAndTotals(string uid, int position)
+    {
+        // 1) GET users/{uid} para leer valores actuales (solo una vez)
+        string getUrl = GetUserUrl(uid);
+        var getReq = UnityWebRequest.Get(getUrl);
+        getReq.SetRequestHeader("Authorization", $"Bearer {Instance.GetIdToken()}");
+        yield return getReq.SendWebRequest();
+
+        if (getReq.result != UnityWebRequest.Result.Success)
+        {
+            LogWithTime.LogError("[Firebase] IncrementWinrateAndTotals GET error: " + getReq.downloadHandler.text);
+            yield break;
+        }
+
+        var json = JSON.Parse(getReq.downloadHandler.text);
+
+        // Campo raiz y subcampos tal como estan en tu DB (respetar mayusculas!)
+        string root = "WinrateRanked"; // si en tu coleccion es "winrate" cambia aqui
+                                 // keys con espacios -> tal como en tu captura
+        string k1 = position switch
+        {
+            1 => "1er puesto",
+            2 => "2do puesto",
+            3 => "3er puesto",
+            4 => "4to puesto",
+            5 => "5to puesto",
+            _ => "6to puesto"
+        };
+        string kTot = "PartidasTotales";
+
+        // Lectura segura (0 si no existe)
+        int curPuesto = json["fields"]?[root]?["mapValue"]?["fields"]?[k1]?["integerValue"].AsInt ?? 0;
+        int curTot = json["fields"]?[root]?["mapValue"]?["fields"]?[kTot]?["integerValue"].AsInt ?? 0;
+
+        int newPuesto = curPuesto + 1;
+        int newTot = curTot + 1;
+
+        // 2) PATCH con updateMask SOLO de los 2 subcampos
+        // OJO: nombres con espacios requieren backticks en fieldPaths.
+        // Ej: updateMask.fieldPaths=Winrate.`1er puesto`
+        string patchUrl =
+            GetUserUrl(uid)
+            + $"?updateMask.fieldPaths={Uri.EscapeDataString($"{root}.`{k1}`")}"
+            + $"&updateMask.fieldPaths={Uri.EscapeDataString($"{root}.{kTot}")}";
+
+        var bodyRoot = new JSONObject();
+        var fields = new JSONObject();
+        var winrate = new JSONObject();
+        var mapValue = new JSONObject();
+        var mapFlds = new JSONObject();
+
+        var vPuesto = new JSONObject(); vPuesto["integerValue"] = newPuesto.ToString();
+        var vTot = new JSONObject(); vTot["integerValue"] = newTot.ToString();
+
+        mapFlds[k1] = vPuesto;
+        mapFlds[kTot] = vTot;
+
+        mapValue["fields"] = mapFlds;
+        winrate["mapValue"] = mapValue;
+        fields[root] = winrate;
+        bodyRoot["fields"] = fields;
+
+        byte[] body = System.Text.Encoding.UTF8.GetBytes(bodyRoot.ToString());
+
+        var patch = new UnityWebRequest(patchUrl, "PATCH");
+        patch.uploadHandler = new UploadHandlerRaw(body);
+        patch.downloadHandler = new DownloadHandlerBuffer();
+        patch.SetRequestHeader("Content-Type", "application/json");
+        patch.SetRequestHeader("Authorization", $"Bearer {Instance.GetIdToken()}");
+
+        yield return patch.SendWebRequest();
+
+        if (patch.result != UnityWebRequest.Result.Success)
+            LogWithTime.LogError("[Firebase] IncrementWinrateAndTotals PATCH error: " + patch.downloadHandler.text);
+        else
+            LogWithTime.Log($"[Firebase] Winrate actualizado uid={uid} pos={position} -> {k1}+1 y {kTot}+1");
+    }
+
+    #endregion
 }

@@ -42,7 +42,6 @@ public class QuickMission
 
 public class GameManager : NetworkBehaviour
 {
-    public static GameManager Instance { get; private set; }
     [SerializeField] private bool allowAccumulatedDamage = false; //Estilo de juego con daño acumulable o solo 1 de daño por turno
 
     [Header("Rondas")]
@@ -736,7 +735,7 @@ public class GameManager : NetworkBehaviour
         if (!done)
         {
             StopCoroutine(handle);
-            LogWithTime.LogError($"[Timeout] {label} superó {maxSeconds:F1}s. Forzando avance.");
+            LogWithTime.LogError($"WatchDog warning[Timeout] {label} superó {maxSeconds:F1}s. Forzando avance.");
             onTimeout?.Invoke();
         }
     }
@@ -1460,7 +1459,6 @@ public class GameManager : NetworkBehaviour
         #endregion
 
         damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
-        CheckGameOver();
 
         #region 6) Registro de disparos para los BOTS
         try
@@ -1624,11 +1622,10 @@ public class GameManager : NetworkBehaviour
 
             return;
         }
-
-        EnsureStartCheckForHumanOrAbort();
+        //EnsureStartCheckForHumanOrAbort();
     }
 
-    #region Cerrar partida si no hay humanos
+    /*#region Cerrar partida si no hay humanos
 
     [SerializeField] private float humanCheckInterval = 10f; // seconds between checks
     [SerializeField] private int humanCheckGrace = 3;       // consecutive checks required
@@ -1697,7 +1694,7 @@ public class GameManager : NetworkBehaviour
         }
     }
 
-    #endregion
+    #endregion*/
 
     private IEnumerator StartGameStatistics()
     {
@@ -1746,6 +1743,7 @@ public class GameManager : NetworkBehaviour
         if (gameStatistic != null)
         {
             gameStatistic.Initialize(leaderboardPlayers, true);
+            StartCoroutine(gameStatistic.PushRankedWinrateForCurrentSnapshot());
 
             // --- 4) Mostrar leaderboard (ordenará por deathOrder desc) ---
             gameStatistic.ShowLeaderboard();
@@ -1864,12 +1862,31 @@ public class GameManager : NetworkBehaviour
         var myScene = gameObject.scene;
         foreach (var crp in UnityEngine.Object.FindObjectsByType<CustomRoomPlayer>(FindObjectsSortMode.None))
         {
-            if (crp != null && crp.gameObject.scene == myScene)
+            if (crp != null && crp.gameObject.scene == myScene && crp.currentMatchId == matchId)
             {
                 // Esto mueve el CRP a MainScene, destruye su PlayerController y mantiene visible el canvas del CRP
                 crp.ServerReturnToMainMenu();
             }
         }
+
+        /*var myScene = gameObject.scene;
+        foreach (var crp in UnityEngine.Object.FindObjectsByType<CustomRoomPlayer>(FindObjectsSortMode.None))
+        {
+            if (crp == null) continue;
+
+            bool sameScene = (crp.gameObject.scene == myScene);
+            bool sameMatch = (!string.IsNullOrEmpty(crp.currentMatchId) && crp.currentMatchId == matchId);
+            bool stillPlaying = crp.isPlayingNow;
+
+            // extra 1: es el CRP activo para su propia conexion?
+            var activeCrpForConn = crp.connectionToClient?.identity?.GetComponent<CustomRoomPlayer>();
+            bool isActiveForConn = (activeCrpForConn == crp);
+
+            if (sameScene && sameMatch && stillPlaying && isActiveForConn)
+            {
+                crp.ServerReturnToMainMenu();
+            }
+        }*/
 
         yield return new WaitForSecondsRealtime(1f);
 
@@ -2023,10 +2040,7 @@ public class GameManager : NetworkBehaviour
     [Server]
     private void ResetAllCovers()//Elimina coberturas al finalizar una ronda
     {
-        // Buscar todos los PlayerController en la escena
-        PlayerController[] allPlayers = FindObjectsByType<PlayerController>(FindObjectsSortMode.None);
-
-        foreach (var player in allPlayers)
+        foreach (var player in players)
         {
             if (player != null)
             {
@@ -2083,7 +2097,6 @@ public class GameManager : NetworkBehaviour
 
     #region OnPlayerDisconnect
 
-    
     public void ExpulsionOrQuit(PlayerController player)
     {
         actionsQueue.Remove(player);
@@ -2121,8 +2134,10 @@ public class GameManager : NetworkBehaviour
         if (gameStatistic != null)
             gameStatistic.UpdatePlayerStats(p, disconnected: true);
 
+        LogWithTime.Log($"[AFK] {p.playerName} afk. alive={p.isAlive}, health={p.health}, wasTiki={(talismanHolder == p)}");
+
         //MaybeAllPlayerWentAfk();
-        EnsureStartCheckForHumanOrAbort();
+        //EnsureStartCheckForHumanOrAbort();
     }
 
     /*[Server]

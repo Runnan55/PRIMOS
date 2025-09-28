@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Linq;
 using Mirror;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -172,7 +173,7 @@ public class CustomNetworkManager : NetworkManager
         }));
     }
 
-    public override void OnServerDisconnect(NetworkConnectionToClient conn)
+    /*public override void OnServerDisconnect(NetworkConnectionToClient conn)
     {
         // 1) Quitar autoridad del PlayerController ANTES del base
         if (conn != null && conn.identity != null)
@@ -201,6 +202,112 @@ public class CustomNetworkManager : NetworkManager
         int after = NetworkServer.connections.Count;
 
         LogWithTime.Log($"[SERVER] disconnect id={conn.connectionId}. now_active={after} (was {before})");
+    }*/
+
+    public override void OnServerDisconnect(NetworkConnectionToClient conn)
+    {
+        // 0) Defensive null checks
+        var crp = conn != null && conn.identity != null
+            ? conn.identity.GetComponent<CustomRoomPlayer>()
+            : null;
+
+        // 1) Remove scene-interest mapping ASAP
+        //    (avoid lingering observers/filters for this conn)
+        CustomSceneInterestManager.Instance?.Unregister(conn);
+
+        // 2) Try to resolve the PlayerController to drop authority
+        PlayerController pc = null;
+
+        if (crp != null && crp.linkedPlayerController != null)
+        {
+            pc = crp.linkedPlayerController;
+        }
+        else if (crp != null)
+        {
+            // Fallback: search by logical identity (playerId / firebaseUID)
+            string pid = crp.playerId;
+            string fuid = crp.firebaseUID;
+
+            foreach (var kv in NetworkServer.spawned)
+            {
+                var ni = kv.Value;
+                if (ni == null) continue;
+                var candidate = ni.GetComponent<PlayerController>();
+                if (candidate == null) continue;
+
+                bool match =
+                    (!string.IsNullOrEmpty(pid) && candidate.playerId == pid) ||
+                    (!string.IsNullOrEmpty(fuid) && candidate.firebaseUID == fuid);
+
+                if (match) { pc = candidate; break; }
+            }
+        }
+
+        if (pc != null)
+        {
+            var ni = pc.netIdentity != null ? pc.netIdentity : pc.GetComponent<NetworkIdentity>();
+            if (ni != null && ni.connectionToClient != null)
+            {
+                ni.RemoveClientAuthority(); // critical: drop authority before base
+            }
+
+            // Optional but useful: if its GameManager is still alive, mark AFK
+            try
+            {
+                var gm = pc.GManager; // uses your cached getter over gameManagerNetId
+                if (gm != null)
+                {
+                    gm.PlayerWentAfk(pc);
+                }
+            }
+            catch { /* swallow: scene may be unloading */ }
+        }
+        else
+        {
+            LogWithTime.LogWarning("[DISCO] Could not resolve PlayerController on disconnect.");
+        }
+
+        // 3) Cleanup account mappings (tokens, uid->conn)
+        AccountManager.Instance?.RemoveConnection(conn);
+
+        // 4) Now let Mirror proceed
+        base.OnServerDisconnect(conn);
+    }
+
+    private PlayerController TryResolvePlayerController(NetworkConnectionToClient conn)
+    {
+        var crp = (conn != null && conn.identity != null)
+            ? conn.identity.GetComponent<CustomRoomPlayer>()
+            : null;
+
+        if (crp == null) return null;
+
+        // 1) si ya hay referencia, usarla
+        if (crp.linkedPlayerController != null)
+            return crp.linkedPlayerController;
+
+        // 2) fallback: buscar por escena de la partida y playerId
+        if (!string.IsNullOrEmpty(crp.currentMatchId))
+        {
+            var match = MatchHandler.Instance?.GetMatch(crp.currentMatchId);
+            if (match != null)
+            {
+                var scene = SceneManager.GetSceneByName(match.sceneName);
+                if (scene.IsValid())
+                {
+                    var pcs = scene.GetRootGameObjects()
+                                   .SelectMany(g => g.GetComponentsInChildren<PlayerController>(true));
+                    var pc = pcs.FirstOrDefault(p => p != null && p.playerId == crp.playerId);
+                    if (pc != null)
+                    {
+                        crp.linkedPlayerController = pc; // mantener la referencia
+                        return pc;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     public override void OnServerConnect(NetworkConnectionToClient conn)

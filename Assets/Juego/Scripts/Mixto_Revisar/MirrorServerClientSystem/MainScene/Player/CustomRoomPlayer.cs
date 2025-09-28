@@ -491,6 +491,15 @@ public class CustomRoomPlayer : NetworkBehaviour
         var oldMatchId = currentMatchId;
         currentMatchId = null;
 
+        // NUEVO: sácalo explícitamente del MatchInfo del match viejo
+        if (!string.IsNullOrEmpty(oldMatchId))
+        {
+            var mh = MatchHandler.Instance;
+            var match = mh?.GetMatch(oldMatchId);
+            if (match != null)
+                match.players.Remove(this);
+        }
+
         // 2) Destruir el PlayerController de este jugador si sigue vivo
         if (linkedPlayerController != null)
         {
@@ -518,7 +527,10 @@ public class CustomRoomPlayer : NetworkBehaviour
         // 4) Mover este CRP al MainScene (clave para que OnCheckObserver no nos vuelva a colgar a la GameScene)
         var main = SceneManager.GetSceneByName("MainScene");
         if (main.IsValid() && gameObject.scene != main)
+        {
             SceneManager.MoveGameObjectToScene(gameObject, main);
+
+        }
 
         // 5) Disparar el retorno en el cliente (limpieza visual y carga de escena)
         TargetReturnToMainMenu(conn);

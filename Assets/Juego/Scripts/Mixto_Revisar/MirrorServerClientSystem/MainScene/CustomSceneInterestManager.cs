@@ -37,8 +37,12 @@ public class CustomSceneInterestManager : SceneInterestManagement
         if (!scn.IsValid()) return;
 
         foreach (var ni in NetworkServer.spawned.Values)
+        {
             if (ni != null && ni.gameObject.scene == scn)
+            {
                 NetworkServer.RebuildObservers(ni, initialize);
+            }
+        }
     }
     // Espero esto solucione el bug
 

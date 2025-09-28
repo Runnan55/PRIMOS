@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Mirror;
@@ -300,7 +301,7 @@ public class GameStatistic : NetworkBehaviour
         for (int i = 0; i < copy.Count; i++)
         {
             var p = copy[i];
-            LogWithTime.Log($"#{i + 1} -> {p.playerName} | deathOrder: {p.deathOrder} | kills: {p.kills} | alive: {p.isAlive}");
+            LogWithTime.Log($"#{i + 1} -> {p.playerName} | deathOrder: {p.deathOrder} | kills: {p.kills} | alive: {p.isAlive} | reloaded: {p.bulletsReloaded} | fired: {p.bulletsFired} | covered: {p.timesCovered} | damage: {p.damageDealt}" );
         }
 
         int count = copy.Count;
@@ -366,4 +367,25 @@ public class GameStatistic : NetworkBehaviour
     {
         players.Clear();
     }
+
+    [Server]
+    public IEnumerator PushRankedWinrateForCurrentSnapshot()
+    {
+        // Detectar si la partida fue Ranked
+        bool isRanked = false;
+        if (gameManager != null && !string.IsNullOrEmpty(gameManager.mode))
+            isRanked = gameManager.mode.Equals("Ranked", StringComparison.OrdinalIgnoreCase);
+
+        if (!isRanked) yield break;
+
+        // players es tu SyncList de snapshot final ya ordenado por puesto (ganador primero)
+        for (int i = 0; i < players.Count; i++)
+        {
+            var row = players[i];
+            if (string.IsNullOrEmpty(row.uid)) continue; // bots o filas sin uid
+            int position = i + 1; // 1..N
+            yield return FirebaseServerClient.IncrementWinrateAndTotals(row.uid, position);
+        }
+    }
+
 }

@@ -138,6 +138,11 @@
             window.unityInstance = unityInstance;
             loadingBar.style.display = "none";
             loadingText.style.display = "none";
+
+            // Reintentar auth pendiente si Unity ya está listo
+            if (window.checkPendingAuth) {
+                setTimeout(() => window.checkPendingAuth(), 0);
+            }
         }).catch((message) => {
             alert("Error cargando Unity WebGL: " + message);
         });

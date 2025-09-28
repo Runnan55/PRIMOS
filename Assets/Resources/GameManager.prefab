@@ -87,8 +87,6 @@ MonoBehaviour:
   readyTimeoutSeconds: 15
   botsEnableRandomSwitch: 1
   botRandomSwitchChance: 0.7
-  humanCheckInterval: 10
-  humanCheckGrace: 3
 --- !u!114 &530012246276789366
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -121,4 +119,4 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   ParcaKillRequirement: 2
-  ParcaRewardProbability: 0.7
+  ParcaRewardProbability: 1

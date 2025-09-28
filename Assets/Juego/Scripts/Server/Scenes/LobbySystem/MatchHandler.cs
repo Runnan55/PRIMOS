@@ -615,6 +615,11 @@ public class MatchHandler : NetworkBehaviour
             foreach (var rp in match.players.ToArray())
             {
                 if (rp == null) continue;
+
+                // NUEVO: no expulses si el jugador ya cambió de match o no está jugando
+                if (rp.currentMatchId != matchId || !rp.isPlayingNow)
+                    continue;
+
                 rp.isPlayingNow = false;
                 rp.currentMatchId = null;
 
