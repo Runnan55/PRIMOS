@@ -395,8 +395,16 @@ public class FirebaseServerClient : MonoBehaviour
 
         yield return patch.SendWebRequest();
 
-        if (patch.result != UnityWebRequest.Result.Success)
-            LogWithTime.LogError("[Firebase][UpdateRP] PATCH error: " + patch.downloadHandler.text);
+        bool success = (patch.result == UnityWebRequest.Result.Success);
+
+        if (success)
+        {
+            LogWithTime.Log($"[Firebase][UpdateRP] Ranked points entregados -> uid={uid}, +{pointsToAdd}");
+        }
+        else
+        {
+            LogWithTime.LogError($"[Firebase][UpdateRP] PATCH error -> uid={uid}, +{pointsToAdd}, resp={patch.downloadHandler.text}");
+        }
 
         callback(patch.result == UnityWebRequest.Result.Success);
     }

@@ -947,6 +947,11 @@ public class GameManager : NetworkBehaviour
 
         #region BOT_ACTION_DECISION_PHASE
 
+        var aliveHumans = players.Where(p => !p.isBot && p.isAlive).ToList();
+        bool noHumansAlive = (aliveHumans.Count == 0);
+        bool allAliveHumansAfk = (aliveHumans.Count > 0 && aliveHumans.All(h => h.isAfk));
+        bool forceAggro = noHumansAlive || allAliveHumansAfk;
+
         foreach (var bot in players.Where(p => p.isBot && p.isAlive))
         {
             ActionType chosenAction = ActionType.None;
@@ -962,6 +967,25 @@ public class GameManager : NetworkBehaviour
             bool canSuperShoot = bot.ammo >= 3;
 
             bool coverBlocked = (SelectedModifier == GameModifierType.CaceriaDelLider && bot.isVeryHealthy);
+
+            // HARD AGGRO when forceAggro is true
+            if (forceAggro)
+            {
+                // pure Aggro just shoot, reload and more shoot
+                if (hasAmmo && (visibleEnemies.Count > 0 || enemies.Count > 0))
+                {
+                    chosenTarget = PickAnyVisibleOrAny(visibleEnemies, enemies);
+                    chosenAction = ActionType.Shoot;
+                }
+                else
+                {
+                    chosenAction = ActionType.Reload;
+                }
+
+                RegisterAction(bot, chosenAction, chosenTarget);
+                LogWithTime.Log($"Accion de {bot.playerName} registrada en escena en la escena {gameObject.scene.name}, modo aggro activo");
+            continue;
+            }
 
             // Early exit para DoNothing inteligente
             if (BotShouldDoNothingThisRound(bot) && BotShouldAcceptDoNothing(bot, enemies))
@@ -1868,25 +1892,6 @@ public class GameManager : NetworkBehaviour
                 crp.ServerReturnToMainMenu();
             }
         }
-
-        /*var myScene = gameObject.scene;
-        foreach (var crp in UnityEngine.Object.FindObjectsByType<CustomRoomPlayer>(FindObjectsSortMode.None))
-        {
-            if (crp == null) continue;
-
-            bool sameScene = (crp.gameObject.scene == myScene);
-            bool sameMatch = (!string.IsNullOrEmpty(crp.currentMatchId) && crp.currentMatchId == matchId);
-            bool stillPlaying = crp.isPlayingNow;
-
-            // extra 1: es el CRP activo para su propia conexion?
-            var activeCrpForConn = crp.connectionToClient?.identity?.GetComponent<CustomRoomPlayer>();
-            bool isActiveForConn = (activeCrpForConn == crp);
-
-            if (sameScene && sameMatch && stillPlaying && isActiveForConn)
-            {
-                crp.ServerReturnToMainMenu();
-            }
-        }*/
 
         yield return new WaitForSecondsRealtime(1f);
 
