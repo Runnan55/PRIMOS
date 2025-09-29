@@ -1503,7 +1503,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 16777215
   m_fontColor: {r: 1, g: 1, b: 1, a: 0}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -3552,7 +3552,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Had fun, all feedback are welcome
+  m_text: Have fun, all feedback are welcome
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: c72e795af44236145a440be5aaf134af, type: 2}
   m_sharedMaterial: {fileID: 9134812014732050744, guid: c72e795af44236145a440be5aaf134af, type: 2}

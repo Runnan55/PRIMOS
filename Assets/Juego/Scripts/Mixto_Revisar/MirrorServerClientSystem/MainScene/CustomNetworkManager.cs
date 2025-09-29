@@ -270,8 +270,13 @@ public class CustomNetworkManager : NetworkManager
         // 3) Cleanup account mappings (tokens, uid->conn)
         AccountManager.Instance?.RemoveConnection(conn);
 
+        int before = NetworkServer.connections.Count;
         // 4) Now let Mirror proceed
         base.OnServerDisconnect(conn);
+
+        int after = NetworkServer.connections.Count;
+
+        LogWithTime.Log($"[SERVER] disconnect id={conn.connectionId}. now_active={after} (was {before})");
     }
 
     private PlayerController TryResolvePlayerController(NetworkConnectionToClient conn)

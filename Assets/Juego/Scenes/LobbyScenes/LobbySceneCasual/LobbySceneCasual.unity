@@ -351,7 +351,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Had fun, all feedback are welcome
+  m_text: Have fun, all feedback are welcome
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: c72e795af44236145a440be5aaf134af, type: 2}
   m_sharedMaterial: {fileID: 9134812014732050744, guid: c72e795af44236145a440be5aaf134af, type: 2}

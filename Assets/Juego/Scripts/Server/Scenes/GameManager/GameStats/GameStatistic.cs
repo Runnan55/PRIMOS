@@ -13,7 +13,7 @@ public class GameStatistic : NetworkBehaviour
     [Header("GameManager")]
     [SerializeField] private GameManager gameManager;
 
-    private readonly SyncList<PlayerInfo> players = new SyncList<PlayerInfo>();
+    public readonly SyncList<PlayerInfo> players = new SyncList<PlayerInfo>();
 
     public struct PlayerInfo
     {

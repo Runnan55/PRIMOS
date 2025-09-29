@@ -1812,7 +1812,7 @@ public class GameManager : NetworkBehaviour
                     LogWithTime.LogWarning($"[RankedPoints] No points for UID {uid} (connected: {pc.playerName})");
                 }
             }
-
+            
             // 2) Fallback: también actualiza a los humanos que empezaron pero ya no están conectados
             foreach (var uid in startingHumans)
             {
@@ -1838,7 +1838,60 @@ public class GameManager : NetworkBehaviour
             }
 
             // 2.1 Grant a basic key to the winner (Ranked only, human only)
+            // Snapshot-based (same path as RankedPoints/Winrate). Works even if player disconnected.
             {
+                string wuid = null;
+                string wname = null;
+
+                // Read winner from GameStatistic snapshot
+                if (gameStatistic != null && gameStatistic.players != null && gameStatistic.players.Count > 0)
+                {
+                    for (int i = 0; i < gameStatistic.players.Count; i++)
+                    {
+                        var row = gameStatistic.players[i];
+                        if (!string.IsNullOrEmpty(row.uid))
+                        {
+                            wuid = row.uid;
+                            wname = row.playerName;
+                            break;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrEmpty(wuid))
+                {
+                    LogWithTime.LogWarning("[Key] Winner is a bot or null or uid not found in snapshot. Skip key grant.");
+                }
+                else
+                {
+                    yield return StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(wuid, ok =>
+                    {
+                        LogWithTime.Log(ok
+                            ? $"[Key] OK -> {wname} ({wuid})"
+                            : $"[Key] FAIL -> {wname} ({wuid})");
+
+                        if (!ok) return; // do not notify client if grant failed
+
+                        // Optional client popup if still connected
+                        var pc = players.FirstOrDefault(p =>
+                            !p.isBot &&
+                            (p.firebaseUID == wuid ||
+                             (p.ownerRoomPlayer != null && p.ownerRoomPlayer.firebaseUID == wuid)));
+
+                        if (pc != null && pc.ownerRoomPlayer != null)
+                        {
+                            pc.ownerRoomPlayer.ServerNotifyThisClient(
+                                "Key",
+                                "Congratulation, you had win a Key",
+                                3f
+                            );
+                        }
+                    }));
+                }
+            }
+
+            // 2.1 Grant a basic key to the winner (Ranked only, human only)
+            /*{
                 // winner is the top by deathOrder (already built above)
                 var winnerForKey = finalOrdered
                     .OrderByDescending(p => p.deathOrder)
@@ -1878,7 +1931,7 @@ public class GameManager : NetworkBehaviour
                 {
                     LogWithTime.Log("[Key] Winner is a bot or null, skip key grant.");
                 }
-            }
+            }*/
         }
 
         yield return new WaitForSecondsRealtime(0.2f); // darle 1-2 frames al RPC del leaderboard
