@@ -7,6 +7,9 @@ public class RolesManager : NetworkBehaviour
     [SerializeField] private int ParcaKillRequirement;
     [SerializeField] private float ParcaRewardProbability;
 
+    [SerializeField] private GameManager gameManager;
+    [SerializeField] private GameStatistic gameStatistic;
+
     private PlayerController currentParca = null;
 
     private Dictionary<PlayerController, int> playerKills = new Dictionary<PlayerController, int>();
@@ -27,7 +30,11 @@ public class RolesManager : NetworkBehaviour
         //Si el asesinado era la Parca actual, transfiere el rol inmediatamente
         if (currentParca == victim)
         {
-            TransferParcaRole(killer, victim);
+            //TransferParcaRole(killer, victim);
+            if (gameManager  != null)
+            {
+                gameManager.EnqueueParcaTransfer(killer, victim);
+            }
         }
 
         //Si el killer ya es la Parca, curarlo 1 de vida
@@ -39,10 +46,9 @@ public class RolesManager : NetworkBehaviour
         TryAssignParcaRole(killer);
 
         //Actualizar stats después de matar
-        GameStatistic stats = GameObject.FindFirstObjectByType<GameStatistic>();
-        if (stats != null)
+        if (gameStatistic != null)
         {
-            stats.UpdatePlayerStats(killer);
+            gameStatistic.UpdatePlayerStats(killer);
         }
     }
 

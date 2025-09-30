@@ -48,6 +48,8 @@ public class AuthManager : MonoBehaviour
     private Coroutine refreshRoutine;
     private bool loginAccepted = false;
 
+    public string GetCurrentUid() { return userId; }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)

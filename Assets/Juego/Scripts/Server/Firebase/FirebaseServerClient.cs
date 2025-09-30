@@ -239,7 +239,7 @@ public class FirebaseServerClient : MonoBehaviour
 
         if (getUser.result != UnityWebRequest.Result.Success)
         {
-            LogWithTime.LogError("[Firebase] Error al obtener tickets y llaves: " + getUser.downloadHandler.text);
+            LogWithTime.LogError("[Firebase][uid=" + uid + "]  Error al obtener tickets/keys user: " + getUser.downloadHandler.text);
             callback(0, 0);
             yield break;
         }
@@ -262,6 +262,7 @@ public class FirebaseServerClient : MonoBehaviour
         if (getWallet.result != UnityWebRequest.Result.Success)
         {
             LogWithTime.LogError("[Firebase] Error obteniendo wallet: " + getWallet.downloadHandler.text);
+            LogWithTime.LogError("[Firebase][uid=" + uid + "] Error obteniendo wallet: " + getWallet.downloadHandler.text);
             callback(0, 0);
             yield break;
         }

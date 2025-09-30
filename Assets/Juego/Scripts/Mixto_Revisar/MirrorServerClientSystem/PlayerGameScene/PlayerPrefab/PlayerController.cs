@@ -695,7 +695,14 @@ public class PlayerController : NetworkBehaviour
 
     private void OnAliveChanged(bool oldV, bool newV)
     {
-        if (!newV) ApplyDeathUI_Local();   // sin RPC, solo local
+        if (!newV)
+        {
+            ApplyDeathUI_Local();   // sin RPC, solo local
+        }
+        else
+        {
+            ApplyReviveUI_Local();
+        }
     }
 
     // factoriza lo que ya haces en RpcOnDeath/TargetApplyDeathUI
@@ -712,6 +719,48 @@ public class PlayerController : NetworkBehaviour
         gameModeCanvas?.SetActive(false);
         if (isOwned) deathCanvas?.SetActive(true);
         if (killsMarker != null) killsMarker.SetActive(false);
+    }
+
+    private void ApplyReviveUI_Local()
+    {
+        // Texts back
+        coverProbabilityText?.gameObject.SetActive(true);
+        healthText?.gameObject.SetActive(true);
+        ammoText?.gameObject.SetActive(true);
+
+        // Life bars back according to ownership
+        if (isOwned)
+        {
+            vidaAzulBarra?.SetActive(true);
+            corazonAzul?.SetActive(true);
+            vidaRojaBarra?.SetActive(false);
+            corazonRojo?.SetActive(false);
+        }
+        else
+        {
+            vidaRojaBarra?.SetActive(true);
+            corazonRojo?.SetActive(true);
+            vidaAzulBarra?.SetActive(false);
+            corazonAzul?.SetActive(false);
+        }
+
+        // Repaint life pips according to current health
+        UpdateLifeUI(Mathf.Max(0, health));
+
+        // Hide death canvas if it was shown
+        if (isLocalPlayer || isOwned)
+            deathCanvas?.SetActive(false);
+
+        // Restore Parca visuals to current state
+        OnParcaChanged(isParca, isParca);
+
+        // Hide target indicator just in case
+        targetIndicator?.SetActive(false);
+
+        // Do not force gameModeCanvas; DecisionPhase toggles it later as usual.
+        // Tiki icon will be handled by RpcSetTikiHolder on next UpdateTikiVisual call.
+        if (killsMarker != null)
+            killsMarker.SetActive(true);
     }
 
     #endregion

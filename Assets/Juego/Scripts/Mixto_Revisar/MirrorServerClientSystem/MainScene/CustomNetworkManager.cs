@@ -78,6 +78,24 @@ public class CustomNetworkManager : NetworkManager
         NetworkServer.RegisterHandler<EmptyTimerMessage>(OnClientRequestedTime);
     }
 
+    public override void OnClientConnect()
+    {
+        base.OnClientConnect();
+
+        // 1) Reenviar UID siempre en cada (re)conexion
+        string uid = AuthManager.Instance != null ? AuthManager.Instance.GetCurrentUid() : null;
+        if (!string.IsNullOrEmpty(uid))
+        {
+            NetworkClient.Send(new FirebaseCredentialMessage { uid = uid });
+        }
+
+        /*// 2) Enviar nombre provisional del cliente (cache local) para no quedar en placeholder
+        //    (el server lo puede reemplazar por el de Firestore si tiene cuota)
+        string localName = PlayerPrefs.GetString("nickname_cache", "Player");
+        NetworkClient.Send(new NameMessage { playerName = localName });*/
+    }
+
+
     private void OnClientRequestedTime(NetworkConnectionToClient conn, EmptyTimerMessage msg)
     {
         LogWithTime.Log("[SERVER] Recibido EmptyTimerMessage desde cliente.");
@@ -271,6 +289,7 @@ public class CustomNetworkManager : NetworkManager
         AccountManager.Instance?.RemoveConnection(conn);
 
         int before = NetworkServer.connections.Count;
+
         // 4) Now let Mirror proceed
         base.OnServerDisconnect(conn);
 

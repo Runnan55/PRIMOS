@@ -92,6 +92,9 @@ public class GameManager : NetworkBehaviour
     [SerializeField] private GameStatistic gameStatistic;
     private int deathCounter = 0;
 
+    [Header("RolesManager")]
+    [SerializeField] private RolesManager rolesManager;
+
     [Header("Talisman-Tiki")]
     [SerializeField] private GameObject talismanIconPrefab;
 
@@ -1529,6 +1532,22 @@ public class GameManager : NetworkBehaviour
 
         #endregion
 
+        /*#region TikiDesempate
+
+        // Si ningún jugador queda vivo al final de la ejecución, el portador del Tiki queda vivo con 1 HP
+        var aliveHumans = players.Where(p => p.isAlive && !p.isBot).ToList();
+
+        if (aliveHumans.Count == 0 && talismanHolder != null)
+        {
+            // Tiki sobrevive
+            talismanHolder.isAlive = true;
+            talismanHolder.health = 1;
+
+            LogWithTime.Log($"[TIKI] Global wipe. Tiki holder {talismanHolder.playerName} survives with 1 HP.");
+        }
+
+        #endregion*/
+
         yield return new WaitForSecondsRealtime(executionTime);
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
         CheckGameOver();
@@ -1846,15 +1865,11 @@ public class GameManager : NetworkBehaviour
                 // Read winner from GameStatistic snapshot
                 if (gameStatistic != null && gameStatistic.players != null && gameStatistic.players.Count > 0)
                 {
-                    for (int i = 0; i < gameStatistic.players.Count; i++)
+                    var row = gameStatistic.players[0];
+                    if (!string.IsNullOrEmpty(row.uid))
                     {
-                        var row = gameStatistic.players[i];
-                        if (!string.IsNullOrEmpty(row.uid))
-                        {
-                            wuid = row.uid;
-                            wname = row.playerName;
-                            break;
-                        }
+                        wuid = row.uid;
+                        wname = row.playerName;
                     }
                 }
 
@@ -2015,6 +2030,8 @@ public class GameManager : NetworkBehaviour
             yield break;
         }
 
+        #region Tiki_Desempate
+
         // Verificar si todos morirían al procesar este buffer
         int vivosRestantes = players.Count - deathBuffer.Count;
         bool todosMueren = (vivosRestantes == 0);
@@ -2023,13 +2040,18 @@ public class GameManager : NetworkBehaviour
         if (todosMueren && tikiVaAMorir)
         {
             // Revivir al poseedor del tiki
-            talismanHolder.health = 1;
             talismanHolder.isAlive = true;
+            talismanHolder.health = 1;
             talismanHolder.deathOrder = 0;
 
             // Eliminarlo del buffer y evitar que se procese como muerte
             deathBuffer.RemoveAll(p => p == talismanHolder);
         }
+
+        #endregion
+
+        // 2) FINAL SNAPSHOT of deaths after tiki rule (this was missing)
+        var finalDeathsList = new List<PlayerController>(deathBuffer);
 
         int tikiPos = talismanHolder?.playerPosition ?? 0;
         int DistanciaHoraria(int from, int to) => (to - from + 6) % 6;
@@ -2038,7 +2060,7 @@ public class GameManager : NetworkBehaviour
             .OrderBy(p => DistanciaHoraria(tikiPos, p.playerPosition))
             .ToList();
 
-        int totalJugadores = players.Count + deadPlayers.Count + deathBuffer.Count;
+        //int totalJugadores = players.Count + deadPlayers.Count + deathBuffer.Count;
 
         foreach (var deadPlayer in sortedDeaths)
         {
@@ -2050,16 +2072,69 @@ public class GameManager : NetworkBehaviour
 
             if (gameStatistic != null) gameStatistic.UpdatePlayerStats(deadPlayer);
 
-            CheckGameOver();
+            //CheckGameOver();
             yield return new WaitForSecondsRealtime(0.1f);
 
             CerrarAnimacionesMision(deadPlayer);
             deadPlayer.RpcOnDeath();
         }
 
+        //var finalDeaths = new HashSet<PlayerController>(deathBuffer);
+
+        // 4) Resolve Parca transfers only now, using the snapshot
+        if (finalDeathsList.Count > 0)
+        {
+            ResolvePendingParcaTransfers(new HashSet<PlayerController>(finalDeathsList));
+        }
+
         deathBuffer.Clear();
         isProcessingDeath = false;
     }
+
+    #region Encolar Parca para evitar que un jugador con parca y tiki al ser asesinado por otro y acabar la partida no gane
+
+    // GameManager.cs (campos)
+    private readonly List<(PlayerController killer, PlayerController victim)> pendingParcaTransfers
+        = new List<(PlayerController killer, PlayerController victim)>();
+
+    [Server]
+    public void EnqueueParcaTransfer(PlayerController killer, PlayerController victim)
+    {
+        if (killer != null && victim != null)
+            pendingParcaTransfers.Add((killer, victim));
+    }
+
+    [Server]
+    private void ResolvePendingParcaTransfers(HashSet<PlayerController> finalDeaths)
+    {
+        if (pendingParcaTransfers.Count == 0) return;
+
+        // Localiza RolesManager una vez
+        if (rolesManager == null)
+        {
+            pendingParcaTransfers.Clear();
+            return;
+        }
+
+        foreach (var (killer, victim) in pendingParcaTransfers)
+        {
+            // Transferir solo si la victima (Parca) realmente murio
+            // y el killer sigue vivo tras el buffer
+            bool victimIsDead = finalDeaths.Contains(victim) || !victim.isAlive;
+            bool killerAlive = killer != null && killer.isAlive;
+
+            if (victimIsDead && killerAlive)
+            {
+                rolesManager.TransferParcaRole(killer, victim);
+            }
+            // else: no transferir (wipe con Tiki o killer tambien murio)
+        }
+
+        pendingParcaTransfers.Clear();
+    }
+
+
+    #endregion
 
     // NUEVO: cierre genérico de overlays/animaciones “transitorias”
     [Server]

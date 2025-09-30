@@ -80,6 +80,7 @@ MonoBehaviour:
   missionRounds: 0400000005000000060000000700000008000000
   missionsPerRound: 1
   gameStatistic: {fileID: 530012246276789366}
+  rolesManager: {fileID: 1084369661911532110}
   talismanIconPrefab: {fileID: 8773022760893761464, guid: 8975341e867cb0b47a721bb2bd2ccc5f, type: 3}
   matchId: 
   playerControllerPrefab: {fileID: 6611139386470013384, guid: 0ff601bcb83d8344685798401727d690, type: 3}
@@ -120,3 +121,5 @@ MonoBehaviour:
   syncInterval: 0
   ParcaKillRequirement: 2
   ParcaRewardProbability: 1
+  gameManager: {fileID: 8326968152673269228}
+  gameStatistic: {fileID: 530012246276789366}
