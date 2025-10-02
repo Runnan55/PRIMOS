@@ -153,11 +153,18 @@ public class MainLobbyUI : MonoBehaviour
     private IEnumerator AutoRefreshWalletData()
     {
         StartCoroutine(WaitAndRequestPlayerData());
-        
+
         while (true)
         {
-            yield return new WaitForSecondsRealtime(5f);
-            CustomRoomPlayer.LocalInstance.CmdRequestTicketAndKeyStatus();
+            // Refrescar SOLO si el menu de seleccion esta visible
+            if (startMenuCanvas != null && startMenuCanvas.activeInHierarchy &&
+                CustomRoomPlayer.LocalInstance != null)
+            {
+                CustomRoomPlayer.LocalInstance.CmdRequestTicketAndKeyStatus();
+            }
+
+            // Esperar mas tiempo entre lecturas
+            yield return new WaitForSecondsRealtime(10f);
         }
     }
 
@@ -179,7 +186,7 @@ public class MainLobbyUI : MonoBehaviour
             CustomRoomPlayer.LocalInstance.CmdRequestTicketAndKeyStatus();
             //Ticket y llaves
             //RequestTicketStatusFromServer();
-            StartCoroutine(RequestTicketStatusFromServerPeriodically());
+            // StartCoroutine(RequestTicketStatusFromServerPeriodically());
         }
         else
         {
@@ -546,6 +553,7 @@ public class MainLobbyUI : MonoBehaviour
         UpdateRankedButtonState();
     }
 
+    /*
     private IEnumerator RequestTicketStatusFromServerPeriodically()
     {
         CustomRoomPlayer.LocalInstance?.CmdRequestTicketAndKeyStatus();
@@ -554,7 +562,7 @@ public class MainLobbyUI : MonoBehaviour
         {
             yield return new WaitForSecondsRealtime(5f);
         }
-    }
+    }*/
 
     #endregion
 }
