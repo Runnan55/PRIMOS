@@ -1470,6 +1470,12 @@ public class PlayerController : NetworkBehaviour
             GManager.RegisterDamagedPlayer(this);
         }
 
+        // Mark lethal BEFORE applying damage so tiki tie-break uses pre-heal state
+        if (health - damageAmount <= 0)
+        {
+            GManager.RegisterLethalCandidate(this);
+        }
+
         health -= damageAmount;
         attacker.RpcPlayAnimation("ShootMarker_2");
         RpcPlaySFX("Hit");

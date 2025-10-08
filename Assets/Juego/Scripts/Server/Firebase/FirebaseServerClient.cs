@@ -744,4 +744,84 @@ public class FirebaseServerClient : MonoBehaviour
     }
 
     #endregion
+
+    public static IEnumerator AddRankedKills(string uid, int killsToAdd)
+    {
+        if (killsToAdd <= 0)
+        {
+            yield break; // nada que sumar
+        }
+
+        var token = Instance.GetIdToken();
+        string userUrl = GetUserUrl(uid);
+
+        // 1) Leer documento actual
+        UnityWebRequest getReq = UnityWebRequest.Get(userUrl);
+        getReq.SetRequestHeader("Authorization", $"Bearer {token}");
+        yield return getReq.SendWebRequest();
+
+#if UNITY_2023_1_OR_NEWER
+        if (getReq.result != UnityWebRequest.Result.Success)
+#else
+    if (getReq.isNetworkError || getReq.isHttpError)
+#endif
+        {
+            LogWithTime.LogError("[Firebase] AddRankedKills GET error: " + getReq.downloadHandler.text);
+            yield break;
+        }
+
+        // 2) Parsear kills existentes (si no existe, usar 0)
+        var data = SimpleJSON.JSON.Parse(getReq.downloadHandler.text);
+        int current = 0;
+        try
+        {
+            current = data["fields"]["WinrateRanked"]["mapValue"]["fields"]["killsTotal"]["integerValue"].AsInt;
+        }
+        catch { current = 0; }
+
+        int updated = current + killsToAdd;
+
+        // 3) PATCH solo del campo winrateRanked.killsTotal
+        string patchUrl = userUrl + "?updateMask.fieldPaths=WinrateRanked.killsTotal";
+
+        var payload = new SimpleJSON.JSONObject();
+        var fields = new SimpleJSON.JSONObject();
+
+        var winrate = new SimpleJSON.JSONObject();
+        var winrateMap = new SimpleJSON.JSONObject();
+        var winrateFields = new SimpleJSON.JSONObject();
+
+        var killsField = new SimpleJSON.JSONObject();
+        killsField["integerValue"] = updated.ToString();
+
+        winrateFields["killsTotal"] = killsField;
+        winrateMap["fields"] = winrateFields;
+        winrate["mapValue"] = winrateMap;
+
+        fields["WinrateRanked"] = winrate;
+        payload["fields"] = fields;
+
+        byte[] body = System.Text.Encoding.UTF8.GetBytes(payload.ToString());
+        var patch = new UnityWebRequest(patchUrl, "PATCH");
+        patch.uploadHandler = new UploadHandlerRaw(body);
+        patch.downloadHandler = new DownloadHandlerBuffer();
+        patch.SetRequestHeader("Content-Type", "application/json");
+        patch.SetRequestHeader("Authorization", $"Bearer {token}");
+
+        yield return patch.SendWebRequest();
+
+#if UNITY_2023_1_OR_NEWER
+        if (patch.result == UnityWebRequest.Result.Success)
+#else
+    if (!patch.isNetworkError && !patch.isHttpError)
+#endif
+        {
+            LogWithTime.Log($"[Firebase] Ranked kills updated for {uid}: {current} -> {updated}");
+        }
+        else
+        {
+            LogWithTime.LogError("[Firebase] AddRankedKills PATCH error: " + patch.downloadHandler.text);
+        }
+    }
+
 }

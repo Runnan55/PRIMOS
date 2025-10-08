@@ -60,6 +60,7 @@ public class GameManager : NetworkBehaviour
 
     [SerializeField] public List<PlayerController> players = new List<PlayerController>(); //Lista de jugadores que entran
     [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>(); //Lista de jugadores muertos
+    private HashSet<PlayerController> lethalSnapshot = new HashSet<PlayerController>(); // Tracks players that reached health <= 0 BEFORE any role heals/transfers in this round
     private HashSet<PlayerController> damagedPlayers = new HashSet<PlayerController>(); // Para almacenar jugadores que ya recibieron daño en la ronda
     private HashSet<string> startingHumans = new HashSet<string>(); // SnapShot de humanos que inician el juego
     private HashSet<uint> startingNetIds = new HashSet<uint>(); // Snapshot de TODOS los que inician (humanos y bots)
@@ -867,6 +868,7 @@ public class GameManager : NetworkBehaviour
         catch (Exception e) { LogWithTime.LogWarning($"[GM] Decision.1(Talisman/Visual): {e}"); }
 
         isDecisionPhase = true;
+        lethalSnapshot.Clear(); // Fresh lethal snapshot for the new round
 
         try
         {
@@ -1211,10 +1213,17 @@ public class GameManager : NetworkBehaviour
 
     #region Bot_bot_bot
 
+    // GameManager.cs — BOT helpers
     PlayerController PickAnyVisibleOrAny(List<PlayerController> vis, List<PlayerController> all)
     {
-        var pickFrom = (vis.Count > 0) ? vis : all;
-        return (pickFrom.Count > 0) ? pickFrom[UnityEngine.Random.Range(0, pickFrom.Count)] : null;
+        // Siempre filtra solo vivos (defensivo por si alguna lista llega desincronizada)
+        var pool = (vis != null && vis.Count > 0 ? vis : all);
+        if (pool == null) return null;
+
+        var alivePool = pool.Where(p => p != null && p.isAlive).ToList();
+        if (alivePool.Count == 0) return null;
+
+        return alivePool[UnityEngine.Random.Range(0, alivePool.Count)];
     }
 
     private bool BotShouldDoNothingThisRound(PlayerController bot)
@@ -1486,6 +1495,7 @@ public class GameManager : NetworkBehaviour
         #endregion
 
         damagedPlayers.Clear(); // Permite recibir daño en la siguiente ronda
+        //lethalSnapshot.Clear(); // allow fresh snapshot next round
 
         #region 6) Registro de disparos para los BOTS
         try
@@ -1665,79 +1675,7 @@ public class GameManager : NetworkBehaviour
 
             return;
         }
-        //EnsureStartCheckForHumanOrAbort();
     }
-
-    /*#region Cerrar partida si no hay humanos
-
-    [SerializeField] private float humanCheckInterval = 10f; // seconds between checks
-    [SerializeField] private int humanCheckGrace = 3;       // consecutive checks required
-    private int noHumansStreak = 0;
-    private bool humanAbortWatcherStarted = false;
-    private Coroutine humanAbortWatcher;
-
-    [Server]
-    public void EnsureStartCheckForHumanOrAbort()
-    {
-        if (humanAbortWatcherStarted) return; // idempotent
-        humanAbortWatcherStarted = true;
-        humanAbortWatcher = StartCoroutine(StartCheckForHumanOrAbort());
-    }
-
-    // server
-    private IEnumerator StartCheckForHumanOrAbort()
-    {
-        var wait = new WaitForSecondsRealtime(humanCheckInterval);
-
-        while (true)
-        {
-            yield return wait;
-
-            // no cuentes "0 humanos" antes de iniciar de verdad
-            if (!isGameStarted) { noHumansStreak = 0; continue; }
-
-            // cuenta humanos activos via players (no bots) y conn ready
-            int humans = 0;
-            foreach (var p in players)
-            {
-                if (p == null || p.isBot || !p.isAlive) continue;
-                var crp = p.ownerRoomPlayer;
-                var conn = crp != null ? crp.connectionToClient : null;
-                if (conn != null && conn.isReady) humans++;
-            }
-
-            // excepcion: espectador humano conectado (muerto con conn ready)
-            bool hasConnectedSpectator = false;
-            foreach (var d in deadPlayers)
-            {
-                if (d == null || d.isBot) continue;
-                var crp = d.ownerRoomPlayer;
-                var conn = crp != null ? crp.connectionToClient : null;
-                if (conn != null && conn.isReady) { hasConnectedSpectator = true; break; }
-            }
-
-            if (humans > 0 || hasConnectedSpectator)
-            {
-                if (noHumansStreak > 0) LogWithTime.Log("[GM][Grace] humans/spectator back. reset.");
-                noHumansStreak = 0;
-                continue;
-            }
-
-            // aqui: 0 humanos visibles y sin espectador -> solo contamos gracia
-            noHumansStreak++;
-            LogWithTime.Log($"[GM][Grace] zero humans visible. streak={noHumansStreak}/{humanCheckGrace}");
-
-            if (noHumansStreak >= humanCheckGrace)
-            {
-                // en vez de cerrar, delega en tu logica AFK (que si quiere puede cerrar)
-                LogWithTime.Log("[GM][Grace] calling MaybeALLPlayerWentAFK() after grace.");
-                noHumansStreak = 0;                 // evita spam
-                MaybeAllPlayerWentAfk();            // decide cerrar o no
-            }
-        }
-    }
-
-    #endregion*/
 
     private IEnumerator StartGameStatistics()
     {
@@ -1830,8 +1768,23 @@ public class GameManager : NetworkBehaviour
                 {
                     LogWithTime.LogWarning($"[RankedPoints] No points for UID {uid} (connected: {pc.playerName})");
                 }
+
+                StartCoroutine(FirebaseServerClient.AddRankedKills(uid, pc.kills));
             }
-            
+
+            // 1.5) Ahora actualizamos kills para los desconectados
+            if (gameStatistic != null && gameStatistic.players != null)
+            {
+                foreach (var data in gameStatistic.players)
+                {
+                    if (string.IsNullOrEmpty(data.uid)) continue;
+                    if (updatedUids.Contains(data.uid)) continue; // ya se actualizó arriba
+                    if (data.kills <= 0) continue; // no hace falta subir 0
+
+                    StartCoroutine(FirebaseServerClient.AddRankedKills(data.uid, data.kills));
+                }
+            }
+
             // 2) Fallback: también actualiza a los humanos que empezaron pero ya no están conectados
             foreach (var uid in startingHumans)
             {
@@ -1904,49 +1857,6 @@ public class GameManager : NetworkBehaviour
                     }));
                 }
             }
-
-            // 2.1 Grant a basic key to the winner (Ranked only, human only)
-            /*{
-                // winner is the top by deathOrder (already built above)
-                var winnerForKey = finalOrdered
-                    .OrderByDescending(p => p.deathOrder)
-                    .FirstOrDefault();
-
-                if (winnerForKey != null && !winnerForKey.isBot)
-                {
-                    string wuid = winnerForKey.firebaseUID;
-                    if (string.IsNullOrEmpty(wuid) && winnerForKey.ownerRoomPlayer != null)
-                        wuid = winnerForKey.ownerRoomPlayer.firebaseUID;
-
-                    if (!string.IsNullOrEmpty(wuid))
-                    {
-                        yield return StartCoroutine(FirebaseServerClient.GrantKeyToPlayer(wuid, ok =>
-                        {
-                            LogWithTime.Log(ok
-                                ? $"[Key] OK -> {winnerForKey.playerName} ({wuid})"
-                                : $"[Key] FAIL -> {winnerForKey.playerName} ({wuid})");
-
-                            if (ok && winnerForKey.ownerRoomPlayer != null)
-                            {
-                                // spriteKey: "key" (configurable en ClientNotificationUI)
-                                winnerForKey.ownerRoomPlayer.ServerNotifyThisClient(
-                                    "Key",
-                                    "Congratulation, you had win a Key",
-                                    3f
-                                );
-                            }
-                        }));
-                    }
-                    else
-                    {
-                        LogWithTime.LogWarning("[Key] Winner has no UID, skip key grant.");
-                    }
-                }
-                else
-                {
-                    LogWithTime.Log("[Key] Winner is a bot or null, skip key grant.");
-                }
-            }*/
         }
 
         yield return new WaitForSecondsRealtime(0.2f); // darle 1-2 frames al RPC del leaderboard
@@ -2030,7 +1940,7 @@ public class GameManager : NetworkBehaviour
             yield break;
         }
 
-        #region Tiki_Desempate
+        /*#region Tiki_Desempate
 
         // Verificar si todos morirían al procesar este buffer
         int vivosRestantes = players.Count - deathBuffer.Count;
@@ -2048,6 +1958,31 @@ public class GameManager : NetworkBehaviour
             deathBuffer.RemoveAll(p => p == talismanHolder);
         }
 
+        #endregion*/
+
+        #region Tiki_TieBreak_PreHeal
+
+        // Cuenta solo a los que siguen en 'players' (vivos pendientes de procesar)
+        int lethalAlive = 0;
+        foreach (var p in players)
+        {
+            if (WasLethalThisRound(p)) lethalAlive++;
+        }
+
+        int vivosRestantesPre = players.Count - lethalAlive;
+        bool todosEranLetalesPre = (vivosRestantesPre == 0);
+        bool tikiMarcadoLetal = (talismanHolder != null) && WasLethalThisRound(talismanHolder);
+
+        if (todosEranLetalesPre && tikiMarcadoLetal)
+        {
+            // Tiki sobrevive SIEMPRE aunque Parca se haya curado despues
+            talismanHolder.isAlive = true;
+            talismanHolder.health = Mathf.Max(talismanHolder.health, 1);
+            talismanHolder.deathOrder = 0;
+
+            // Evitar que se procese como muerte
+            deathBuffer.RemoveAll(p => p == talismanHolder);
+        }
         #endregion
 
         // 2) FINAL SNAPSHOT of deaths after tiki rule (this was missing)
@@ -2089,6 +2024,18 @@ public class GameManager : NetworkBehaviour
 
         deathBuffer.Clear();
         isProcessingDeath = false;
+    }
+
+    [Server]
+    public void RegisterLethalCandidate(PlayerController player)
+    {
+        if (player != null) lethalSnapshot.Add(player);
+    }
+
+    [Server]
+    public bool WasLethalThisRound(PlayerController player)
+    {
+        return player != null && lethalSnapshot.Contains(player);
     }
 
     #region Encolar Parca para evitar que un jugador con parca y tiki al ser asesinado por otro y acabar la partida no gane
