@@ -5,7 +5,7 @@ using Mirror;
 public class RolesManager : NetworkBehaviour
 {
     [SerializeField] private int ParcaKillRequirement;
-    [SerializeField] private float ParcaRewardProbability;
+    [SerializeField, Range(0f, 1f)] private float ParcaRewardProbability;
 
     [SerializeField] private GameManager gameManager;
     [SerializeField] private GameStatistic gameStatistic;
@@ -25,7 +25,7 @@ public class RolesManager : NetworkBehaviour
         }
 
         playerKills[killer]++;
-        killer.kills = playerKills[killer];//Actualizar contador de kills de jugador
+        //killer.kills = playerKills[killer];//Actualizar contador de kills de jugador*/
 
         //Si el asesinado era la Parca actual, transfiere el rol inmediatamente
         if (currentParca == victim)
@@ -40,16 +40,17 @@ public class RolesManager : NetworkBehaviour
         //Si el killer ya es la Parca, curarlo 1 de vida
         if (currentParca == killer)
         {
-            killer.ServerHeal(1);
+            //killer.ServerHeal(1);
+            if (gameManager != null) gameManager.QueueHeal(killer, 1);
         }
 
         TryAssignParcaRole(killer);
 
-        //Actualizar stats después de matar
+        /*//Actualizar stats después de matar
         if (gameStatistic != null)
         {
             gameStatistic.UpdatePlayerStats(killer);
-        }
+        }*/
     }
 
     [Server]
@@ -62,7 +63,6 @@ public class RolesManager : NetworkBehaviour
         if (!playerKills.TryGetValue(killer, out int k) || k < ParcaKillRequirement)
             return;
 
-        // Probabilidad: 70% por kill a partir de la segunda
         // Verificar probabilidad antes de asignar el rol
         if (Random.value <= ParcaRewardProbability)
         {
@@ -80,11 +80,13 @@ public class RolesManager : NetworkBehaviour
 
         if (firstParca)
         {
-            newParca.ServerHeal(1);
+            //newParca.ServerHeal(1);
+            if (gameManager != null) gameManager.QueueHeal(newParca, 1);
         }
         else
         {
-            newParca.ServerHealFull();
+            //newParca.ServerHealFull();
+            if (gameManager != null) gameManager.QueueHeal(newParca, newParca.fullHealth);
         }
     }
 

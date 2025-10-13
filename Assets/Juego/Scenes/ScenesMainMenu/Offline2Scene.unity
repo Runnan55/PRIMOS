@@ -1894,6 +1894,7 @@ GameObject:
   m_Component:
   - component: {fileID: 438250280}
   - component: {fileID: 438250281}
+  - component: {fileID: 438250282}
   m_Layer: 0
   m_Name: FirebaseServerClient
   m_TagString: Untagged
@@ -1930,6 +1931,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   adminEmail: PrimosMinigameShoot@gmail.com
   adminPassword: Proyectoprimos@1234
+--- !u!114 &438250282
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 438250279}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5b030a035fe8424cad3fafe0df9c9cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  timeZoneId: Europe/Madrid
+  flushSeconds: 60
 --- !u!1 &555324381
 GameObject:
   m_ObjectHideFlags: 0

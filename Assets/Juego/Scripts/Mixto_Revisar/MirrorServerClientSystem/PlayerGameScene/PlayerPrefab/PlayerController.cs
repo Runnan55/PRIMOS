@@ -37,7 +37,7 @@ public class PlayerController : NetworkBehaviour
     [SyncVar] public PlayerController lastShotTarget = null;
     [SyncVar(hook = nameof(OnAliveChanged))] public bool isAlive = true;
     [SyncVar(hook = nameof(OnAmmoChanged))] public int ammo;
-    [SyncVar(hook = nameof(OnHealthChanged))] public int health; private int fullHealth; //Esta vida no es variable es para saber cual es la vida máxima
+    [SyncVar(hook = nameof(OnHealthChanged))] public int health; public int fullHealth; //Esta vida no es variable es para saber cual es la vida máxima
     [SyncVar(hook = nameof(OnNameConfirmedChanged))] public bool hasConfirmedName = false; //Decir al server que el jugador eligió nombre
     [SyncVar(hook = nameof(OnNameChanged))] public string playerName;
     [SyncVar(hook = nameof(OnKillsChanged))] public int kills = 0;
@@ -1483,22 +1483,23 @@ public class PlayerController : NetworkBehaviour
         if (health <= 0)
         {
             if (!isAlive) return; // Segunda verificación para evitar doble ejecución
-            isAlive = false;
-            RpcPlaySFX("Death");
+            //isAlive = false;
+            //RpcPlaySFX("Death");
 
             // Detectar quién fue el asesino usando el mismo criterio que GameManager ya usa
             PlayerController killer = attacker;
 
             if (killer != null && killer != this)
             {
-                killer.kills++;
+                //killer.kills++;
+                //RolesManager rolesManager = FindRolesManagerInScene();
 
-                RolesManager rolesManager = FindRolesManagerInScene();
-
-                if (rolesManager != null)
+                /*if (rolesManager != null)
                 {
                     rolesManager.RegisterKill(killer, this); // Aquí se asigna la muerte en el rolManager para el tema de Parca
-                }
+                }*/
+                if (GManager != null) 
+                    GManager.EnqueuePendingKill(killer, this); // Aquí se vuelve a asignar la muerte en el Gamemanager pa otras cosas, no está bien optimizado, deberían ir juntos
 
                 // if killer.hideNameInRanked is true, show (MrNobody)
                 string killerDisplay = (killer != null && killer.hideNameInRanked) ? "MrNobody" : killer.playerName;
@@ -1512,7 +1513,8 @@ public class PlayerController : NetworkBehaviour
                 }
             }
 
-            GManager.PlayerDied(this); // Aquí se vuelve a asignar la muerte en el Gamemanager pa otras cosas, no está bien optimizado, deberían ir juntos
+            //GManager.PlayerDied(this); // Aquí se vuelve a asignar la muerte en el Gamemanager pa otras cosas, no está bien optimizado, deberían ir juntos
+            GManager.QueuePendingDeath(this);
             hasDoubleDamage = false;
         }
 

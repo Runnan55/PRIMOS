@@ -60,7 +60,12 @@ public class GameManager : NetworkBehaviour
 
     [SerializeField] public List<PlayerController> players = new List<PlayerController>(); //Lista de jugadores que entran
     [SerializeField] private List<PlayerController> deadPlayers = new List<PlayerController>(); //Lista de jugadores muertos
+
+    // --- Heal & Death centralized ---
     private HashSet<PlayerController> lethalSnapshot = new HashSet<PlayerController>(); // Tracks players that reached health <= 0 BEFORE any role heals/transfers in this round
+    private readonly Dictionary<PlayerController, int> healQueue = new Dictionary<PlayerController, int>();
+    private readonly List<PlayerController> pendingDeaths = new List<PlayerController>(); // Candidatos a morir ( no se marca isAlive aún )
+
     private HashSet<PlayerController> damagedPlayers = new HashSet<PlayerController>(); // Para almacenar jugadores que ya recibieron daño en la ronda
     private HashSet<string> startingHumans = new HashSet<string>(); // SnapShot de humanos que inician el juego
     private HashSet<uint> startingNetIds = new HashSet<uint>(); // Snapshot de TODOS los que inician (humanos y bots)
@@ -841,12 +846,19 @@ public class GameManager : NetworkBehaviour
                 break;
 
             case QuickMissionType.BlockShot:
-                player.ServerHeal(1);
+                // No usar QueueHeal aqui (esa cola ya se proceso y limpio).
+                // Curar solo si sigue vivo al final de ExecutionPhase.
+                if (player.isAlive)
+                {
+                    player.ServerHeal(1);
+                }
                 break;
 
             case QuickMissionType.ReloadAndTakeDamage:
                 //player.shieldBoostActivate = true; // Esto recarga los escudos al 100%, pero de momento usamos otra recompensa
-                player.ServerHeal(1);
+                //player.ServerHeal(1);
+                QueueHeal(player, 1);
+
                 break;
 
             case QuickMissionType.DoNothing:
@@ -869,6 +881,8 @@ public class GameManager : NetworkBehaviour
 
         isDecisionPhase = true;
         lethalSnapshot.Clear(); // Fresh lethal snapshot for the new round
+        healQueue.Clear();
+        pendingDeaths.Clear();
 
         try
         {
@@ -1450,6 +1464,107 @@ public class GameManager : NetworkBehaviour
 
         #endregion
 
+        #region Resolucion de colas de Death/Health en 3 pasos
+
+        // === RESOLUCION EN 3 PASOS ===
+
+        // 1) TIKI tie-break con snapshot pre-heal: si todos eran letales y Tiki estaba marcado letal
+        bool todosEranLetalesPre = false;
+        bool tikiMarcadoLetal = false;
+        try
+        {
+            int lethalAlive = 0;
+            foreach (var p in players)
+                if (WasLethalThisRound(p)) lethalAlive++;
+
+            int vivosRestantesPre = players.Count - lethalAlive;
+            todosEranLetalesPre = (vivosRestantesPre == 0);
+            tikiMarcadoLetal = (talismanHolder != null) && WasLethalThisRound(talismanHolder);
+        }
+        catch { } // defensivo
+
+        if (todosEranLetalesPre && tikiMarcadoLetal)
+        {
+            // Fin de partida por wipe: Tiki sobrevive SIEMPRE (prioridad global)
+            talismanHolder.health = Math.Max(talismanHolder.health, 1);
+            talismanHolder.isAlive = true;
+
+            // Asegura que NO quede en pendientes
+            pendingDeaths.RemoveAll(p => p == talismanHolder);
+
+            // Marca a todos los demas como muertos (orden por tu regla horaria si quieres)
+            foreach (var p in players.ToArray())
+            {
+                if (p == null || p == talismanHolder) continue;
+                if (!deadPlayers.Contains(p)) deadPlayers.Add(p);
+                if (p.deathOrder == 0) p.deathOrder = ++deathCounter;
+                p.isAlive = false;
+                p.RpcOnDeath();
+                players.Remove(p);
+                if (gameStatistic != null) gameStatistic.UpdatePlayerStats(p);
+            }
+
+            // Ganador = Tiki (queda vivo); salimos al cierre normal
+            isGameOver = true;
+            StartCoroutine(StartGameStatistics());
+            yield break;
+        }
+
+        // 2) Aplicar TODAS las curaciones en cola (si no hubo fin por Tiki)
+        foreach (var kv in healQueue)
+        {
+            var p = kv.Key;
+            if (p == null) continue;
+            p.ServerHeal(kv.Value);
+        }
+        healQueue.Clear();
+
+        // 3) Finalizar muertes: solo si tras curarse siguen en 0 o menos
+        if (pendingDeaths.Count > 0)
+        {
+            // Conjunto con las muertes efectivas tras curarse
+            var finalDeaths = new HashSet<PlayerController>();
+
+            // Ordena por distancia horaria desde el Tiki para un leaderboard determinista
+            int tikiPos = talismanHolder?.playerPosition ?? 0;
+            int Dist(int from, int to) => (to - from + 6) % 6;
+
+            var sorted = pendingDeaths
+                .Where(p => p != null)
+                .OrderBy(p => Dist(tikiPos, p.playerPosition))
+                .ToList();
+
+            foreach (var dead in sorted)
+            {
+                if (dead == null) continue;
+
+                if (dead.health <= 0)
+                {
+                    finalDeaths.Add(dead);
+
+                    if (dead.deathOrder == 0) dead.deathOrder = ++deathCounter;
+                    if (!deadPlayers.Contains(dead)) deadPlayers.Add(dead);
+
+                    // Aqui recien cambiamos su estado vivo/muerte
+                    dead.isAlive = false;
+                    dead.RpcOnDeath();
+
+                    players.Remove(dead);
+                    if (gameStatistic != null) gameStatistic.UpdatePlayerStats(dead);
+                }
+                // Si se curo y ahora tiene vida > 0, simplemente no muere y sigue jugando
+            }
+
+            // Transferir Parca solo si la victima realmente murio y el killer sigue vivo
+
+            ResolvePendingKills(finalDeaths);
+            ResolvePendingParcaTransfers(finalDeaths);
+
+            pendingDeaths.Clear();
+        }
+
+        #endregion
+
         #region 5) Try/Catch misión rápida / animaciones de cierre
         try
         {
@@ -1541,22 +1656,6 @@ public class GameManager : NetworkBehaviour
         } catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.8(Countdown): {e}"); }
 
         #endregion
-
-        /*#region TikiDesempate
-
-        // Si ningún jugador queda vivo al final de la ejecución, el portador del Tiki queda vivo con 1 HP
-        var aliveHumans = players.Where(p => p.isAlive && !p.isBot).ToList();
-
-        if (aliveHumans.Count == 0 && talismanHolder != null)
-        {
-            // Tiki sobrevive
-            talismanHolder.isAlive = true;
-            talismanHolder.health = 1;
-
-            LogWithTime.Log($"[TIKI] Global wipe. Tiki holder {talismanHolder.playerName} survives with 1 HP.");
-        }
-
-        #endregion*/
 
         yield return new WaitForSecondsRealtime(executionTime);
         currentDecisionTime = decisionTime; //Devolver el valor anterior del timer
@@ -1917,7 +2016,7 @@ public class GameManager : NetworkBehaviour
 #endregion
 
     #region SERVER
-    [Server]
+    /*[Server]
     public void PlayerDied(PlayerController deadPlayer)
     {
         if (!players.Contains(deadPlayer)) return;
@@ -1939,26 +2038,6 @@ public class GameManager : NetworkBehaviour
             isProcessingDeath = false;
             yield break;
         }
-
-        /*#region Tiki_Desempate
-
-        // Verificar si todos morirían al procesar este buffer
-        int vivosRestantes = players.Count - deathBuffer.Count;
-        bool todosMueren = (vivosRestantes == 0);
-        bool tikiVaAMorir = talismanHolder != null && deathBuffer.Contains(talismanHolder);
-
-        if (todosMueren && tikiVaAMorir)
-        {
-            // Revivir al poseedor del tiki
-            talismanHolder.isAlive = true;
-            talismanHolder.health = 1;
-            talismanHolder.deathOrder = 0;
-
-            // Eliminarlo del buffer y evitar que se procese como muerte
-            deathBuffer.RemoveAll(p => p == talismanHolder);
-        }
-
-        #endregion*/
 
         #region Tiki_TieBreak_PreHeal
 
@@ -2024,7 +2103,7 @@ public class GameManager : NetworkBehaviour
 
         deathBuffer.Clear();
         isProcessingDeath = false;
-    }
+    }*/
 
     [Server]
     public void RegisterLethalCandidate(PlayerController player)
@@ -2220,49 +2299,6 @@ public class GameManager : NetworkBehaviour
         //EnsureStartCheckForHumanOrAbort();
     }
 
-    /*[Server]
-    private void MaybeAllPlayerWentAfk()
-    {
-        if (isGameOver) return;
-
-        // Vivos humanos (players == vivos por diseno)
-        var aliveHumans = players.Where(p => !p.isBot).ToList();
-        if (aliveHumans.Count == 0) return;
-
-        // Espectadores humanos CONECTADOS (muertos que siguen con CRP/conn activa)
-        bool hasConnectedSpectator = deadPlayers.Any(p =>
-            p != null &&
-            !p.isBot &&
-            p.ownerRoomPlayer != null &&
-            p.ownerRoomPlayer.connectionToClient != null &&
-            p.ownerRoomPlayer.connectionToClient.isReady
-            );
-
-        // Si hay espectadores conectados, NO cerrar por AFK
-        if (hasConnectedSpectator)
-        {
-            LogWithTime.Log("[AFK] Hold: connected human spectator present.");
-            return;
-        }
-
-        // Si todos los vivos estan AFK y no hay espectadores conectados -> fin por AFK
-        if (aliveHumans.All(h => h.isAfk))
-        {
-            // Asegura orden en leaderboard (si alguno vivo no tenía deathOrder)
-            foreach (var h in aliveHumans)
-            {
-                if (h.deathOrder == 0) h.deathOrder = ++deathCounter;
-                if (!deadPlayers.Contains(h)) deadPlayers.Add(h);
-                gameStatistic?.UpdatePlayerStats(h, true);
-            }
-
-            // Si quieres terminar ya (todos AFK), dispara tu final estándar:
-            isGameOver = true;
-            StopAllCoroutines(); // o tu StopGamePhases()
-            StartCoroutine(StartGameStatistics()); // tu final habitual
-        }
-    }*/
-
     [Server]
     private void MaybeAllPlayerWentAfk()
     {
@@ -2358,6 +2394,25 @@ public class GameManager : NetworkBehaviour
 
     #endregion
 
+    #region Heal & Death centralized
+
+    [Server]
+    public void QueueHeal(PlayerController p, int amount)
+    {
+        if (p == null || amount <= 0) return;
+        if (healQueue.ContainsKey(p)) healQueue[p] += amount;
+        else healQueue[p] = amount;
+    }
+
+    [Server]
+    public void QueuePendingDeath(PlayerController p)
+    {
+        if (p == null) return;
+        if (!pendingDeaths.Contains(p)) pendingDeaths.Add(p);
+        // No cambiar isAlive aquí, se decide tras curaciones
+    }
+
+    #endregion
 
     #region KillFeed
 
@@ -2369,6 +2424,41 @@ public class GameManager : NetworkBehaviour
             player.RpcAnnounceKill(killerName, victimName);
         }
     }
+
+    // Kill pairs queued on lethal; only applied if victim is confirmed dead
+    private readonly List<(PlayerController killer, PlayerController victim)> pendingKills
+        = new List<(PlayerController killer, PlayerController victim)>();
+
+    [Server]
+    public void EnqueuePendingKill(PlayerController killer, PlayerController victim)
+    {
+        if (killer != null && victim != null)
+            pendingKills.Add((killer, victim));
+    }
+
+    [Server]
+    private void ResolvePendingKills(HashSet<PlayerController> finalDeaths)
+    {
+        if (pendingKills.Count == 0) return;
+
+        foreach (var (killer, victim) in pendingKills)
+        {
+            bool victimIsDead = victim != null && (finalDeaths.Contains(victim) || !victim.isAlive);
+            if (!victimIsDead || killer == null) continue;
+
+            // ahora si: kill confirmada
+            killer.kills++;
+
+            if (rolesManager != null)
+            {
+                rolesManager.RegisterKill(killer, victim);
+            }
+
+            if (gameStatistic != null) gameStatistic.UpdatePlayerStats(killer);
+        }
+        pendingKills.Clear();
+    }
+
 
     #endregion
 }
