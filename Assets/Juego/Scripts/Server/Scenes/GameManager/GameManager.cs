@@ -1510,22 +1510,82 @@ public class GameManager : NetworkBehaviour
             yield break;
         }
 
-        // 2) Aplicar TODAS las curaciones en cola (si no hubo fin por Tiki)
-        foreach (var kv in healQueue)
+        // 2) Prediccion de curas por kill (ej. Parca) y aplicacion prioritaria
+        // Construimos un diccionario local con las curas de "on-kill" para este turno.
+        var predictedOnKillHeals = new Dictionary<PlayerController, int>();
+
+        // Usamos el mapa de disparos del turno (targetToShooters) y el snapshot letal:
+        // - Si un target fue marcado letal este turno -> es candidato a muerte.
+        // - Tomamos como killer el ultimo shooter que apunto a ese target.
+        // - Si el killer ya era Parca en este instante, predice +1 de vida por kill.
+        try
         {
-            var p = kv.Key;
-            if (p == null) continue;
-            p.ServerHeal(kv.Value);
+            foreach (var kv in targetToShooters)
+            {
+                var target = kv.Key;
+                var shooters = kv.Value;
+                if (target == null || shooters == null || shooters.Count == 0) continue;
+
+                // Solo predice si el target estaba letal este turno
+                if (!WasLethalThisRound(target)) continue;
+
+                // Killer segun la lista (ultimo shooter del turno hacia este target)
+                var killer = shooters[shooters.Count - 1];
+                if (killer == null) continue;
+
+                if (killer.isParca) // regla actual: Parca cura +1 por baja
+                {
+                    if (!predictedOnKillHeals.ContainsKey(killer))
+                        predictedOnKillHeals[killer] = 0;
+                    predictedOnKillHeals[killer] += 1; // por ahora es +1 (tu punto 1)
+                }
+            }
         }
-        healQueue.Clear();
+        catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.PredictedHeals: {e}"); }
+
+        // 2.1) Aplicar primero las curas predichas por kill
+        try
+        {
+            foreach (var kv in predictedOnKillHeals)
+            {
+                var p = kv.Key;
+                int amount = kv.Value;
+                if (p != null && p.isAlive && amount > 0)
+                {
+                    p.ServerHeal(amount);
+                }
+            }
+        }
+        catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.ApplyPredictedHeals: {e}"); }
+
+        // 2.2) Aplicar ahora el resto de healQueue (rol/transfer, etc.) descontando lo ya curado para evitar doble cura
+        try
+        {
+            if (healQueue.Count > 0)
+            {
+                foreach (var kv in healQueue)
+                {
+                    var p = kv.Key;
+                    if (p == null || !p.isAlive) continue;
+
+                    int queued = kv.Value;
+                    int predicted = predictedOnKillHeals.TryGetValue(p, out var v) ? v : 0;
+                    int toApply = queued - predicted; // evita doble cura si RegisterKill ya encolo heal
+                    if (toApply > 0)
+                    {
+                        p.ServerHeal(toApply);
+                    }
+                }
+                healQueue.Clear();
+            }
+        }
+        catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.ApplyHealQueue: {e}"); }
 
         // 3) Finalizar muertes: solo si tras curarse siguen en 0 o menos
         if (pendingDeaths.Count > 0)
         {
-            // Conjunto con las muertes efectivas tras curarse
             var finalDeaths = new HashSet<PlayerController>();
 
-            // Ordena por distancia horaria desde el Tiki para un leaderboard determinista
             int tikiPos = talismanHolder?.playerPosition ?? 0;
             int Dist(int from, int to) => (to - from + 6) % 6;
 
@@ -1544,24 +1604,25 @@ public class GameManager : NetworkBehaviour
 
                     if (dead.deathOrder == 0) dead.deathOrder = ++deathCounter;
                     if (!deadPlayers.Contains(dead)) deadPlayers.Add(dead);
-
-                    // Aqui recien cambiamos su estado vivo/muerte
                     dead.isAlive = false;
                     dead.RpcOnDeath();
-
                     players.Remove(dead);
+
                     if (gameStatistic != null) gameStatistic.UpdatePlayerStats(dead);
                 }
-                // Si se curo y ahora tiene vida > 0, simplemente no muere y sigue jugando
+                else
+                {
+                    // Si recupero vida > 0, simplemente no muere y sigue jugando
+                }
             }
 
             // Transferir Parca solo si la victima realmente murio y el killer sigue vivo
-
             ResolvePendingKills(finalDeaths);
             ResolvePendingParcaTransfers(finalDeaths);
 
             pendingDeaths.Clear();
         }
+
 
         #endregion
 
@@ -2458,7 +2519,6 @@ public class GameManager : NetworkBehaviour
         }
         pendingKills.Clear();
     }
-
 
     #endregion
 }
