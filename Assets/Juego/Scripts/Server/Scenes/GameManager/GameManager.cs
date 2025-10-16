@@ -856,9 +856,7 @@ public class GameManager : NetworkBehaviour
 
             case QuickMissionType.ReloadAndTakeDamage:
                 //player.shieldBoostActivate = true; // Esto recarga los escudos al 100%, pero de momento usamos otra recompensa
-                //player.ServerHeal(1);
-                QueueHeal(player, 1);
-
+                player.ServerHeal(1);
                 break;
 
             case QuickMissionType.DoNothing:
