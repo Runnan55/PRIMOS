@@ -117,7 +117,7 @@ public class GameManager : NetworkBehaviour
 
     [Header("Orden de muerte para el Leaderboard")]
     private List<PlayerController> deathBuffer = new();
-    private bool isProcessingDeath = false;
+    //private bool isProcessingDeath = false;
 
     [Header("Tiempo de gracia para eliminar partida pero primero colocar puntos")]
     private float endGraceSeconds = 5f; // tuneable 2..5
@@ -1469,6 +1469,7 @@ public class GameManager : NetworkBehaviour
         // 1) TIKI tie-break con snapshot pre-heal: si todos eran letales y Tiki estaba marcado letal
         bool todosEranLetalesPre = false;
         bool tikiMarcadoLetal = false;
+
         try
         {
             int lethalAlive = 0;
@@ -1503,7 +1504,12 @@ public class GameManager : NetworkBehaviour
             }
 
             // Ganador = Tiki (queda vivo); salimos al cierre normal
+            
+            // ✅ Mostrar pantalla de victoria para el Tiki
+            talismanHolder.RpcOnVictory();
+
             isGameOver = true;
+            StopGamePhases();
             StartCoroutine(StartGameStatistics());
             yield break;
         }
@@ -1617,6 +1623,25 @@ public class GameManager : NetworkBehaviour
             // Transferir Parca solo si la victima realmente murio y el killer sigue vivo
             ResolvePendingKills(finalDeaths);
             ResolvePendingParcaTransfers(finalDeaths);
+
+            // 3.1) Apply heals enqueued by Parca assignment/transfers (same turn)
+            try
+            {
+                if (healQueue.Count > 0)
+                {
+                    foreach (var kv in healQueue)
+                    {
+                        var p = kv.Key;
+                        if (p == null || !p.isAlive) continue;
+
+                        int amount = kv.Value;
+                        if (amount > 0)
+                            p.ServerHeal(amount);
+                    }
+                    healQueue.Clear();
+                }
+            }
+            catch (Exception e) { LogWithTime.LogWarning($"[GM] Exec.ApplyPostTransferHealQueue: {e}"); }
 
             pendingDeaths.Clear();
         }
@@ -2075,95 +2100,7 @@ public class GameManager : NetworkBehaviour
 #endregion
 
     #region SERVER
-    /*[Server]
-    public void PlayerDied(PlayerController deadPlayer)
-    {
-        if (!players.Contains(deadPlayer)) return;
-
-        if (!deathBuffer.Contains(deadPlayer))
-            deathBuffer.Add(deadPlayer);
-
-        if (!isProcessingDeath)
-            StartCoroutine(HandleBufferedDeaths());
-    }
-
-    private IEnumerator HandleBufferedDeaths()
-    {
-        isProcessingDeath = true;
-        yield return new WaitForSecondsRealtime(0.05f);
-
-        if (deathBuffer.Count == 0)
-        {
-            isProcessingDeath = false;
-            yield break;
-        }
-
-        #region Tiki_TieBreak_PreHeal
-
-        // Cuenta solo a los que siguen en 'players' (vivos pendientes de procesar)
-        int lethalAlive = 0;
-        foreach (var p in players)
-        {
-            if (WasLethalThisRound(p)) lethalAlive++;
-        }
-
-        int vivosRestantesPre = players.Count - lethalAlive;
-        bool todosEranLetalesPre = (vivosRestantesPre == 0);
-        bool tikiMarcadoLetal = (talismanHolder != null) && WasLethalThisRound(talismanHolder);
-
-        if (todosEranLetalesPre && tikiMarcadoLetal)
-        {
-            // Tiki sobrevive SIEMPRE aunque Parca se haya curado despues
-            talismanHolder.isAlive = true;
-            talismanHolder.health = Mathf.Max(talismanHolder.health, 1);
-            talismanHolder.deathOrder = 0;
-
-            // Evitar que se procese como muerte
-            deathBuffer.RemoveAll(p => p == talismanHolder);
-        }
-        #endregion
-
-        // 2) FINAL SNAPSHOT of deaths after tiki rule (this was missing)
-        var finalDeathsList = new List<PlayerController>(deathBuffer);
-
-        int tikiPos = talismanHolder?.playerPosition ?? 0;
-        int DistanciaHoraria(int from, int to) => (to - from + 6) % 6;
-
-        var sortedDeaths = deathBuffer
-            .OrderBy(p => DistanciaHoraria(tikiPos, p.playerPosition))
-            .ToList();
-
-        //int totalJugadores = players.Count + deadPlayers.Count + deathBuffer.Count;
-
-        foreach (var deadPlayer in sortedDeaths)
-        {
-            if (deadPlayer.deathOrder == 0)
-                deadPlayer.deathOrder = ++deathCounter;
-
-            players.Remove(deadPlayer);
-            if (!deadPlayers.Contains(deadPlayer)) deadPlayers.Add(deadPlayer);
-
-            if (gameStatistic != null) gameStatistic.UpdatePlayerStats(deadPlayer);
-
-            //CheckGameOver();
-            yield return new WaitForSecondsRealtime(0.1f);
-
-            CerrarAnimacionesMision(deadPlayer);
-            deadPlayer.RpcOnDeath();
-        }
-
-        //var finalDeaths = new HashSet<PlayerController>(deathBuffer);
-
-        // 4) Resolve Parca transfers only now, using the snapshot
-        if (finalDeathsList.Count > 0)
-        {
-            ResolvePendingParcaTransfers(new HashSet<PlayerController>(finalDeathsList));
-        }
-
-        deathBuffer.Clear();
-        isProcessingDeath = false;
-    }*/
-
+    
     [Server]
     public void RegisterLethalCandidate(PlayerController player)
     {

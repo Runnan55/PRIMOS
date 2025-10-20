@@ -81,7 +81,7 @@ public class GameStatistic : NetworkBehaviour
     {
         // 0) Prior snapshot (kept disconnected players)
         var prev = players.ToList();
-        var prevByName = prev.ToDictionary(p => p.playerName, p => p);
+        // var prevByName = prev.ToDictionary(p => p.playerName, p => p);
         players.Clear();
 
         // 1) Is Ranked?
@@ -203,26 +203,26 @@ public class GameStatistic : NetworkBehaviour
             if (!string.IsNullOrEmpty(gameManager.mode) && gameManager.mode.Equals("Ranked", System.StringComparison.OrdinalIgnoreCase))
                 isRanked = true;
 
-            // Si hay MatchHandler con modo, úsalo como fuente de verdad
+            // Si hay MatchHandler con modo, ï¿½salo como fuente de verdad
             var match = MatchHandler.Instance != null ? MatchHandler.Instance.GetMatch(gameManager.matchId) : null;
             if (match != null && !string.IsNullOrEmpty(match.mode) && match.mode.Equals("Ranked", System.StringComparison.OrdinalIgnoreCase))
                 isRanked = true;
         }
 
-        // --- Total de jugadores para calcular posición ---
-        // (Durante el cierre se habrá rellenado toda la lista; en updates intermedios,
+        // --- Total de jugadores para calcular posiciï¿½n ---
+        // (Durante el cierre se habrï¿½ rellenado toda la lista; en updates intermedios,
         // players.Count puede ser menor, pero al final se corrige con el snapshot final.)
         int totalPlayers = Mathf.Max(1, players.Count);
 
-        // --- Posición desde deathOrder ---
-        // deathOrder: 1 = primer muerto ... N = ganador (último en morir/asignarse)
+        // --- Posiciï¿½n desde deathOrder ---
+        // deathOrder: 1 = primer muerto ... N = ganador (ï¿½ltimo en morir/asignarse)
         int rankedPosition = (player.deathOrder <= 0)
             ? totalPlayers
             : (totalPlayers - player.deathOrder + 1);
 
         rankedPosition = Mathf.Clamp(rankedPosition, 1, totalPlayers);
 
-        // --- Puntos según modo ---
+        // --- Puntos segï¿½n modo ---
         int customPoints = isRanked
             ? GetRankedPointsByPosition(rankedPosition) + (player.kills * 5)
             : PlayerInfo.CalculatePoints(
@@ -292,7 +292,7 @@ public class GameStatistic : NetworkBehaviour
     {
         LogWithTime.Log("[GameStatistic] Mostrando Leaderboard desde el servidor...");
 
-        // antes hacía: players.OrderByDescending(p => p.deathOrder)
+        // antes hacï¿½a: players.OrderByDescending(p => p.deathOrder)
         List<PlayerInfo> copy = players
             .OrderByDescending(p => p.isAlive).ThenByDescending(p => p.deathOrder)
             .ToList();
