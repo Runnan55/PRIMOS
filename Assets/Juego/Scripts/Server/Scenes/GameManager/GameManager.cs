@@ -366,7 +366,8 @@ public class GameManager : NetworkBehaviour
             player.hideNameInRanked = isRanked;
 
             // Verificar si podemos empezar la partida
-            CheckAllPlayersReady();
+            //CheckAllPlayersReady();
+            StartCoroutine(RecheckUntilStart());
         }
     }
 
@@ -452,6 +453,22 @@ public class GameManager : NetworkBehaviour
                 case GameModifierType.CargaOscura: p.TargetPlayAnimation(target, "GM_CargaOscura"); break;
             }
         }
+    }
+
+    private bool recheckUntilStart = false;
+    [Server]
+    private IEnumerator RecheckUntilStart()
+    {
+        if (recheckUntilStart) yield break;
+        recheckUntilStart = true;
+
+        var period = new WaitForSecondsRealtime(1f);
+        while (!isGameStarted && !isGameOver)
+        {
+            CheckAllPlayersReady();
+            yield return period;
+        }
+
     }
 
     public void CheckAllPlayersReady()
@@ -542,7 +559,8 @@ public class GameManager : NetworkBehaviour
             // ¿ya están todos instanciados?
             if (players.Count >= match.players.Count)
             {
-                CheckAllPlayersReady();   // <- arranca aunque la igualdad se logre porque alguien se fue
+                //CheckAllPlayersReady();   // <- arranca aunque la igualdad se logre porque alguien se fue
+                StartCoroutine(RecheckUntilStart());
                 yield break;
             }
 
@@ -2262,7 +2280,8 @@ public class GameManager : NetworkBehaviour
         {
             if (gameStatistic != null) gameStatistic.UpdatePlayerStats(player, true);
             CheckIfSceneShouldClose();
-            CheckAllPlayersReady();
+            //CheckAllPlayersReady();
+            StartCoroutine(RecheckUntilStart());
             return;
         }
 
@@ -2272,8 +2291,11 @@ public class GameManager : NetworkBehaviour
         if (!deadPlayers.Contains(player)) deadPlayers.Add(player);
         if (gameStatistic != null) gameStatistic.UpdatePlayerStats(player, true);
 
-        if (!isGameStarted) CheckAllPlayersReady();  // si ya estamos todos (tras restar), arranca.
-
+        if (!isGameStarted)
+        {
+            //CheckAllPlayersReady();  // si ya estamos todos (tras restar), arranca.
+            StartCoroutine(RecheckUntilStart());
+        }
         CheckGameOver();
     }
 
